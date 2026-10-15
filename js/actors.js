@@ -23,7 +23,8 @@ const EC = () => ENEMY_COLORS[level.theme];
 
 // ================= TILES & PHYSICS =================
 const tileAt = (tx, ty) => (ty < 0 || ty >= LH ? '.' : tx < 0 || tx >= LW ? '#' : map[ty][tx]);
-const isSolidTile = t => t === '#' || t === '=' || t === '^' || t === 'I' || t === 'C' || (t === 'D' && door.solid);
+// < > conveyor belts, Y energy block (switched on and off by its hazard), Q quicksand (not solid: you sink into it)
+const isSolidTile = t => '#=^IC<>Y'.includes(t) || (t === 'D' && door.solid);
 const solidPx = (x, y) => isSolidTile(tileAt(Math.floor(x / TILE), Math.floor(y / TILE)));
 const isLadder = (tx, ty) => tileAt(tx, ty) === 'H';
 const ladderTop = (tx, ty) => isLadder(tx, ty) && !isLadder(tx, ty - 1);
@@ -183,7 +184,7 @@ function fireCharged(p) {
       break;
     case 'elec': { // giga thunder: lightning strikes every enemy on screen and the boss
       if (countShots('pbolt')) return;
-      const targets = enemies.filter(e => !e.dead && onScreen(e.x + e.w / 2, e.y + e.h / 2, 0)).map(e => [e.x + e.w / 2, e.y + e.h]);
+      const targets = enemies.filter(e => !e.dead && !e.hidden && onScreen(e.x + e.w / 2, e.y + e.h / 2, 0)).map(e => [e.x + e.w / 2, e.y + e.h]);
       if (boss && boss.state !== 'drop' && boss.state !== 'pose') targets.push([bcx(boss), boss.y + boss.h]);
       if (!targets.length) for (const d of [48, 104, 160]) { const tx = pcx() + f * d; targets.push([tx, groundBelow(tx, p.y)]); }
       for (const [tx, ty] of targets) {
@@ -193,9 +194,9 @@ function fireCharged(p) {
       game.flash = 6; game.shake = 8; sfx.thunder();
       break;
     }
-    case 'snow': { // frost nova: a dense ring of 11 big piercing ice crystals (one points straight ahead)
+    case 'snow': { // frost nova: a dense ring of 24 big piercing ice crystals (one points straight ahead)
       if (countShots('bigshard')) return;
-      const n = 11;
+      const n = 24;
       for (let i = 0; i < n; i++) {
         const a = i * Math.PI * 2 / n;
         addShot({ kind: 'bigshard', weapon: 'snow', x: p.x + p.w / 2 - 5, y: p.y + p.h / 2 - 5, w: 10, h: 10, vx: Math.cos(a) * 4 * f, vy: Math.sin(a) * 4, dmg: 2, bossDmg: 3, pierce: true, charged: true });
@@ -242,7 +243,7 @@ function shatterRock(s) {
   if (big) {
     game.shake = 12; sfx.quake();
     for (const e of enemies) {
-      if (e.dead || !e.onGround || !onScreen(e.x + e.w / 2, e.y + e.h / 2, 0)) continue;
+      if (e.dead || e.hidden || !e.onGround || !onScreen(e.x + e.w / 2, e.y + e.h / 2, 0)) continue;
       hitEnemy({ kind: 'quake', weapon: 'earth', x: e.x, y: e.y, w: e.w, h: e.h, dmg: 2 }, e);
     }
   }
@@ -350,7 +351,7 @@ function updatePlayerShots() {
     updateShot(s);
     if (s.dead || s.deflected) continue;
     for (const e of enemies) {
-      if (e.dead || !overlap(s, e) || (s.hits && s.hits.has(e))) continue;
+      if (e.dead || e.hidden || !overlap(s, e) || (s.hits && s.hits.has(e))) continue;
       hitEnemy(s, e);
       if (s.dead || s.deflected) break;
     }
@@ -384,8 +385,18 @@ function startSlide(p) {
   if (p.h === 22) { p.y += 10; p.h = 12; }
   dust(p.x + p.w / 2 - p.facing * 6, p.y + p.h, 3);
 }
+// feet inside quicksand
+const inSand = e => tileAt(Math.floor((e.x + e.w / 2) / TILE), Math.floor((e.y + e.h - 1) / TILE)) === 'Q';
+// conveyor direction under the feet (-1, 0, 1)
+function beltUnder(e) {
+  const ty = Math.floor((e.y + e.h) / TILE);
+  for (const x of samples(e.x, e.x + e.w - 1)) { const t = tileAt(Math.floor(x / TILE), ty); if (t === '<') return -1; if (t === '>') return 1; }
+  return 0;
+}
 function applyGravity(p) {
   p.vy = Math.min(p.vy + 0.25, 7);
+  const sand = inSand(p);
+  if (sand && p.vy > 0.3) p.vy = 0.3; // sinking slowly; checkHazards kills once the head goes under
   const wasGround = p.onGround;
   const r = moveY(p, p.vy, true);
   let landed = r === 1;
@@ -400,7 +411,8 @@ function applyGravity(p) {
   if (landed) {
     if (!wasGround && p.vy > 2) { sfx.land(); dust(p.x + p.w / 2, p.y + p.h, 2); }
     p.vy = 0; p.onGround = true;
-  } else { p.onGround = false; if (r === -1) p.vy = 0; }
+  } else if (sand && p.vy >= 0) p.onGround = true; // can still jump (weaker) out of the sand
+  else { p.onGround = false; if (r === -1) p.vy = 0; }
 }
 
 function updatePlayer() {
@@ -415,9 +427,11 @@ function updatePlayer() {
   // coyote time: a few frames of grace after walking off a ledge
   if (p.onGround) p.coyote = 6; else if (p.coyote > 0) p.coyote--;
   p.jumpT++;
-  const doJump = () => { p.vy = -4.9; p.onGround = false; p.plat = null; p.jumpBuf = 0; p.coyote = 0; p.jumpT = 0; };
+  const sand = inSand(p);
+  const doJump = () => { p.vy = sand ? -4.3 : -4.9; p.onGround = false; p.plat = null; p.jumpBuf = 0; p.coyote = 0; p.jumpT = 0; };
   const runTo = (target, accel) => { p.vx = onIce ? p.vx + clamp(target - p.vx, -accel, accel) : target; };
 
+  if (p.onGround && (p.state === 'normal' || p.state === 'slide' || p.state === 'hurt')) { const b = beltUnder(p); if (b) moveX(p, b * 0.8); }
   switch (p.state) {
     case 'beam':
       p.y += 8;
@@ -480,8 +494,8 @@ function updatePlayer() {
     if (ladderTop(tx, ty)) { startClimb(p, tx); p.y += 6; return; }
   }
   if (dir) p.facing = dir;
-  runTo(dir * 1.4, 0.05);
-  if (p.onGround && (hit.slide || (p.jumpBuf > 0 && inp.down))) { p.jumpBuf = 0; startSlide(p); return; }
+  runTo(dir * (sand ? 0.6 : 1.4), 0.05);
+  if (p.onGround && !sand && (hit.slide || (p.jumpBuf > 0 && inp.down))) { p.jumpBuf = 0; startSlide(p); return; }
   if (p.jumpBuf > 0 && (p.onGround || p.coyote > 0) && p.vy >= 0) doJump();
   // releasing jump cuts the jump short, but only after a minimum hop so quick taps still jump
   if (!inp.jump && p.vy < 0 && p.jumpT > 6) p.vy = 0;
@@ -520,6 +534,7 @@ function checkHazards() {
     if (t === '~' && ty < Math.floor((p.y + p.h - 1) / TILE) + 1 && p.y + p.h > ty * TILE + 4) { killPlayer(true); return; }
     if (t === '^' && p.inv === 0) { killPlayer(true); return; }
     if (t === 'X') { killPlayer(false); return; }
+    if (t === 'Q' && ty === Math.floor((p.y + 3) / TILE)) { killPlayer(false); return; } // sank under the sand
   }
 }
 
@@ -610,6 +625,122 @@ const EN = {
       if (warn) glow(x + 8, y + 12, 8, '#f83800', 0.6);
     },
   },
+
+  // ---- stage-specific enemies ----
+  blader: { // cut: flying scissor head that hovers, then dives at the player
+    w: 14, h: 12, hp: 1, dmg: 3, score: 250,
+    init(e) { e.baseY = e.y; e.mode = 'hover'; e.cd = 40; },
+    update(e) {
+      e.t++;
+      const dx = pcx() - (e.x + 7), dy = pcy() - (e.y + 6);
+      if (e.mode === 'hover') {
+        e.facing = dx < 0 ? -1 : 1;
+        e.x += clamp(dx, -0.6, 0.6); e.y = e.baseY + Math.sin(e.t * 0.08) * 4;
+        if (--e.cd <= 0 && Math.abs(dx) < 90 && dy > 0) { const d = Math.hypot(dx, dy) || 1; e.vx = dx / d * 3.2; e.vy = dy / d * 3.2; e.mode = 'dive'; e.t = 0; sfx.cutter(); }
+      } else if (e.mode === 'dive') {
+        e.x += e.vx; e.y += e.vy;
+        if (e.t > 40 || solidPx(e.x + 7, e.y + 12)) e.mode = 'back';
+      } else {
+        e.y -= 1.6; e.x += e.vx * 0.2;
+        if (e.y <= e.baseY) { e.y = e.baseY; e.mode = 'hover'; e.cd = 70; }
+      }
+    },
+    draw(e, x, y) {
+      const open = e.mode === 'dive' || (e.t >> 3) & 1, B = '#e8e8f0';
+      const blades = open ? [[0, -4, 3, 7, B], [11, -4, 3, 7, B]] : [[3, -5, 3, 7, B], [8, -5, 3, 7, B]];
+      sprite(x, y, e.facing, 14, [...blades, [2, 2, 10, 9, '#a8a8b8'], [4, 10, 6, 2, '#c83010']], [[5, 4, 4, 4, '#fcfcfc'], [7, 5, 2, 2, '#f80000'], [3, 3, 2, 1, '#d0d0dc']]);
+    },
+  },
+  totem: { // fire: stone idol that lobs two arcing fireballs
+    w: 16, h: 24, hp: 4, dmg: 3, score: 300, grav: true,
+    init(e) { e.t = 40; },
+    update(e) {
+      physics(e); e.t++;
+      const dx = pcx() - (e.x + 8);
+      e.facing = dx < 0 ? -1 : 1;
+      if (e.t % 110 === 0 && Math.abs(dx) < 220 && alive(player)) {
+        for (const v of [1.2, 2.2]) enemyShot(e.x + 8, e.y + 8, e.facing * v, -4, 3, { kind: 'fireball', w: 12, h: 10, x: e.x + 2, y: e.y + 3, grav: 0.18, solidDie: true });
+        sfx.fire();
+      }
+    },
+    draw(e, x, y) {
+      const hot = e.t % 110 > 85, M = hot && (frameCount & 2) ? '#f8d800' : hot ? '#f86000' : '#2a1010';
+      sprite(x, y, e.facing, 16, [[1, 0, 14, 8, '#7a6060'], [2, 8, 12, 8, '#6a5050'], [1, 16, 14, 8, '#7a6060']],
+        [[3, 2, 3, 3, M], [10, 2, 3, 3, M], [4, 11, 8, 3, M], [2, 17, 12, 1, '#5a4040'], [2, 20, 12, 1, '#5a4040'], [0, 7, 16, 1, '#a88888']]);
+      if (hot) glow(x + 8, y + 12, 12, '#f86000', 0.6);
+    },
+  },
+  watcher: { // elec: eye pod that drifts to the player's height and fires bolts both ways when level with them
+    w: 14, h: 14, hp: 2, dmg: 3, score: 250,
+    init(e) { e.baseY = e.y; e.cd = 40; },
+    update(e) {
+      e.t++;
+      const ty = clamp(pcy() - 7, e.baseY - 96, e.baseY + 96);
+      e.y += clamp(ty - e.y, -0.9, 0.9);
+      if (e.cd > 0) e.cd--;
+      else if (Math.abs(pcy() - (e.y + 7)) < 8 && Math.abs(pcx() - (e.x + 7)) < 200 && alive(player)) {
+        e.cd = 80; sfx.zap();
+        for (const d of [-1, 1]) enemyShot(e.x + 7, e.y + 7, d * 3, 0, 3, { kind: 'ebolt', w: 14, h: 8, x: e.x + d * 10, y: e.y + 3 });
+      }
+    },
+    draw(e, x, y) {
+      const charged = e.cd < 15;
+      sprite(x, y, 1, 14, [[1, 1, 12, 12, '#384060'], [5, -2, 4, 3, '#f8d800'], [5, 13, 4, 3, '#f8d800']], [[3, 4, 8, 6, '#fcfcfc'], [6, 5, 3, 4, charged ? '#f83800' : '#2838a8'], [3, 3, 3, 1, '#6878a0']]);
+      if (charged) glow(x + 7, y + 7, 12, '#f8e030', 0.6);
+    },
+  },
+  snowman: { // snow: throws snowballs in an arc at the player
+    w: 16, h: 24, hp: 4, dmg: 3, score: 300, grav: true,
+    init(e) { e.t = 30; e.arm = 0; },
+    update(e) {
+      physics(e); e.t++;
+      if (e.arm > 0) e.arm--;
+      const dx = pcx() - (e.x + 8);
+      e.facing = dx < 0 ? -1 : 1;
+      if (e.t % 90 === 0 && Math.abs(dx) < 220 && alive(player)) {
+        enemyShot(e.x + 8, e.y + 6, clamp(dx / 50, -3, 3), -4.2, 3, { kind: 'snowball', w: 10, h: 10, x: e.x + 3, y: e.y + 1, grav: 0.17, solidDie: true });
+        e.arm = 12;
+      }
+    },
+    draw(e, x, y) {
+      const S = '#f0f8ff', st = '#6a4a2a';
+      sprite(x, y, e.facing, 16, [[1, 12, 14, 12, S], [3, 3, 10, 10, S], [4, -1, 8, 4, '#202028'], [2, 2, 12, 1, '#202028'], e.arm ? [13, 6, 4, 2, st] : [13, 11, 4, 2, st], [-1, 12, 3, 2, st]],
+        [[7, 6, 1, 2, '#000000'], [10, 6, 1, 2, '#000000'], [11, 8, 4, 1, '#f87800'], [7, 15, 2, 2, '#384868'], [7, 19, 2, 2, '#384868'], [4, 1, 8, 1, '#c83010']]);
+    },
+  },
+  mole: { // earth: digs under the ground toward the player, then bursts out right under them
+    w: 16, h: 14, hp: 2, dmg: 3, score: 300,
+    init(e) { e.floorY = e.y + e.h; e.mode = 'under'; e.hidden = true; },
+    update(e) {
+      e.t++;
+      const dx = pcx() - (e.x + 8);
+      if (e.mode === 'under') {
+        e.hidden = true;
+        const nx = e.x + Math.sign(dx) * 1.1;
+        if (Math.abs(dx) > 1 && isSolidTile(tileAt(Math.floor((nx + 8) / TILE), Math.floor(e.floorY / TILE)))) e.x = nx;
+        if (e.t % 6 === 0) dust(e.x + 8, e.floorY, 1);
+        if (Math.abs(dx) < 10 && e.t > 50 && Math.abs(pcy() - e.floorY) < 64) { e.mode = 'warn'; e.t = 0; }
+      } else if (e.mode === 'warn') {
+        if (e.t % 3 === 0) debris(e.x + 8, e.floorY - 2, '#8a6a4a', 1, 1);
+        if (e.t > 22) { e.mode = 'up'; e.hidden = false; e.vy = -5.2; e.t = 0; sfx.crumble(); }
+      } else if (e.mode === 'up') {
+        e.vy = Math.min(e.vy + 0.25, 7); e.y += e.vy;
+        if (e.vy > 0 && e.y + e.h >= e.floorY) { e.y = e.floorY - e.h; e.mode = 'out'; e.t = 0; }
+      } else {
+        e.facing = dx < 0 ? -1 : 1;
+        if (e.t > 50) { e.mode = 'under'; e.hidden = true; e.t = 0; dust(e.x + 8, e.floorY, 3); }
+      }
+    },
+    draw(e, x, y) {
+      if (e.hidden) {
+        const sh = e.mode === 'warn' && (frameCount & 2) ? 1 : 0;
+        R(x + 2 + sh, y + e.h - 3, 12, 3, '#6a4a2a'); R(x + 4 + sh, y + e.h - 5, 8, 2, '#8a6a4a');
+        return;
+      }
+      sprite(x, y, e.facing, 16, [[1, 3, 12, 11, '#5a4a5a'], [12, 5, 4, 4, '#c8c8d0'], [0, 10, 4, 4, '#e8a0a0']],
+        [[8, 5, 2, 2, '#000000'], [14, 6, 2, 2, '#fcfcfc'], [3, 4, 4, 1, '#7a6a7a'], [10, 11, 3, 2, '#e8a0a0']]);
+    },
+  },
 };
 
 function createEnemy(s) {
@@ -646,7 +777,7 @@ function updateEnemies() {
     if (e.frozen > 0) { e.frozen--; if (EN[e.type].grav) physics(e); }
     else {
       EN[e.type].update(e);
-      if (alive(player) && overlap(e, player)) damagePlayer(EN[e.type].dmg);
+      if (alive(player) && !e.hidden && overlap(e, player)) damagePlayer(EN[e.type].dmg);
     }
     const inAbyss = tileAt(Math.floor((e.x + e.w / 2) / TILE), Math.floor((e.y + e.h / 2) / TILE)) === 'X';
     if (inAbyss || e.x + e.w < camX - 40 || e.x > camX + VW + 40 || e.y > camY + VH + 96 || e.y + e.h < camY - 96) { e.dead = true; e.spawn.ent = null; }
@@ -664,6 +795,12 @@ function makeHazard(d) {
     case 'jet': return { kind: 'jet', cx: d.x * TILE + 8, base: d.y * TILE, phase: d.phase || 0, period: 150, x: d.x * TILE + 1, y: d.y * TILE - 48, w: 14, h: 48, on: false, warn: false };
     case 'icicle': return { kind: 'icicle', hx: d.x * TILE + 4, hy: d.y * TILE, x: d.x * TILE + 4, y: d.y * TILE, w: 8, h: 14, state: 'hang', t: 0, vy: 0 };
     case 'rockfall': return { kind: 'rockfall', cx: d.x * TILE + 8, gy: (d.y > 0 ? d.y : FLOOR) * TILE, period: d.period || 110, phase: d.phase || 0 };
+    // fire: a magma bubble that leaps out of the lava surface at row y
+    case 'bubble': return { kind: 'bubble', x: d.x * TILE + 2, y: d.y * TILE + 2, baseY: d.y * TILE + 2, w: 12, h: 12, vy: 0, on: false, period: d.period || 140, phase: d.phase || 0 };
+    // elec: energy block `idx` of a sequence of `n`; each one is solid for 3 steps, one step after the previous
+    case 'eblock': return { kind: 'eblock', tx: d.x, ty: d.y, x: d.x * TILE, y: d.y * TILE, w: (d.w || 2) * TILE, h: TILE, idx: d.idx, n: d.n, step: d.step || 45, on: false, t: 0 };
+    // snow: blizzard over columns x..x1 that pushes toward `dir` (calm 120 frames, 40 warning, 100 gust)
+    case 'wind': return { kind: 'wind', x0: d.x * TILE, x1: (d.x1 + 1) * TILE, dir: d.dir || -1, phase: d.phase || 0, period: 260, state: 'calm' };
     case 'zap': {
       const top = d.y * TILE, bot = (d.y1 + 1) * TILE;
       return { kind: 'zap', cx: d.x * TILE + 8, top, bot, phase: d.phase || 0, period: 150, x: d.x * TILE + 3, y: top + 4, w: 10, h: bot - top - 8, on: false, warn: false };
@@ -694,6 +831,36 @@ function updateHazards() {
         if (h.on && !was && onScreen(h.cx, h.base, 0)) sfx.flame();
         if (h.warn && frameCount % 5 === 0 && onScreen(h.cx, h.base)) part({ kind: 'ember', x: h.cx + (Math.random() - 0.5) * 10, y: h.base - 2, vy: -0.6 - Math.random(), life: 22 });
         if (h.on && alive(p) && overlap(h, p)) damagePlayer(4);
+        break;
+      }
+      case 'bubble': {
+        const t = (frameCount + h.phase) % h.period;
+        if (t === 0) { h.on = true; h.vy = -6.4; h.y = h.baseY; }
+        if (h.on) {
+          h.vy += 0.2; h.y += h.vy;
+          if (h.vy > 0 && h.y > h.baseY) h.on = false;
+          if (frameCount % 3 === 0) part({ kind: 'ember', x: h.x + 6, y: h.y + 10, vy: 0.3, life: 12 });
+          if (alive(p) && overlap(h, p)) damagePlayer(3);
+        }
+        break;
+      }
+      case 'eblock': {
+        const per = (h.n + 2) * h.step;
+        h.t = (((frameCount - h.idx * h.step) % per) + per) % per;
+        const want = h.t < h.step * 3;
+        if (want !== h.on && !(want && alive(p) && overlap(h, p))) { // never appear inside the player
+          h.on = want;
+          for (let i = 0; i < h.w / TILE; i++) map[h.ty][h.tx + i] = h.on ? 'Y' : '.';
+          if (h.on && onScreen(h.x + h.w / 2, h.y)) sfx.tick();
+        }
+        break;
+      }
+      case 'wind': {
+        const t = (frameCount + h.phase) % h.period;
+        h.state = t < 120 ? 'calm' : t < 160 ? 'warn' : 'gust';
+        const inside = pcx() > h.x0 && pcx() < h.x1;
+        if (t === 160 && inside) noise(1.6, 0.12, 0, 900);
+        if (h.state === 'gust' && inside && alive(p) && p.state !== 'climb') moveX(p, h.dir * 0.7);
         break;
       }
       case 'zap': { // 30 frames of warning sparks, 50 frames live, 70 frames off
@@ -812,8 +979,8 @@ function updateEnemyShots() {
         s.x += s.vx; s.y += s.vy;
         if (s.solidDie && s.vy > 0 && s.y > camY && solidPx(s.x + s.w / 2, s.y + s.h)) {
           s.dead = true;
-          const ice = s.kind === 'fallice';
-          debris(s.x + s.w / 2, s.y + s.h - 2, ice ? '#c8f0fc' : '#8a6a4a', 6, 1.5);
+          const ice = s.kind === 'fallice' || s.kind === 'snowball';
+          debris(s.x + s.w / 2, s.y + s.h - 2, s.kind === 'snowball' ? '#f0f8ff' : ice ? '#c8f0fc' : s.kind === 'fireball' ? '#f8a800' : '#8a6a4a', 6, 1.5);
           if (ice) sfx.shatter(); else if (s.kind !== 'frag') sfx.crumble();
         }
     }

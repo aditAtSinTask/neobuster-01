@@ -2,7 +2,7 @@
 
 > Game action-platformer 2D bergaya **Mega Man** untuk browser — grafik pixel-art yang lebih kaya, tapi tetap ringan dan optimal untuk web.
 
-**Versi saat ini: `0.6.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
+**Versi saat ini: `0.7.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
 
 ---
 
@@ -69,6 +69,16 @@ Setiap stage berukuran 300 × 44 tile. Jalur utama ada di permukaan, dengan bagi
 | Snow | Tangga es ke puncak gunung | Gua es lewat celah gunung | Lantai licin, es gantung, jurang beku dengan lift |
 | Earth | Undakan batu di tebing, dua lift ke atas mesa | Tambang dengan lantai rapuh di atas jurang | Batu jatuh, jembatan rapuh |
 
+Setiap stage juga punya musuh, mekanik, dan ruang boss yang hanya ada di stage itu:
+
+| Stage | Musuh khas | Mekanik khas | Ruang boss |
+| --- | --- | --- | --- |
+| Cut | **Blader**: kepala gunting terbang yang menukik ke arahmu | **Ban berjalan**: mendorong ke satu arah (di atap menara, saluran, dan depan pintu boss) | Gunting raksasa dan gerigi berputar di dinding, lantai tengah berupa ban berjalan |
+| Fire | **Fire Totem**: patung batu yang memuntahkan 2 bola api melengkung | **Bola magma**: melompat keluar dari lava secara berkala | Air terjun lava dan retakan magma, semburan api dari lantai |
+| Elec | **Watcher**: mata listrik yang menyesuaikan tinggi lalu menembak ke dua arah saat sejajar denganmu | **Blok energi**: menyala bergantian di atas jurang, berkedip sebelum hilang | Tesla coil dengan busur listrik, sinar listrik dari langit-langit |
+| Snow | **Snowman**: melempar bola salju melengkung | **Badai angin**: setelah tenang dan peringatan, angin mendorong kamu (saat naik gunung, di jurang beku, dan di lantai es) | Kepingan salju raksasa dan kristal es, lantai es licin |
+| Earth | **Mole**: menggali di bawah tanah mengikuti kamu, lalu menyembul tepat di bawahmu | **Pasir hisap**: kamu tenggelam pelan dan berjalan lambat; lompat keluar sebelum kepala tenggelam | Penyangga tambang dan permata di dinding batu |
+
 ## Boss & Senjata
 
 | Stage | Boss | Senjata yang didapat | Lemah terhadap |
@@ -89,7 +99,7 @@ Tekan `X` untuk tembakan biasa. Tahan `X` sampai karakter berkedip dengan warna 
 | Rolling Cutter | Boomerang gunting yang menembus musuh dan kembali | **Giant Scissors** — gunting raksasa berdiri tegak (dari kaki sampai jauh di atas kepala) yang menggunting maju, menembus musuh, lalu kembali |
 | Fire Storm | Bola api + perisai api yang berputar | **Fire Wave** — pilar api yang bergulir di tanah, menembus musuh dan membakar peluru musuh |
 | Thunder Beam | Sinar petir cepat yang menembus musuh | **Giga Thunder** — petir menyambar dari langit ke setiap musuh di layar, termasuk boss |
-| Frost Shard | 3 kristal es yang membekukan musuh | **Frost Nova** — cincin rapat 11 kristal es besar ke segala arah, menembus dan membekukan musuh |
+| Frost Shard | 3 kristal es yang membekukan musuh | **Frost Nova** — cincin rapat 24 kristal es besar ke segala arah, menembus dan membekukan musuh |
 | Rock Breaker | Batu yang pecah jadi 4 serpihan | **Rock Quake** — batu besar yang pecah jadi 8 serpihan, mengguncang layar dan melukai semua musuh yang menapak tanah |
 
 ### Melawan boss
@@ -149,6 +159,12 @@ Detail teknis:
 ## Versi & Changelog
 
 Versi ditulis di konstanta `VERSION` di `js/engine.js`. Setiap ada perubahan, naikkan versinya dan tambahkan catatan di bawah.
+
+### 0.7.0
+- Setiap stage sekarang unik untuk boss-nya: musuh khas (Blader, Fire Totem, Watcher, Snowman, Mole), mekanik khas (ban berjalan, bola magma, blok energi, badai angin, pasir hisap), dan ruang boss bertema dengan ornamen dinding serta gimmick (ban berjalan, semburan api, sinar listrik, lantai es).
+
+### 0.6.1
+- Frost Nova sekarang 24 kristal es (sebelumnya 11) supaya sebarannya lebih ramai dan rapat.
 
 ### 0.6.0
 - Semua stage didesain ulang: lebih panjang (300 kolom, sebelumnya 200) dan bertingkat (44 baris, sebelumnya 26).

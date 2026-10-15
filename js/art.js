@@ -424,7 +424,7 @@ const TILESETS = {
     ladder: (F, x, y) => drawLadder(F, x, y, '#a87038', '#c89058', '#5a3818'),
   },
 };
-const SOLIDISH = '#=I^CDX'; // tiles that hide the exposed top (grass, snow, rails) of the ground under them
+const SOLIDISH = '#=I^CDX<>QY'; // tiles that hide the exposed top (grass, snow, rails) of the ground under them
 
 // cells drawn over a dark cave wall: every 'b', plus ladders, spikes and crumbling blocks touching one (so a
 // ladder down a shaft or spikes on a cave floor do not show the sky behind them)
@@ -460,6 +460,90 @@ function renderLevelCanvas(lv) {
       else if (t === 'I') (ts.ice || ts.block)(F, x, y, v);
       else if (t === '^') ts.spike(F, x, y);
       else if (t === 'H') ts.ladder(F, x, y);
+      else if (t === 'Q') { // quicksand
+        F(x, y, 16, 16, '#c8a060');
+        F(x + (v % 13), y + 2 + (v >> 4) % 12, 2, 1, '#a88040'); F(x + (v >> 7) % 14, y + 3 + (v >> 10) % 11, 1, 1, '#e8c890');
+        F(x + (v >> 3) % 12, y + 6 + (v >> 12) % 8, 3, 1, '#b89050');
+        if (above !== 'Q') { F(x, y, 16, 2, '#e8d0a0'); F(x + 2 + (v % 4), y + 4, 5, 1, '#b89050'); F(x + 9 - (v % 3), y + 7, 5, 1, '#b89050'); }
+      }
     }
+    const paint = ROOM_ART[lv.theme];
+    if (paint) paint(g, (lv.doorCol + 1) * TILE, 13 * TILE, 22 * TILE, 9 * TILE);
   });
 }
+
+// ================= BOSS ROOM WALL ART =================
+// static, dimmed decorations painted over the boss room's back wall (x, y, w, h = the room interior)
+const ROOM_ART = {
+  cut(g, x, y, w, h) { // hazard stripes, rivet panels and a giant pair of crossed scissors
+    for (let i = 0; i < w; i += 8) { g.fillStyle = (i / 8) & 1 ? '#5a4a18' : '#1a1a20'; g.beginPath(); g.moveTo(x + i, y + 4); g.lineTo(x + i + 8, y + 4); g.lineTo(x + i + 4, y + 10); g.lineTo(x + i - 4, y + 10); g.fill(); }
+    g.fillStyle = '#2a2e3a'; for (let i = 24; i < w; i += 48) g.fillRect(x + i, y + 18, 2, h - 26);
+    const cx = x + w / 2, cy = y + h / 2 + 6;
+    for (const sg of [-1, 1]) {
+      g.save(); g.translate(cx, cy); g.rotate(sg * 0.55);
+      g.fillStyle = '#4a5262'; g.fillRect(-4, -58, 8, 58); g.fillStyle = '#5a6272'; g.fillRect(-4, -58, 3, 58);
+      g.fillStyle = '#5a2418'; g.fillRect(-2, 0, 4, 18); g.beginPath(); g.arc(0, 30, 12, 0, 7); g.fill();
+      g.fillStyle = '#1e2028'; g.beginPath(); g.arc(0, 30, 6, 0, 7); g.fill();
+      g.restore();
+    }
+    g.fillStyle = '#6a7282'; g.beginPath(); g.arc(cx, cy, 5, 0, 7); g.fill();
+  },
+  fire(g, x, y, w, h) { // glowing magma cracks and two lava-fall channels (the flow itself is animated)
+    const rnd = mulberry(77);
+    g.lineWidth = 2;
+    for (let i = 0; i < 9; i++) {
+      let px = x + 60 + rnd() * (w - 120), py = y + 10 + rnd() * (h - 30);
+      g.strokeStyle = i & 1 ? '#7a1808' : '#a82c10'; g.beginPath(); g.moveTo(px, py);
+      for (let k = 0; k < 4; k++) { px += (rnd() - 0.5) * 30; py += 8 + rnd() * 12; g.lineTo(px, py); }
+      g.stroke();
+    }
+    g.fillStyle = '#1a0604'; g.fillRect(x + 30, y, 20, h); g.fillRect(x + w - 50, y, 20, h);
+    g.fillStyle = 'rgba(248,96,24,0.25)'; g.fillRect(x, y + h - 10, w, 10);
+  },
+  elec(g, x, y, w, h) { // tesla coils in the corners, cables, warning signs
+    for (const cx of [x + 28, x + w - 28]) {
+      g.fillStyle = '#2a2e44'; g.fillRect(cx - 12, y + h - 30, 24, 30);
+      g.fillStyle = '#4a5070'; for (let k = 0; k < 6; k++) g.fillRect(cx - 9 + (k & 1), y + 38 + k * 12, 18 - (k & 1) * 2, 6);
+      g.fillStyle = '#6a7090'; g.beginPath(); g.arc(cx, y + 30, 9, 0, 7); g.fill();
+      g.fillStyle = '#9aa0c0'; g.beginPath(); g.arc(cx - 2, y + 28, 3, 0, 7); g.fill();
+    }
+    g.strokeStyle = '#1a1c2a'; g.lineWidth = 3;
+    for (const o of [0, 10]) { g.beginPath(); g.moveTo(x + 40, y + 8 + o); g.quadraticCurveTo(x + w / 2, y + 40 + o, x + w - 40, y + 8 + o); g.stroke(); }
+    for (const sx of [x + w / 2 - 70, x + w / 2 + 70]) {
+      g.fillStyle = '#6a5800'; g.beginPath(); g.moveTo(sx, y + 70); g.lineTo(sx + 14, y + 94); g.lineTo(sx - 14, y + 94); g.fill();
+      g.fillStyle = '#1a1a20'; g.fillRect(sx - 1, y + 77, 3, 6); g.fillRect(sx - 3, y + 82, 5, 2); g.fillRect(sx - 2, y + 84, 3, 6);
+    }
+  },
+  snow(g, x, y, w, h) { // frost along the top, ice crystals in the corners and a big snowflake
+    g.fillStyle = 'rgba(200,232,252,0.35)';
+    for (let i = 0; i < w; i += 10) { g.beginPath(); g.moveTo(x + i, y); g.lineTo(x + i + 10, y); g.lineTo(x + i + 5, y + 6 + (i * 7) % 9); g.fill(); }
+    for (const [cx, sgn] of [[x + 6, 1], [x + w - 6, -1]]) for (let k = 0; k < 5; k++) {
+      const bx = cx + sgn * k * 12, hh = 30 + ((k * 13) % 4) * 12;
+      g.fillStyle = k & 1 ? '#5a88b8' : '#78a8d0'; g.beginPath(); g.moveTo(bx - 6, y + h); g.lineTo(bx, y + h - hh); g.lineTo(bx + 6, y + h); g.fill();
+      g.fillStyle = '#a8d0f0'; g.fillRect(bx - 1, y + h - hh + 6, 1, hh - 10);
+    }
+    g.strokeStyle = 'rgba(168,208,240,0.45)'; g.lineWidth = 3;
+    const cx = x + w / 2, cy = y + h / 2;
+    for (let i = 0; i < 6; i++) {
+      const a = i * Math.PI / 3, ex = Math.cos(a) * 44, ey = Math.sin(a) * 44;
+      g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + ex, cy + ey); g.stroke();
+      for (const t of [0.5, 0.75]) for (const s of [-1, 1]) {
+        const bx = cx + ex * t, by = cy + ey * t, b = a + s * 0.8;
+        g.beginPath(); g.moveTo(bx, by); g.lineTo(bx + Math.cos(b) * 10, by + Math.sin(b) * 10); g.stroke();
+      }
+    }
+  },
+  earth(g, x, y, w, h) { // rock strata, timber mine supports and embedded gems
+    for (let k = 0; k < 5; k++) { g.fillStyle = k & 1 ? 'rgba(90,52,24,0.55)' : 'rgba(140,90,50,0.35)'; g.fillRect(x, y + 14 + k * 26 + (k % 2) * 4, w, 8); }
+    for (const px of [x + 50, x + w - 60]) {
+      g.fillStyle = '#4a2e14'; g.fillRect(px, y + 10, 10, h - 10); g.fillStyle = '#5e3c1c'; g.fillRect(px + 2, y + 10, 3, h - 10);
+    }
+    g.fillStyle = '#4a2e14'; g.fillRect(x + 44, y + 8, w - 98, 10); g.fillStyle = '#5e3c1c'; g.fillRect(x + 44, y + 9, w - 98, 3);
+    const rnd = mulberry(31), gems = ['#58d8f8', '#f878b8', '#78f878', '#f8d858'];
+    for (let i = 0; i < 9; i++) {
+      const gx = x + 80 + rnd() * (w - 160), gy = y + 30 + rnd() * (h - 50), c = gems[i % 4], s = 4 + (i % 3) * 2;
+      g.fillStyle = shade(c, -0.45); g.beginPath(); g.moveTo(gx, gy - s); g.lineTo(gx + s, gy); g.lineTo(gx, gy + s); g.lineTo(gx - s, gy); g.fill();
+      g.fillStyle = shade(c, -0.15); g.fillRect(gx - 1, gy - s + 2, 2, 2);
+    }
+  },
+};

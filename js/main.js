@@ -44,11 +44,12 @@ function startStage(key, checkpoint = false) {
   restartFromCheckpoint();
 }
 
+const HAZARD_TYPES = ['saw', 'jet', 'icicle', 'rockfall', 'zap', 'bubble', 'eblock', 'wind'];
 function restartFromCheckpoint() {
   for (let y = 0; y < LH; y++) map[y] = level.orig[y].slice();
   crumbling.clear();
   enemies = []; pshots = []; eshots = []; particles = []; boss = null;
-  hazards = level.ents.filter(e => ['saw', 'jet', 'icicle', 'rockfall', 'zap'].includes(e.type)).map(makeHazard);
+  hazards = level.ents.filter(e => HAZARD_TYPES.includes(e.type)).map(makeHazard);
   plats = level.ents.filter(e => e.type === 'plat').map(makePlat);
   pickups = game.placed.filter(p => !p.taken).map(p => makePickup(p.kind, p.tx * TILE + 8, p.ty * TILE + 4, p));
   for (const s of spawns) { s.armed = true; s.ent = null; }
@@ -328,7 +329,7 @@ function drawDynamicTiles() {
   const lavaGlows = [];
   for (let ty = r0; ty <= r0 + 14; ty++) for (let tx = t0; tx <= t0 + 24; tx++) {
     const t = tileAt(tx, ty);
-    if (t !== '~' && t !== 'C' && t !== 'D') continue;
+    if (t !== '~' && t !== 'C' && t !== 'D' && t !== '<' && t !== '>') continue;
     const sx = tx * TILE - camX, sy = ty * TILE - camY;
     if (t === '~') {
       R(sx, sy, 16, 16, '#c82800');
@@ -338,6 +339,12 @@ function drawDynamicTiles() {
       }
       if ((tx * 7 + (frameCount >> 4)) % 5 === 0) R(sx + 6, sy + 9, 3, 3, '#f8a800');
       if (tx % 2 === 0) lavaGlows.push([sx + 16, sy + 2]);
+    } else if (t === '<' || t === '>') { // conveyor: the stripes on the belt run in its direction
+      const dir = t === '>' ? 1 : -1, off = (((frameCount * 0.8 * dir) % 6) + 6) % 6;
+      R(sx, sy, 16, 16, '#3a3a46'); R(sx, sy, 16, 5, '#202028'); R(sx, sy + 5, 16, 1, '#0a0a16');
+      for (let k = -6; k < 16; k += 6) { const xx = sx + k + off; if (xx >= sx && xx <= sx + 14) R(xx, sy + 1, 2, 3, '#b8b8c8'); }
+      circle(sx + 8, sy + 10, 4, '#686878'); circle(sx + 8, sy + 10, 1.5, '#202028');
+      R(sx, sy + 15, 16, 1, '#202028');
     } else if (t === 'C') {
       const c = crumbling.get(tx + ',' + ty), dx = c && c.t > 0 ? ((c.t & 2) ? 1 : -1) : 0;
       R(sx + dx, sy, 16, 16, '#6a4a2a'); R(sx + dx, sy, 15, 15, '#a8784a'); R(sx + dx, sy, 15, 2, '#c8986a');
@@ -351,6 +358,35 @@ function drawDynamicTiles() {
     }
   }
   for (const [x, y] of lavaGlows) glow(x, y, 22, '#f85000', 0.35);
+}
+
+// animated parts of the themed boss rooms (the static wall art is painted into the level canvas)
+function drawRoomFx() {
+  const rx = (level.doorCol + 1) * TILE - camX, ry = 13 * TILE - camY;
+  if (rx > VW || rx + 352 < 0 || ry > VH || ry + 144 < 0) return;
+  switch (level.theme) {
+    case 'cut': // two big gears turning on the back wall
+      for (const [gx, gy, r, d] of [[rx + 40, ry + 44, 26, 1], [rx + 312, ry + 44, 26, -1]]) {
+        const a0 = frameCount * 0.02 * d;
+        for (let i = 0; i < 10; i++) { const a = a0 + i * Math.PI / 5; R(gx + Math.cos(a) * r - 3, gy + Math.sin(a) * r - 3, 6, 6, '#3a4050'); }
+        circle(gx, gy, r - 2, '#3a4050'); circle(gx, gy, r - 9, '#2a2e3a'); circle(gx, gy, 5, '#4a5060');
+        R(gx + Math.cos(a0) * 12 - 2, gy + Math.sin(a0) * 12 - 2, 4, 4, '#4a5060');
+      }
+      break;
+    case 'fire': // lava falls pouring down the back wall
+      for (const fx of [rx + 34, rx + 306]) {
+        R(fx, ry, 12, 144, '#a82000');
+        for (let y = ((frameCount * 2) % 12) - 12; y < 144; y += 12) { R(fx + 2, ry + y, 3, 6, '#f8a800'); R(fx + 7, ry + y + 5, 3, 6, '#f87800'); }
+        glow(fx + 6, ry + 140, 22, '#f85000', 0.6);
+      }
+      break;
+    case 'elec': { // tesla coils with arcs jumping between them
+      for (const cx of [rx + 28, rx + 324]) { glow(cx, ry + 30, 12, '#f8e030', 0.4 + ((frameCount >> 2) & 1) * 0.3); }
+      const t = frameCount % 70;
+      if (t < 8) { drawBolt(rx + 28, ry + 30, rx + 324, ry + 30, frameCount >> 1, '#b8c4ff', 1, 26); glow(rx + 176, ry + 30, 40, '#b8c4ff', 0.3); }
+      break;
+    }
+  }
 }
 
 const PLAT_COL = { cut: '#d8a020', fire: '#7a7a88', elec: '#5868a0', snow: '#a8e0f8', earth: '#9a7a50' };
@@ -384,6 +420,35 @@ function drawPlatsAndHazards() {
       case 'icicle':
         if (h.state !== 'gone') drawIcicle(h.x - camX, h.y - camY);
         break;
+      case 'bubble': {
+        const x = h.x - camX, y = h.y - camY, t = (frameCount + h.phase) % h.period;
+        if (h.on) {
+          glow(x + 6, y + 6, 14, '#f86000', 0.9);
+          circle(x + 6, y + 6, 6, '#c82800'); circle(x + 6, y + 5, 4, '#f87800'); circle(x + 6, y + 4, 2, '#fcf8c0');
+        } else if (t > h.period - 30 && (frameCount & 4)) { circle(x + 6, h.baseY - camY + 2, 3, '#f8d800'); glow(x + 6, h.baseY - camY, 10, '#f86000', 0.6); }
+        break;
+      }
+      case 'eblock': {
+        const x = h.x - camX, y = h.y - camY, per = (h.n + 2) * h.step;
+        if (h.on) {
+          if (h.t > h.step * 3 - 24 && (frameCount & 2)) break; // about to vanish
+          R(x, y, h.w, 16, '#0a0a16'); R(x + 1, y + 1, h.w - 2, 14, '#c8a800'); R(x + 2, y + 2, h.w - 4, 11, '#f8e030');
+          for (let k = 4; k < h.w - 4; k += 8) { R(x + k, y + 4, 4, 2, '#fcfcfc'); R(x + k + 2, y + 6, 2, 4, '#fcf8a0'); }
+          glow(x + h.w / 2, y + 8, 16, '#f8e030', 0.35);
+        } else if (h.t > per - 24) { ctx.globalAlpha = 0.35; R(x + 1, y + 1, h.w - 2, 14, '#f8e030'); ctx.globalAlpha = 1; } // about to appear
+        break;
+      }
+      case 'wind': {
+        if (h.state === 'calm') break;
+        const a = Math.max(h.x0 - camX, 0), b = Math.min(h.x1 - camX, VW), n = h.state === 'gust' ? 46 : 12;
+        if (b <= a) break;
+        for (let i = 0; i < n; i++) {
+          const len = 6 + (i % 4) * 4, sp = h.state === 'gust' ? 7 : 3;
+          const x = a + ((((i * 97 + frameCount * sp * h.dir) % (b - a)) + (b - a)) % (b - a)), y = (i * 53 + (frameCount >> 1) * (i % 3)) % VH;
+          R(x, y, len, 1, i % 3 ? 'rgba(230,240,255,0.55)' : 'rgba(255,255,255,0.85)');
+        }
+        break;
+      }
       case 'zap': {
         const x = h.cx - camX, top = h.top - camY, bot = h.bot - camY;
         for (const [y, ly] of [[top, top + 4], [bot - 5, bot - 6]]) { R(x - 6, y, 12, 5, '#0a0a16'); R(x - 5, y + (y === top ? 0 : 1), 10, 4, '#6a7490'); R(x - 2, ly, 4, 2, h.on || h.warn ? '#f8e030' : '#685800'); }
@@ -539,6 +604,9 @@ function drawEnemyShot(s) {
       glow(cx, cy, 12, '#f8e030', 0.6);
       return;
     }
+    case 'snowball':
+      circle(x + 5, y + 5, 5, '#0a0a16'); circle(x + 5, y + 5, 4, '#f0f8ff'); R(x + 3, y + 3, 2, 2, '#ffffff'); R(x + 6, y + 7, 2, 1, '#a8c0d8');
+      return;
     case 'eball':
       glow(x + 5, y + 5, 12, '#f8e030', 0.8);
       circle(x + 5, y + 5, 5, '#c8a800'); circle(x + 5, y + 5, 3, '#f8f058'); circle(x + 5, y + 5, 1.5, '#fcfcfc');
@@ -723,6 +791,7 @@ function renderWorld() {
   if (level.theme === 'elec') drawStormSky();
   ctx.drawImage(levelCanvas, camX, camY, VW, VH, 0, 0, VW, VH);
   drawDynamicTiles();
+  drawRoomFx();
   drawPlatsAndHazards();
   for (const k of pickups) drawPickup(k);
   for (const e of enemies) {

@@ -15,6 +15,8 @@ let boss = null;
 const crumbling = new Map();
 
 const maxCamY = () => LH * TILE - VH;
+// the boss room sits on the surface floor; its view shows the ceiling down to a few rows under the floor
+const BOSS_CAM_Y = (FLOOR + 4) * TILE - VH;
 const bossRoomX = () => level.doorCol * TILE;
 const ROOM = () => ({ l: (level.doorCol + 1) * TILE, r: (level.doorCol + 23) * TILE, floor: FLOOR * TILE, ceil: 13 * TILE });
 const EC = () => ENEMY_COLORS[level.theme];
@@ -191,14 +193,16 @@ function fireCharged(p) {
       game.flash = 6; game.shake = 8; sfx.thunder();
       break;
     }
-    case 'snow': // frost nova: 8 big piercing ice crystals in every direction
+    case 'snow': { // frost nova: a dense ring of 11 big piercing ice crystals (one points straight ahead)
       if (countShots('bigshard')) return;
-      for (let i = 0; i < 8; i++) {
-        const a = i * Math.PI / 4;
-        addShot({ kind: 'bigshard', weapon: 'snow', x: p.x + p.w / 2 - 5, y: p.y + p.h / 2 - 5, w: 10, h: 10, vx: Math.cos(a) * 4, vy: Math.sin(a) * 4, dmg: 2, bossDmg: 3, pierce: true, charged: true });
+      const n = 11;
+      for (let i = 0; i < n; i++) {
+        const a = i * Math.PI * 2 / n;
+        addShot({ kind: 'bigshard', weapon: 'snow', x: p.x + p.w / 2 - 5, y: p.y + p.h / 2 - 5, w: 10, h: 10, vx: Math.cos(a) * 4 * f, vy: Math.sin(a) * 4, dmg: 2, bossDmg: 3, pierce: true, charged: true });
       }
       sfx.ice(); sfx.shatter();
       break;
+    }
     case 'earth': // rock quake: a boulder that shatters into 8 fragments and shakes every grounded enemy
       if (countShots('bigrock')) return;
       addShot({ kind: 'bigrock', weapon: 'earth', x: f > 0 ? p.x + p.w - 4 : p.x - 18, y: my - 20, w: 22, h: 22, vx: f * 2.6, vy: -4.6, grav: 0.25, dmg: 5, bossDmg: 3, charged: true });
@@ -515,6 +519,7 @@ function checkHazards() {
     const t = tileAt(tx, ty);
     if (t === '~' && ty < Math.floor((p.y + p.h - 1) / TILE) + 1 && p.y + p.h > ty * TILE + 4) { killPlayer(true); return; }
     if (t === '^' && p.inv === 0) { killPlayer(true); return; }
+    if (t === 'X') { killPlayer(false); return; }
   }
 }
 
@@ -615,10 +620,11 @@ function createEnemy(s) {
   if (def.init) def.init(e);
   return e;
 }
+// enemies spawn when their spot scrolls into view (horizontally and vertically: caves sit under the surface)
 function updateSpawns() {
   for (const s of spawns) {
-    const sx = s.tx * TILE + 8;
-    const on = sx > camX - 8 && sx < camX + VW + 8;
+    const sx = s.tx * TILE + 8, sy = s.ty * TILE + 8;
+    const on = sx > camX - 8 && sx < camX + VW + 8 && sy > camY - 24 && sy < camY + VH + 24;
     if (on) { if (s.armed && !s.ent) { s.ent = createEnemy(s); enemies.push(s.ent); s.armed = false; } }
     else if (!s.ent) s.armed = true;
   }
@@ -642,7 +648,8 @@ function updateEnemies() {
       EN[e.type].update(e);
       if (alive(player) && overlap(e, player)) damagePlayer(EN[e.type].dmg);
     }
-    if (e.x + e.w < camX - 40 || e.x > camX + VW + 40 || e.y > LH * TILE + 32) { e.dead = true; e.spawn.ent = null; }
+    const inAbyss = tileAt(Math.floor((e.x + e.w / 2) / TILE), Math.floor((e.y + e.h / 2) / TILE)) === 'X';
+    if (inAbyss || e.x + e.w < camX - 40 || e.x > camX + VW + 40 || e.y > camY + VH + 96 || e.y + e.h < camY - 96) { e.dead = true; e.spawn.ent = null; }
   }
   enemies = enemies.filter(e => !e.dead);
 }
@@ -656,7 +663,7 @@ function makeHazard(d) {
     }
     case 'jet': return { kind: 'jet', cx: d.x * TILE + 8, base: d.y * TILE, phase: d.phase || 0, period: 150, x: d.x * TILE + 1, y: d.y * TILE - 48, w: 14, h: 48, on: false, warn: false };
     case 'icicle': return { kind: 'icicle', hx: d.x * TILE + 4, hy: d.y * TILE, x: d.x * TILE + 4, y: d.y * TILE, w: 8, h: 14, state: 'hang', t: 0, vy: 0 };
-    case 'rockfall': return { kind: 'rockfall', cx: d.x * TILE + 8, period: d.period || 110, phase: d.phase || 0 };
+    case 'rockfall': return { kind: 'rockfall', cx: d.x * TILE + 8, gy: (d.y > 0 ? d.y : FLOOR) * TILE, period: d.period || 110, phase: d.phase || 0 };
     case 'zap': {
       const top = d.y * TILE, bot = (d.y1 + 1) * TILE;
       return { kind: 'zap', cx: d.x * TILE + 8, top, bot, phase: d.phase || 0, period: 150, x: d.x * TILE + 3, y: top + 4, w: 10, h: bot - top - 8, on: false, warn: false };
@@ -710,7 +717,8 @@ function updateHazards() {
         break;
       case 'rockfall': {
         const t = (frameCount + h.phase) % h.period;
-        if (h.cx > camX - 16 && h.cx < camX + VW + 16) {
+        // only while the floor the rocks land on is in view (not when the player is in a cave underneath)
+        if (h.cx > camX - 16 && h.cx < camX + VW + 16 && h.gy > camY && h.gy < camY + VH + 32) {
           if (t === h.period - 30) for (let i = 0; i < 3; i++) part({ kind: 'debris', x: h.cx + (Math.random() - 0.5) * 12, y: camY, vx: 0, vy: 1 + Math.random(), grav: 0.15, life: 40, col: '#8a6a4a', size: 2 });
           if (t === 0) enemyShot(h.cx, camY - 8, 0, 0, 3, { kind: 'rock', x: h.cx - 7, y: camY - 22, w: 14, h: 14, grav: 0.3, solidDie: true, big: true });
         }
@@ -1096,6 +1104,7 @@ function makePickup(kind, cx, y, placed = null) {
 function updatePickups() {
   for (const k of pickups) {
     physics(k);
+    if (tileAt(Math.floor((k.x + k.w / 2) / TILE), Math.floor((k.y + k.h / 2) / TILE)) === 'X') { k.dead = true; continue; }
     k.life--;
     if (k.life <= 0 || k.y > LH * TILE) { k.dead = true; continue; }
     if (alive(player) && overlap(k, player)) {

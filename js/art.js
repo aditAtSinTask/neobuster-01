@@ -299,7 +299,7 @@ function getBackground(theme) {
   return _bgCache[theme];
 }
 function drawBackground(theme, cx, cy, maxCy) {
-  const frac = maxCy > 0 ? cy / maxCy : 1;
+  const frac = maxCy > 0 ? Math.min(1, cy / maxCy) : 1;
   for (const L of getBackground(theme)) {
     const x = -Math.floor(cx * L.k) % BG_W;
     const y = -Math.round(frac * 60 * L.ky);
@@ -424,16 +424,37 @@ const TILESETS = {
     ladder: (F, x, y) => drawLadder(F, x, y, '#a87038', '#c89058', '#5a3818'),
   },
 };
-const SOLIDISH = '#=I^CD';
+const SOLIDISH = '#=I^CDX'; // tiles that hide the exposed top (grass, snow, rails) of the ground under them
+
+// cells drawn over a dark cave wall: every 'b', plus ladders, spikes and crumbling blocks touching one (so a
+// ladder down a shaft or spikes on a cave floor do not show the sky behind them)
+function backdropCells(lv) {
+  const m = lv.map, back = new Set(), q = [];
+  for (let y = 0; y < lv.LH; y++) for (let x = 0; x < lv.LW; x++) if (m[y][x] === 'b') { back.add(y * lv.LW + x); q.push([x, y]); }
+  while (q.length) {
+    const [x, y] = q.pop();
+    for (const [nx, ny] of [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]]) {
+      if (nx < 0 || ny < 0 || nx >= lv.LW || ny >= lv.LH || back.has(ny * lv.LW + nx) || !'H^C'.includes(m[ny][nx])) continue;
+      back.add(ny * lv.LW + nx); q.push([nx, ny]);
+    }
+  }
+  return back;
+}
 
 function renderLevelCanvas(lv) {
-  const ts = TILESETS[lv.theme];
+  const ts = TILESETS[lv.theme], back = backdropCells(lv);
   return makeCanvas(lv.LW * TILE, lv.LH * TILE, g => {
     const F = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(x, y, w, h); };
     for (let ty = 0; ty < lv.LH; ty++) for (let tx = 0; tx < lv.LW; tx++) {
       const t = lv.map[ty][tx], x = tx * TILE, y = ty * TILE, v = tileHash(tx, ty);
       const above = ty > 0 ? lv.map[ty - 1][tx] : '.';
       const exp = !SOLIDISH.includes(above);
+      if (back.has(ty * lv.LW + tx)) { ts.ground(F, x, y, v, false, tx); F(x, y, 16, 16, 'rgba(4,4,14,0.62)'); }
+      if (t === 'X') { // abyss: fades to black from its top row
+        if (above === 'X') F(x, y, 16, 16, '#000000');
+        else for (let r = 0; r < 16; r += 2) F(x, y + r, 16, 2, `rgba(0,0,0,${(0.15 + r / 18).toFixed(2)})`);
+        continue;
+      }
       if (t === '#') ts.ground(F, x, y, v, exp, tx);
       else if (t === '=') ts.block(F, x, y, v);
       else if (t === 'I') (ts.ice || ts.block)(F, x, y, v);

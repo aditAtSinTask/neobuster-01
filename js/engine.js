@@ -2,7 +2,7 @@
 // NEOBUSTER — core: canvas, helpers, input, audio, music, pixel font, sprite + glow primitives.
 
 // bump on every change (and add a line to the changelog in readme.md)
-const VERSION = '0.5.0';
+const VERSION = '0.6.0';
 document.title = 'Neobuster v' + VERSION;
 
 const TILE = 16, VW = 384, VH = 224;

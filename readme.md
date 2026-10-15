@@ -2,7 +2,7 @@
 
 > Game action-platformer 2D bergaya **Mega Man** untuk browser — grafik pixel-art yang lebih kaya, tapi tetap ringan dan optimal untuk web.
 
-**Versi saat ini: `0.5.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
+**Versi saat ini: `0.6.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
 
 ---
 
@@ -11,6 +11,7 @@
 - [Konsep](#konsep)
 - [Cara Menjalankan](#cara-menjalankan)
 - [Kontrol](#kontrol)
+- [Stage](#stage)
 - [Boss & Senjata](#boss--senjata)
 - [Progress & Save](#progress--save)
 - [Cheat Code](#cheat-code)
@@ -22,7 +23,8 @@
 ## Konsep
 
 - Pilih salah satu dari **5 stage** boss, dalam urutan bebas.
-- Setiap stage punya area halang rintang: duri, lava, lantai es, balok rapuh, tangga, jembatan bergerak, gergaji, semburan api, sinar listrik, dan musuh.
+- Setiap stage panjang dan bertingkat: ada bagian **naik** (menara, tebing, lift) dan bagian **bawah tanah** (gua, saluran, tambang), dengan rintangan seperti duri, jurang, lava, lantai es, balok rapuh, tangga, platform bergerak, gergaji, semburan api, sinar listrik, batu jatuh, dan musuh.
+- Ada **2 checkpoint** di setiap stage. Kalau mati, kamu lanjut dari checkpoint terakhir yang sudah dilewati.
 - Di ujung stage ada **pintu boss**. Kalahkan boss untuk mendapatkan **senjatanya**.
 - Semua senjata boss **unlimited** — tidak ada energi senjata yang bisa habis.
 - Setiap senjata punya **charge shot**: tahan tombol tembak sampai karakter berkedip, lalu lepas. Charge tidak batal walau terkena serangan.
@@ -55,6 +57,18 @@ Tidak perlu build atau install apa pun — cukup HTML + JavaScript murni.
 | Reset progress (di title) | `R` | — |
 | Buka cheat box | Tekan `P` + `O` bersamaan | — |
 
+## Stage
+
+Setiap stage berukuran 300 × 44 tile. Jalur utama ada di permukaan, dengan bagian yang wajib dilewati di atas dan di bawahnya.
+
+| Stage | Bagian naik | Bagian bawah tanah | Rintangan khas |
+| --- | --- | --- | --- |
+| Cut | Menara pabrik (tangga, gergaji di atap), lift ke atap gudang | Saluran air di bawah ladang duri | Gergaji di rel, koridor rendah untuk slide |
+| Fire | Kerucut gunung berapi, pilar basal di atas lautan lava | Ruang magma lewat kawah | Kolam lava, semburan api, lautan lava |
+| Elec | Menara trafo dengan sinar listrik di atap | Terowongan kabel di bawah kabel listrik terbuka, lubang generator dengan lift | Sinar listrik yang menyala-mati |
+| Snow | Tangga es ke puncak gunung | Gua es lewat celah gunung | Lantai licin, es gantung, jurang beku dengan lift |
+| Earth | Undakan batu di tebing, dua lift ke atas mesa | Tambang dengan lantai rapuh di atas jurang | Batu jatuh, jembatan rapuh |
+
 ## Boss & Senjata
 
 | Stage | Boss | Senjata yang didapat | Lemah terhadap |
@@ -75,7 +89,7 @@ Tekan `X` untuk tembakan biasa. Tahan `X` sampai karakter berkedip dengan warna 
 | Rolling Cutter | Boomerang gunting yang menembus musuh dan kembali | **Giant Scissors** — gunting raksasa berdiri tegak (dari kaki sampai jauh di atas kepala) yang menggunting maju, menembus musuh, lalu kembali |
 | Fire Storm | Bola api + perisai api yang berputar | **Fire Wave** — pilar api yang bergulir di tanah, menembus musuh dan membakar peluru musuh |
 | Thunder Beam | Sinar petir cepat yang menembus musuh | **Giga Thunder** — petir menyambar dari langit ke setiap musuh di layar, termasuk boss |
-| Frost Shard | 3 kristal es yang membekukan musuh | **Frost Nova** — 8 kristal es besar ke segala arah, menembus dan membekukan musuh |
+| Frost Shard | 3 kristal es yang membekukan musuh | **Frost Nova** — cincin rapat 11 kristal es besar ke segala arah, menembus dan membekukan musuh |
 | Rock Breaker | Batu yang pecah jadi 4 serpihan | **Rock Quake** — batu besar yang pecah jadi 8 serpihan, mengguncang layar dan melukai semua musuh yang menapak tanah |
 
 ### Melawan boss
@@ -128,12 +142,22 @@ neobuster/
 Detail teknis:
 
 - Resolusi internal **384 × 224**, di-scale ke layar dengan kelipatan bulat agar pixel tetap tajam.
+- Level berukuran **300 × 44 tile** (16 px). Kamera mengikuti player ke segala arah, kecuali di ruang boss.
 - Logika berjalan tetap **60 langkah/detik**. Render diinterpolasi agar mulus di layar 120/144 Hz.
 - Semua grafik dan suara dibuat lewat kode (Canvas 2D + Web Audio), tanpa file aset.
 
 ## Versi & Changelog
 
 Versi ditulis di konstanta `VERSION` di `js/engine.js`. Setiap ada perubahan, naikkan versinya dan tambahkan catatan di bawah.
+
+### 0.6.0
+- Semua stage didesain ulang: lebih panjang (300 kolom, sebelumnya 200) dan bertingkat (44 baris, sebelumnya 26).
+- Setiap stage punya bagian naik (menara, tebing, lift vertikal) dan bagian bawah tanah (gua, saluran, tambang) yang wajib dilewati, plus lebih banyak rintangan dan musuh.
+- 2 checkpoint per stage.
+- Tile baru: dinding gua (latar gelap) dan jurang maut.
+- Musuh dan batu jatuh hanya aktif kalau area mereka terlihat di layar (tidak lagi muncul di gua saat player di permukaan, dan sebaliknya).
+- Setiap stage sudah dicek otomatis bisa diselesaikan dari start sampai pintu boss.
+- Frost Nova (charge Frost Shard) sekarang 11 kristal es (sebelumnya 8) supaya sebarannya lebih rapat.
 
 ### 0.5.0
 - Cheat baru `ILMUKEBAL`: HP 10x lebih tebal + HP penuh. Selama aktif, bar HP berwarna emas berkilau dengan badge X10 dan angka sisa HP (dari 280).

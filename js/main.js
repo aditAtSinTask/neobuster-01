@@ -19,7 +19,7 @@ const IN_GAME = ['select', 'intro', ...IN_STAGE, 'clear', 'weaponget'];
 function saveSnapshot() {
   const inStage = IN_STAGE.includes(game.state);
   if (game.state === 'clear' || game.state === 'weaponget') save.cleared[game.stage] = true;
-  save.snap = { lives: game.lives, score: game.score, weapon: player.weapon, stage: inStage ? game.stage : null, checkpoint: inStage && game.checkpoint };
+  save.snap = { lives: game.lives, score: game.score, weapon: player.weapon, stage: inStage ? game.stage : null, checkpoint: inStage ? game.checkpoint : 0 };
   writeSave();
 }
 function continueGame() {
@@ -36,7 +36,7 @@ function startStage(key, checkpoint = false) {
   level = buildStage(key);
   map = level.map; LW = level.LW; LH = level.LH;
   levelCanvas = renderLevelCanvas(level);
-  game.checkpoint = checkpoint; game.time = 0;
+  game.checkpoint = +checkpoint || 0; game.time = 0; // number of checkpoints reached (old saves stored true/false)
   game.placed = level.ents.filter(e => ['h', 'E', 'L'].includes(e.type)).map(e => ({ kind: e.type, tx: e.x, ty: e.y, taken: false }));
   spawns = level.ents.filter(e => EN[e.type]).map(e => ({ type: e.type, tx: e.x, ty: e.y, armed: true, ent: null }));
   if (!ownedWeapons().includes(player.weapon)) player.weapon = 'buster';
@@ -54,13 +54,14 @@ function restartFromCheckpoint() {
   for (const s of spawns) { s.armed = true; s.ent = null; }
   door.open = 0; door.solid = true; door.phase = '';
   Object.assign(game, { bossLocked: false, bossBar: 0, refill: 0, deadT: 0, shake: 0, flash: 0, popup: 0 });
-  const sx = (game.checkpoint ? level.cpCol : level.startCol) * TILE + 1;
+  const spot = game.checkpoint ? level.cps[Math.min(game.checkpoint, level.cps.length) - 1] : level.start;
+  const sx = spot.x * TILE + 1;
   Object.assign(player, {
     x: sx, w: 14, h: 22, vx: 0, vy: 0, facing: 1, onGround: false, state: 'beam', hp: 28, inv: 0,
     shootT: 0, charge: 0, storm: 0, anim: 0, slideT: 0, hurtT: 0, plat: null, jumpBuf: 0, coyote: 0, jumpT: 99,
   });
   game.noLerp = true;
-  player.targetY = groundBelow(sx + 7, 0) - player.h;
+  player.targetY = groundBelow(sx + 7, spot.y * TILE) - player.h;
   player.y = player.targetY - VH;
   player.anchorY = player.targetY;
   updateCamera(true);
@@ -71,7 +72,7 @@ function restartFromCheckpoint() {
 const followCamX = p => Math.round(clamp(p.x + p.w / 2 - VW / 2, 0, (level.doorCol + 1) * TILE - VW));
 
 function updateCamera(snap) {
-  if (game.bossLocked) { camX = bossRoomX(); camY = camYf = maxCamY(); return; }
+  if (game.bossLocked) { camX = bossRoomX(); camY = camYf = BOSS_CAM_Y; return; }
   const p = player;
   // vertical anchor ignores ordinary jumps so the camera does not bob
   if (p.state === 'beam') p.anchorY = p.targetY;
@@ -125,7 +126,10 @@ function updatePlay() {
   updateParticles();
   checkHazards();
 
-  if (!game.checkpoint && level.cpCol && player.x > level.cpCol * TILE) game.checkpoint = true;
+  // a checkpoint counts once the player walks past it at its height (a cave checkpoint is not taken from the surface)
+  level.cps.forEach((c, i) => {
+    if (i >= game.checkpoint && player.x > c.x * TILE && Math.abs(player.y + player.h - (c.y + 1) * TILE) < 48) game.checkpoint = i + 1;
+  });
 
   if (!alive(player)) {
     if (++game.deadT > 210) {
@@ -150,7 +154,7 @@ function updateDoor() {
     if (door.open >= 1) { door.solid = false; door.phase = 'scroll'; enemies = []; }
   } else if (door.phase === 'scroll') {
     camX = Math.min(bossRoomX(), camX + 2);
-    camYf += (maxCamY() - camYf) * 0.15; camY = Math.round(camYf);
+    camYf += (BOSS_CAM_Y - camYf) * 0.15; camY = Math.round(camYf);
     const tx = level.doorCol * TILE + 26;
     p.facing = 1;
     if (p.x < tx) { p.x += 0.8; p.vx = 0.8; p.anim++; } else p.vx = 0;
@@ -715,7 +719,7 @@ function drawHUD() {
 function renderWorld() {
   ctx.save();
   if (game.shake > 0) ctx.translate((game.shake & 1) ? 1 : -1, (game.shake & 2) ? 2 : -2);
-  drawBackground(level.theme, camX, camY, maxCamY());
+  drawBackground(level.theme, camX, camY, BOSS_CAM_Y); // the backdrop sits as before at surface height and drops as the camera climbs
   if (level.theme === 'elec') drawStormSky();
   ctx.drawImage(levelCanvas, camX, camY, VW, VH, 0, 0, VW, VH);
   drawDynamicTiles();

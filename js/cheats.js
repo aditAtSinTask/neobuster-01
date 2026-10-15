@@ -17,6 +17,13 @@ const CHEATS = {
     sfx.oneup();
     return [true, 'LIFE +1  (LIFE ' + game.lives + ')'];
   },
+  ILMUKEBAL() { // lasts until game over or back to the title
+    const was = game.tough;
+    game.tough = true;
+    if (IN_STAGE.includes(game.state) && alive(player)) { player.hp = 28; game.refill = 0; }
+    sfx.oneup();
+    return [true, was ? 'ILMU KEBAL SUDAH AKTIF - HP PENUH!' : 'ILMU KEBAL! HP X10 + HP PENUH'];
+  },
   INGATANKUAT() {
     saveSnapshot();
     sfx.confirm();

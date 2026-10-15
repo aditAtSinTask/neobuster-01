@@ -6,7 +6,7 @@ let level = null, map = null, LW = 0, LH = 0, levelCanvas = null;
 let camX = 0, camY = 0, camYf = 0;
 const game = {
   state: 'title', t: 0, lives: 2, score: 0, time: 0, deadT: 0, stage: null, checkpoint: false,
-  bossLocked: false, bossBar: 0, refill: 0, shake: 0, flash: 0, placed: [], menu: 0, sel: 0, popup: 0,
+  bossLocked: false, bossBar: 0, refill: 0, shake: 0, flash: 0, placed: [], menu: 0, sel: 0, popup: 0, tough: false,
 };
 const door = { open: 0, solid: true, phase: '' };
 const player = { weapon: 'buster' };
@@ -490,9 +490,9 @@ function updatePlayer() {
 function damagePlayer(dmg) {
   const p = player;
   if (!dmg || p.inv > 0 || !['normal', 'climb', 'slide'].includes(p.state)) return;
-  p.hp -= dmg;
+  p.hp -= game.tough ? dmg / 10 : dmg; // cheat ILMUKEBAL: 10x thicker HP
   sfx.hurt();
-  if (p.hp <= 0) { p.hp = 0; killPlayer(true); return; }
+  if (p.hp <= 1e-6) { p.hp = 0; killPlayer(true); return; }
   p.state = 'hurt'; p.hurtT = 18; p.inv = 90; p.vx = 0; p.plat = null;
   if (p.vy < 0) p.vy = 0;
 }

@@ -2,7 +2,7 @@
 
 > Game action-platformer 2D bergaya **Mega Man** untuk browser — grafik pixel-art yang lebih kaya, tapi tetap ringan dan optimal untuk web.
 
-**Versi saat ini: `0.4.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
+**Versi saat ini: `0.5.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
 
 ---
 
@@ -105,6 +105,7 @@ Tekan **`P` + `O` bersamaan** untuk membuka cheat box. Ketik kode, tekan `Enter`
 | --- | --- | --- |
 | `MAUKUAT` | HP penuh | Di dalam stage, saat karakter masih hidup |
 | `AWETMUDA` | Life +1 (maks. 99) | Selama permainan berjalan |
+| `ILMUKEBAL` | HP 10x lebih tebal (semua damage dibagi 10) + HP penuh. Bar HP berubah emas dan berkilau, badge **X10** muncul di atas bar, dan sisa HP tampil sebagai angka (mis. 276/280). Aktif sampai game over atau kembali ke title. Duri dan jurang tetap mematikan seketika | Selama permainan berjalan (HP penuh hanya di dalam stage) |
 | `INGATANKUAT` | Simpan progress saat ini (lihat [Progress & Save](#progress--save)) | Selama permainan berjalan |
 
 Cheat tidak bisa dipakai di layar title, game over, atau ending.
@@ -133,6 +134,9 @@ Detail teknis:
 ## Versi & Changelog
 
 Versi ditulis di konstanta `VERSION` di `js/engine.js`. Setiap ada perubahan, naikkan versinya dan tambahkan catatan di bawah.
+
+### 0.5.0
+- Cheat baru `ILMUKEBAL`: HP 10x lebih tebal + HP penuh. Selama aktif, bar HP berwarna emas berkilau dengan badge X10 dan angka sisa HP (dari 280).
 
 ### 0.4.0
 - Boss baru **ELECMAN** (manusia listrik & petir) dengan stage power plant: badai, hujan, kilat di langit, dan sinar listrik yang menyala-mati. Serangan boss: Thunder Beam 3 arah, sambaran petir dari langit-langit, dan lompatan dengan bola listrik.

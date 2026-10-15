@@ -104,7 +104,7 @@ function updatePlay() {
   }
   if (alive(player) && (hit.prev || hit.next)) cycleWeapon(hit.next ? 1 : -1);
   if (game.refill > 0) { // classic energy refill: world freezes while the bar fills
-    if (frameCount % 3 === 0) { if (player.hp < 28) { player.hp++; game.refill--; sfx.tick(); } else game.refill = 0; }
+    if (frameCount % 3 === 0) { if (player.hp < 28) { player.hp = Math.min(28, player.hp + 1); game.refill--; sfx.tick(); } else game.refill = 0; }
     return;
   }
   game.time++;
@@ -198,7 +198,7 @@ function step() {
       if (hit.reset && (Object.keys(save.cleared).length || save.snap)) { save.cleared = {}; delete save.snap; writeSave(); player.weapon = 'buster'; sfx.deflect(); }
       if (save.snap && (hit.left || hit.right || hit.up || hit.down)) { game.menu ^= 1; sfx.select(); }
       if (go) {
-        sfx.confirm();
+        sfx.confirm(); game.tough = false;
         if (save.snap && game.menu === 0) continueGame();
         else { game.lives = 2; game.score = 0; goSelect(); }
       }
@@ -263,7 +263,7 @@ function step() {
       break;
     case 'gameover':
       game.t++;
-      if (game.t > 40 && go) { game.lives = 2; goSelect(); }
+      if (game.t > 40 && go) { game.lives = 2; game.tough = false; goSelect(); }
       break;
     case 'ending':
       game.t++;
@@ -684,17 +684,27 @@ function drawParticles() {
   }
 }
 
-function drawBar(x, y, val, col) {
-  R(x - 2, y - 2, 12, 60, '#0a0a16'); R(x - 1, y - 1, 10, 58, '#3a3a50'); R(x, y, 8, 56, '#0a0a16');
+// HP can be fractional under ILMUKEBAL; a partly lost segment still shows as full.
+// tough = gold frame with a shine travelling up the bar
+function drawBar(x, y, val, col, tough = false) {
+  R(x - 2, y - 2, 12, 60, '#0a0a16'); R(x - 1, y - 1, 10, 58, tough ? '#c89800' : '#3a3a50'); R(x, y, 8, 56, '#0a0a16');
+  const shine = 27 - ((frameCount >> 1) % 40);
   for (let i = 0; i < 28; i++) {
     if (i >= val) continue;
-    const yy = y + 56 - (i + 1) * 2;
-    R(x, yy, 8, 1, col); R(x + 2, yy, 4, 1, '#fcfcfc');
+    const yy = y + 56 - (i + 1) * 2, lit = tough && Math.abs(i - shine) < 2;
+    R(x, yy, 8, 1, lit ? '#fcfcfc' : col); R(x + 2, yy, 4, 1, lit ? '#fcfcfc' : tough ? '#fcf0a0' : '#fcfcfc');
   }
 }
 function drawHUD() {
-  drawBar(12, 12, player.hp, '#f8d878');
+  if (game.tough) glow(16, 40, 30, '#f8b800', 0.3 + ((frameCount >> 3) & 1) * 0.15);
+  drawBar(12, 12, player.hp, game.tough ? '#f8a800' : '#f8d878', game.tough);
   drawWeaponIcon(player.weapon, 11, 76);
+  if (game.tough) { // ILMUKEBAL: X10 badge above the HP bar and the real HP (out of 280) below the weapon icon
+    R(6, 0, 21, 10, '#c89800'); R(7, 1, 19, 8, '#0a0a16'); text('X10', 8, 2, '#f8d800');
+    const hp = String(Math.ceil(player.hp * 10));
+    R(8, 88, textWidth(hp) + 6, 11, 'rgba(5,5,20,0.75)'); text(hp, 11, 90, '#f8d800');
+    R(8, 100, textWidth('/280') + 6, 11, 'rgba(5,5,20,0.75)'); text('/280', 11, 102, '#c89800');
+  }
   if (game.bossLocked) drawBar(26, 12, boss ? (game.state === 'bossintro' ? game.bossBar : boss.hp) : 0, '#f87858');
   if (game.bossLocked && boss && boss.hp > 0) drawWeakness();
   text(String(game.score).padStart(7, '0'), VW - 8, 8, '#fcfcfc', 1, 'right');

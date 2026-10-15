@@ -27,12 +27,15 @@ const isLadder = (tx, ty) => tileAt(tx, ty) === 'H';
 const ladderTop = (tx, ty) => isLadder(tx, ty) && !isLadder(tx, ty - 1);
 
 function samples(a, b) { const r = []; for (let v = a; v < b; v += 8) r.push(v); r.push(b); return r; }
+// leading edges are tested just inside the box (not a whole pixel in), so a sub-pixel step into a wall or
+// the floor collides immediately instead of sinking for a few frames and then snapping back
+const EDGE = 0.001;
 function moveX(e, dx) {
   if (!dx) return false;
   e.x += dx;
   const ys = samples(e.y, e.y + e.h - 1);
   if (dx > 0) {
-    const px = e.x + e.w - 1;
+    const px = e.x + e.w - EDGE;
     if (ys.some(y => solidPx(px, y))) { e.x = Math.floor(px / TILE) * TILE - e.w; return true; }
   } else if (ys.some(y => solidPx(e.x, y))) { e.x = (Math.floor(e.x / TILE) + 1) * TILE; return true; }
   return false;
@@ -42,7 +45,7 @@ function moveY(e, dy, oneWay) {
   e.y += dy;
   const xs = samples(e.x, e.x + e.w - 1);
   if (dy > 0) {
-    const py = e.y + e.h - 1, ty = Math.floor(py / TILE);
+    const py = e.y + e.h - EDGE, ty = Math.floor(py / TILE);
     let land = xs.some(x => solidPx(x, py));
     if (!land && oneWay && e.y + e.h - dy <= ty * TILE) land = xs.some(x => ladderTop(Math.floor(x / TILE), ty));
     if (land) { e.y = ty * TILE - e.h; return 1; }

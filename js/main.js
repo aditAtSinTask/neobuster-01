@@ -11,13 +11,32 @@ function writeSave() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)
 const save = loadSave();
 const allCleared = () => STAGE_ORDER.every(k => save.cleared[k]);
 
+// states where the player is inside a stage, and states where a run is in progress at all
+const IN_STAGE = ['ready', 'play', 'pause', 'door', 'bossintro'];
+const IN_GAME = ['select', 'intro', ...IN_STAGE, 'clear', 'weaponget'];
+
+// save point (cheat INGATANKUAT): lives, score, weapon and, inside a stage, the stage + checkpoint
+function saveSnapshot() {
+  const inStage = IN_STAGE.includes(game.state);
+  if (game.state === 'clear' || game.state === 'weaponget') save.cleared[game.stage] = true;
+  save.snap = { lives: game.lives, score: game.score, weapon: player.weapon, stage: inStage ? game.stage : null, checkpoint: inStage && game.checkpoint };
+  writeSave();
+}
+function continueGame() {
+  const s = save.snap;
+  game.lives = s.lives; game.score = s.score;
+  if (ownedWeapons().includes(s.weapon)) player.weapon = s.weapon;
+  if (s.stage) startStage(s.stage, s.checkpoint);
+  else goSelect();
+}
+
 // ================= STAGE FLOW =================
-function startStage(key) {
+function startStage(key, checkpoint = false) {
   game.stage = key;
   level = buildStage(key);
   map = level.map; LW = level.LW; LH = level.LH;
   levelCanvas = renderLevelCanvas(level);
-  game.checkpoint = false; game.time = 0;
+  game.checkpoint = checkpoint; game.time = 0;
   game.placed = level.ents.filter(e => ['h', 'E', 'L'].includes(e.type)).map(e => ({ kind: e.type, tx: e.x, ty: e.y, taken: false }));
   spawns = level.ents.filter(e => EN[e.type]).map(e => ({ type: e.type, tx: e.x, ty: e.y, armed: true, ent: null }));
   if (!ownedWeapons().includes(player.weapon)) player.weapon = 'buster';
@@ -49,6 +68,8 @@ function restartFromCheckpoint() {
   playMusic(STAGES[game.stage].music);
 }
 
+const followCamX = p => Math.round(clamp(p.x + p.w / 2 - VW / 2, 0, (level.doorCol + 1) * TILE - VW));
+
 function updateCamera(snap) {
   if (game.bossLocked) { camX = bossRoomX(); camY = camYf = maxCamY(); return; }
   const p = player;
@@ -58,8 +79,7 @@ function updateCamera(snap) {
     if (p.onGround || p.state === 'climb' || p.y > p.anchorY) p.anchorY = p.y;
     else if (p.y < p.anchorY - 40) p.anchorY = p.y + 40;
   }
-  const maxX = (level.doorCol + 1) * TILE - VW;
-  camX = Math.round(clamp(p.x + p.w / 2 - VW / 2, 0, maxX));
+  camX = followCamX(p);
   const ty = clamp(p.anchorY + 11 - VH * 0.58, 0, maxCamY());
   if (alive(p)) camYf = snap ? ty : camYf + (ty - camYf) * 0.12;
   camY = Math.round(camYf);
@@ -175,8 +195,13 @@ function step() {
   switch (game.state) {
     case 'title':
       game.t++;
-      if (hit.reset && Object.keys(save.cleared).length) { save.cleared = {}; writeSave(); player.weapon = 'buster'; sfx.deflect(); }
-      if (go) { sfx.confirm(); game.lives = 2; game.score = 0; goSelect(); }
+      if (hit.reset && (Object.keys(save.cleared).length || save.snap)) { save.cleared = {}; delete save.snap; writeSave(); player.weapon = 'buster'; sfx.deflect(); }
+      if (save.snap && (hit.left || hit.right || hit.up || hit.down)) { game.menu ^= 1; sfx.select(); }
+      if (go) {
+        sfx.confirm();
+        if (save.snap && game.menu === 0) continueGame();
+        else { game.lives = 2; game.score = 0; goSelect(); }
+      }
       break;
     case 'select': {
       game.t++;
@@ -611,11 +636,18 @@ function drawTitle() {
     drawRobot(0, 0, i < 2 ? 1 : -1, 'stand', 0, false, save.cleared[k] ? PAL_WHITE : def.pal, def.style);
     ctx.restore();
   });
-  if ((frameCount >> 4) & 1) text('PRESS ENTER', VW / 2, 168, '#f8d800', 1, 'center');
+  if (save.snap) {
+    ['CONTINUE', 'NEW GAME'].forEach((o, i) => {
+      const sel = game.menu === i;
+      text((sel ? '>' : ' ') + o, VW / 2 + (i ? 50 : -50), 168, sel ? '#f8d800' : '#686878', 1, 'center');
+    });
+  } else if ((frameCount >> 4) & 1) text('PRESS ENTER', VW / 2, 168, '#f8d800', 1, 'center');
   text('ARROWS MOVE  Z JUMP  X SHOOT  C SLIDE', VW / 2, 186, '#a8a8b8', 1, 'center');
   text('HOLD X CHARGE  Q/E WEAPON  ENTER PAUSE  M MUTE', VW / 2, 198, '#a8a8b8', 1, 'center');
-  if (Object.keys(save.cleared).length) text('R: RESET PROGRESS', VW / 2, 212, '#686878', 1, 'center');
+  if (Object.keys(save.cleared).length || save.snap) text('R: RESET PROGRESS', VW / 2, 212, '#686878', 1, 'center');
+  drawVersion();
 }
+function drawVersion() { text('V' + VERSION, VW - 4, VH - 10, '#7a7a90', 1, 'right'); }
 
 function drawPortrait(k, x, y, s, pal) {
   const def = BOSSES[k];
@@ -742,6 +774,7 @@ function drawPause() {
   });
   text('LIFE ' + game.lives, VW / 2, 196, '#a8c8f8', 1, 'center');
   text('UP/DOWN PILIH  ENTER OK', VW / 2, 208, '#686878', 1, 'center');
+  drawVersion();
 }
 
 function render() {
@@ -774,7 +807,7 @@ function render() {
 // ================= LOOP =================
 // Logic runs at a fixed 60 steps/s. Rendering interpolates positions between the last two steps so motion
 // stays smooth on 120/144Hz screens, and frame times are smoothed so timer jitter doesn't cause double steps.
-let last = performance.now(), acc = 0, prevCamX = 0, prevCamY = 0;
+let last = performance.now(), acc = 0, prevCamX = 0, prevCamYf = 0;
 const STEP_MS = 1000 / 60;
 const REFRESH = [1000 / 60, 1000 / 120, 1000 / 144, 1000 / 90, 1000 / 75, 1000 / 30];
 const deltas = [];
@@ -786,7 +819,7 @@ function interpTargets() {
 }
 function snapshot() {
   for (const e of interpTargets()) { e._px = e.x; e._py = e.y; }
-  prevCamX = camX; prevCamY = camY;
+  prevCamX = camX; prevCamYf = camYf;
   game.noLerp = false;
 }
 function renderInterpolated(a) {
@@ -799,8 +832,10 @@ function renderInterpolated(a) {
       e.x = e._px + (e.x - e._px) * a;
       e.y = e._py + (e.y - e._py) * a;
     }
-    camX = Math.round(prevCamX + (camX - prevCamX) * a);
-    camY = Math.round(prevCamY + (camY - prevCamY) * a);
+    // while following, derive the camera from the interpolated player instead of interpolating it separately:
+    // rounding the two independently made the player wobble 1px on 120/144Hz screens
+    camX = game.state === 'play' && !game.bossLocked ? followCamX(player) : Math.round(prevCamX + (camX - prevCamX) * a);
+    camY = Math.round(prevCamYf + (camYf - prevCamYf) * a);
   }
   render();
   ents.forEach((e, i) => { e.x = saved[i][0]; e.y = saved[i][1]; });
@@ -817,13 +852,15 @@ function loop(now) {
   if (deltas.length > 4) deltas.shift();
   acc += deltas.reduce((s, v) => s + v, 0) / deltas.length;
   let n = 0;
+  if (cheat.open) acc = 0; // the world stays frozen while a cheat code is typed
   while (acc >= STEP_MS - 0.5 && n < 4) {
     if (level) snapshot();
     step();
     acc -= STEP_MS; n++;
   }
   if (n === 4) acc = 0;
-  renderInterpolated(game.noLerp ? 1 : clamp(acc / STEP_MS, 0, 1));
+  renderInterpolated(game.noLerp || cheat.open ? 1 : clamp(acc / STEP_MS, 0, 1));
+  drawCheat();
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);

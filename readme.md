@@ -2,7 +2,7 @@
 
 > Game action-platformer 2D bergaya **Mega Man** untuk browser — grafik pixel-art yang lebih kaya, tapi tetap ringan dan optimal untuk web.
 
-**Versi saat ini: `0.7.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
+**Versi saat ini: `0.8.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
 
 ---
 
@@ -13,6 +13,7 @@
 - [Kontrol](#kontrol)
 - [Stage](#stage)
 - [Boss & Senjata](#boss--senjata)
+- [Shop & Part](#shop--part)
 - [Progress & Save](#progress--save)
 - [Cheat Code](#cheat-code)
 - [Struktur Proyek](#struktur-proyek)
@@ -54,6 +55,7 @@ Tidak perlu build atau install apa pun — cukup HTML + JavaScript murni.
 | Ganti senjata | `Q` / `E` | LB / RB |
 | Pause & menu senjata | `Enter` / `Esc` | Start |
 | Mute | `M` | — |
+| Buka Shop (di Stage Select) | `X` | X / B |
 | Reset progress (di title) | `R` | — |
 | Buka cheat box | Tekan `P` + `O` bersamaan | — |
 
@@ -110,6 +112,34 @@ Tekan `X` untuk tembakan biasa. Tahan `X` sampai karakter berkedip dengan warna 
 
 Setelah kelima boss dikalahkan, muncul layar ending.
 
+## Shop & Part
+
+Setiap poin skor yang kamu dapat (musuh, pickup, boss 10.000) juga masuk ke dompet **POIN**. Dompet ini tersimpan permanen dan tidak hilang walau game over. Saldonya terlihat di Stage Select, Shop, dan menu pause.
+
+Tekan `X` di **Stage Select** untuk membuka Shop. Pilih part dengan tombol atas/bawah, tekan `Enter` untuk membeli, dan `X` untuk kembali. Part yang sudah dibeli bisa dinyalakan atau dimatikan dengan `Enter`. Part yang aktif tampil sebagai ikon di pojok kanan atas layar.
+
+| Part | Harga | Efek |
+| --- | --- | --- |
+| Boots Anti Duri | 8.000 | Berjalan di atas duri tanpa mati |
+| Armor Anti Api | 8.000 | Masuk dan berjalan di lava tanpa mati |
+| Jetpack | 10.000 | Lompatan 1,6x lebih tinggi |
+| Core | 6.000 | Kebal 5x lebih lama setelah terkena hit |
+| Super Booster | 15.000 | Setiap tembakan biasa langsung keluar sebagai charge shot (Neo Buster: peluru besar; senjata spesial: charge shot-nya) |
+| Ultra Booster | 25.000 | Harus punya Super Booster. Tahan tembak sekitar 2,5 detik sampai karakter berkilau emas, lalu lepas untuk **ultra attack** |
+
+Ultra attack setiap senjata:
+
+| Senjata | Ultra attack |
+| --- | --- |
+| Neo Buster | **Hyper Beam**: laser raksasa sepanjang layar selama 1 detik |
+| Rolling Cutter | **Cutter Tempest**: 8 gunting besar berputar menyebar mengelilingi kamu |
+| Fire Storm | **Inferno**: pilar api meletus di sepanjang lantai, menjalar ke dua arah |
+| Thunder Beam | **Thunder God**: petir terus menyambar musuh dan boss hampir 2 detik |
+| Frost Shard | **Absolute Zero**: semua musuh di layar membeku dan terluka, peluru musuh pecah, boss membeku, dan duri es muncul dari lantai |
+| Rock Breaker | **Meteor**: meteor jatuh di depanmu lalu meledak menjadi gelombang kejut dan hujan batu |
+
+Ultra attack ke senjata kelemahan boss memberi 8 damage.
+
 ## Progress & Save
 
 Data disimpan di `localStorage` browser (key `neobuster-save-v1`).
@@ -119,7 +149,7 @@ Data disimpan di `localStorage` browser (key `neobuster-save-v1`).
 - Jika ada save point, layar title menampilkan pilihan **CONTINUE** / **NEW GAME** (pilih dengan tombol panah).
   - **CONTINUE** melanjutkan dari save point. Kalau disimpan di dalam stage, game langsung masuk ke stage itu (dari checkpoint jika sudah melewatinya).
   - **NEW GAME** mulai dengan 2 life dan skor 0. Boss yang sudah dikalahkan tetap tersimpan.
-- Tekan `R` di title untuk menghapus semua progress.
+- Tekan `R` di title untuk menghapus semua progress, termasuk POIN dan part yang sudah dibeli.
 
 ## Cheat Code
 
@@ -159,6 +189,11 @@ Detail teknis:
 ## Versi & Changelog
 
 Versi ditulis di konstanta `VERSION` di `js/engine.js`. Setiap ada perubahan, naikkan versinya dan tambahkan catatan di bawah.
+
+### 0.8.0
+- Dompet **POIN** permanen dari skor yang didapat, dan **Shop** di Stage Select (tombol `X`).
+- 6 part: Boots Anti Duri, Armor Anti Api, Jetpack, Core, Super Booster, Ultra Booster. Part bisa dinyalakan/dimatikan.
+- Ultra attack untuk setiap senjata (Hyper Beam, Cutter Tempest, Inferno, Thunder God, Absolute Zero, Meteor), dengan tahap charge ketiga berwarna emas.
 
 ### 0.7.0
 - Setiap stage sekarang unik untuk boss-nya: musuh khas (Blader, Fire Totem, Watcher, Snowman, Mole), mekanik khas (ban berjalan, bola magma, blok energi, badai angin, pasir hisap), dan ruang boss bertema dengan ornamen dinding serta gimmick (ban berjalan, semburan api, sinar listrik, lantai es).

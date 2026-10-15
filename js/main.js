@@ -4,8 +4,11 @@
 // ================= SAVE =================
 const SAVE_KEY = 'neobuster-save-v1';
 function loadSave() {
-  try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s && s.cleared) return s; } catch (e) { /* storage unavailable */ }
-  return { cleared: {} };
+  let s = null;
+  try { s = JSON.parse(localStorage.getItem(SAVE_KEY)); } catch (e) { /* storage unavailable */ }
+  if (!s || !s.cleared) s = { cleared: {} };
+  s.points = s.points || 0; s.parts = s.parts || {}; // shop wallet and bought parts ('on' / 'off')
+  return s;
 }
 function writeSave() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { /* storage unavailable */ } }
 const save = loadSave();
@@ -184,6 +187,27 @@ function updateBossIntro() {
   }
 }
 
+// ================= SHOP =================
+const SHOP = [
+  { key: 'boots', name: 'BOOTS ANTI DURI', price: 8000, desc: 'JALAN DI ATAS DURI TANPA MATI' },
+  { key: 'armor', name: 'ARMOR ANTI API', price: 8000, desc: 'MASUK DAN JALAN DI LAVA TANPA MATI' },
+  { key: 'jet', name: 'JETPACK', price: 10000, desc: 'LOMPAT 1.6X LEBIH TINGGI' },
+  { key: 'core', name: 'CORE', price: 6000, desc: 'KEBAL 5X LEBIH LAMA SETELAH KENA HIT' },
+  { key: 'super', name: 'SUPER BOOSTER', price: 15000, desc: 'TEMBAKAN BIASA LANGSUNG JADI CHARGE SHOT' },
+  { key: 'ultra', name: 'ULTRA BOOSTER', price: 25000, needs: 'super', desc: 'TAHAN TEMBAK 2.5 DETIK: ULTRA ATTACK' },
+];
+function shopMsg(text, ok) { game.shopMsg = text; game.shopOk = ok; game.shopMsgT = 120; }
+// buy the part, or switch an owned part on/off
+function shopAction(it) {
+  const own = save.parts[it.key];
+  if (own) {
+    save.parts[it.key] = own === 'on' ? 'off' : 'on'; writeSave(); sfx.select();
+    shopMsg(it.name + (own === 'on' ? ' OFF' : ' ON'), own !== 'on');
+  } else if (it.needs && !save.parts[it.needs]) { shopMsg('BELI SUPER BOOSTER DULU', false); sfx.deflect(); }
+  else if (save.points < it.price) { shopMsg('POIN TIDAK CUKUP', false); sfx.deflect(); }
+  else { save.points -= it.price; save.parts[it.key] = 'on'; writeSave(); sfx.buy(); shopMsg('TERBELI! ' + it.name, true); }
+}
+
 function goSelect() {
   game.state = 'select'; game.t = 0;
   const i = STAGE_ORDER.findIndex(k => !save.cleared[k]);
@@ -200,7 +224,9 @@ function step() {
   switch (game.state) {
     case 'title':
       game.t++;
-      if (hit.reset && (Object.keys(save.cleared).length || save.snap)) { save.cleared = {}; delete save.snap; writeSave(); player.weapon = 'buster'; sfx.deflect(); }
+      if (hit.reset && (Object.keys(save.cleared).length || save.snap || save.points || Object.keys(save.parts).length)) {
+        save.cleared = {}; delete save.snap; save.points = 0; save.parts = {}; writeSave(); player.weapon = 'buster'; sfx.deflect();
+      }
       if (save.snap && (hit.left || hit.right || hit.up || hit.down)) { game.menu ^= 1; sfx.select(); }
       if (go) {
         sfx.confirm(); game.tough = false;
@@ -218,6 +244,7 @@ function step() {
         s = other.reduce((a, i) => (Math.abs(SEL_POS[i][0] - c) < Math.abs(SEL_POS[a][0] - c) ? i : a));
       }
       if (s !== game.sel) { game.sel = s; sfx.select(); }
+      if (hit.shoot) { game.state = 'shop'; game.shopSel = 0; game.shopMsg = ''; sfx.pause(); break; }
       if (go) { sfx.confirm(); game.state = 'intro'; game.t = 0; game.introKey = STAGE_ORDER[game.sel]; stopMusic(); }
       break;
     }
@@ -233,6 +260,15 @@ function step() {
     case 'play':
       updatePlay();
       break;
+    case 'shop': {
+      game.t++;
+      if (game.shopMsgT > 0) game.shopMsgT--;
+      if (hit.up) { game.shopSel = (game.shopSel + SHOP.length - 1) % SHOP.length; sfx.select(); }
+      if (hit.down) { game.shopSel = (game.shopSel + 1) % SHOP.length; sfx.select(); }
+      if (hit.shoot) { game.state = 'select'; sfx.pause(); break; }
+      if (go) shopAction(SHOP[game.shopSel]);
+      break;
+    }
     case 'pause': {
       const items = [...ownedWeapons(), 'exit'];
       if (hit.up) { game.sel = (game.sel + items.length - 1) % items.length; sfx.select(); }
@@ -389,6 +425,7 @@ function drawRoomFx() {
   }
 }
 
+const PAL_GOLD = { B: '#f8b800', b: '#fcf0a0', S: '#fcfcfc' };
 const PLAT_COL = { cut: '#d8a020', fire: '#7a7a88', elec: '#5868a0', snow: '#a8e0f8', earth: '#9a7a50' };
 function drawPlatsAndHazards() {
   for (const pl of plats) {
@@ -561,6 +598,37 @@ function drawPlayerShot(s) {
       R(x + 4, y, 2, 10, '#a8e8fc'); R(x, y + 4, 10, 2, '#a8e8fc');
       R(x + 2, y + 2, 6, 6, '#a8e8fc'); R(x + 3, y + 3, 4, 4, '#d8f8fc'); R(x + 4, y + 4, 2, 2, '#fcfcfc');
       return;
+    case 'hbeam': {
+      const cy = y + s.h / 2, fl = (frameCount & 2) ? 2 : 0;
+      ctx.globalAlpha = 0.5; R(x, cy - 18 + fl, s.w, 36 - fl * 2, '#3cbcfc'); ctx.globalAlpha = 1;
+      R(x, cy - 12, s.w, 24, '#3cbcfc'); R(x, cy - 7, s.w, 14, '#a8f0fc'); R(x, cy - 3, s.w, 6, '#fcfcfc');
+      for (let k = 0; k < 8; k++) R(x + ((k * 67 + frameCount * 11) % Math.max(1, s.w)), cy - 10 + (k * 7) % 20, 14, 1, '#fcfcfc');
+      glow(s.dir > 0 ? x : x + s.w, cy, 30, '#3cbcfc', 0.9);
+      return;
+    }
+    case 'tcutter':
+      glow(x + 10, y + 10, 14, '#e0e0ec', 0.4);
+      ctx.save(); ctx.translate(x + 10, y + 10); ctx.scale(1.4, 1.4); drawCutter(-7, -7, s.t * 0.6, '#f83800'); ctx.restore();
+      return;
+    case 'ppillar':
+      if (s.delay > 0) { if (frameCount & 4) R(x, y + s.h - 3, s.w, 3, '#f8a800'); return; }
+      drawFlameColumn(x + 10, y + s.h, s.h * Math.min(1, (36 - s.life) / 6), 10);
+      return;
+    case 'icespike': {
+      if (s.delay > 0) return;
+      const hh = Math.max(2, s.h * Math.min(1, (42 - s.life) / 5));
+      for (let r = 0; r < hh; r += 2) { const w = Math.max(2, 12 * r / hh); R(x + 6 - w / 2, y + s.h - hh + r, w, 2, r < 4 ? '#fcfcfc' : '#a8e8fc'); }
+      R(x + 5, y + s.h - hh + 4, 1, hh - 6, '#e0f8fc');
+      glow(x + 6, y + s.h - hh / 2, 10, '#58d8f8', 0.5);
+      return;
+    }
+    case 'tgod': return;
+    case 'meteor':
+      for (let k = 4; k >= 1; k--) circle(x + 20, y + 20 - k * 11, 14 - k * 2.5, k & 1 ? '#f8a800' : '#f83800');
+      glow(x + 20, y + 20, 40, '#f86000', 0.8);
+      circle(x + 20, y + 20, 20, '#0a0a16'); circle(x + 20, y + 20, 19, '#7a5a3a'); circle(x + 15, y + 15, 8, '#9a7a5a'); circle(x + 27, y + 26, 4, '#5a3a2a');
+      return;
+    case 'pquake': drawRock(x, y + 4, 16); return;
     case 'bigrock': drawRock(x, y, 22); glow(x + 11, y + 11, 18, '#e8b868', 0.3); return;
     case 'fireball':
       glow(x + 6, y + 5, 14, '#f86000', 0.9);
@@ -680,13 +748,23 @@ function drawPlayer() {
 
   // special weapons charge in their own colour; the buster keeps the classic green -> blue
   const w = WEAPONS[p.weapon], special = p.weapon !== 'buster';
+  const ultra = hasPart('ultra') && p.charge >= ULTRA_CHARGE;
   let pal = wp;
   if (p.state === 'hurt' && frameCount & 2) pal = PAL_FULL;
+  else if (ultra) pal = [PAL_FULL, special ? w.full : PAL_MID, PAL_GOLD][(frameCount >> 1) % 3];
   else if (p.charge >= 75) pal = (frameCount >> 2) & 1 ? (special ? w.full : PAL_FULL) : wp;
   else if (p.charge >= 30) pal = (frameCount >> 3) & 1 ? (special ? w.full : PAL_MID) : wp;
 
+  if (hasPart('jet') && pose !== 'slide') { // jetpack on the back, flaming while rising
+    const bx = p.facing > 0 ? sx - 3 : sx + 9;
+    R(bx, sy + 7, 6, 10, '#0a0a16'); R(bx + 1, sy + 8, 4, 8, '#8a8a9a'); R(bx + 1, sy + 8, 1, 8, '#c8c8d8');
+    if (!p.onGround && p.vy < 0) { R(bx + 1, sy + 17, 4, 3 + (frameCount & 2), '#f8a800'); R(bx + 2, sy + 17, 2, 2, '#fcf8c0'); glow(bx + 3, sy + 19, 8, '#f86000', 0.6); }
+  }
   drawRobot(sx + p.w / 2 - 12, sy + p.h - 24, p.facing, pose, fr, p.shootT > 0 && pose !== 'slide' && pose !== 'hurt', pal);
-  if (p.charge >= 30) {
+  if (ultra) {
+    glow(sx + p.w / 2, sy + p.h / 2, 32, '#f8d800', 0.45 + ((frameCount >> 1) & 1) * 0.25);
+    for (let i = 0; i < 4; i++) { const a = frameCount * 0.25 + i * Math.PI / 2; R(sx + p.w / 2 + Math.cos(a) * 16 - 1, sy + p.h / 2 + Math.sin(a) * 16 - 1, 3, 3, '#fcfcfc'); }
+  } else if (p.charge >= 30) {
     const col = special ? w.glow : p.charge >= 75 ? '#3cbcfc' : '#b8f818';
     glow(sx + p.w / 2, sy + p.h / 2, p.charge >= 75 ? 22 : 14, col, 0.35 + ((frameCount >> 2) & 1) * 0.2);
   }
@@ -707,6 +785,7 @@ function drawBoss() {
   if (b.state === 'stagger' && (frameCount & 2)) pal = PAL_WHITE;
   else if (b.state === 'slide' && b.t < 14 && (frameCount & 2)) pal = PAL_WHITE;
   drawRobot(sx + b.w / 2 - 12, sy + b.h - 24, b.facing, pose, fr, b.arm > 0 && pose !== 'raise', pal, def.style, { blade: b.hasCutter });
+  if (b.frozenT > 0) { ctx.globalAlpha = 0.55; R(sx - 3, sy - 3, b.w + 6, b.h + 6, '#a8e8fc'); ctx.globalAlpha = 1; R(sx + 1, sy + 2, 5, 1, '#fcfcfc'); R(sx + 1, sy + 3, 1, 4, '#fcfcfc'); }
   if (b.type === 'fire') glow(sx + b.w / 2, sy - 2, 16, '#f86000', 0.7);
   if (b.type === 'snow') glow(sx + b.w / 2, sy - 2, 8, '#58e8f8', 0.5);
   if (b.type === 'elec') glow(sx + b.w / 2, sy - 6, 12, '#f8f058', 0.5 + ((frameCount >> 2) & 1) * 0.2);
@@ -781,6 +860,7 @@ function drawHUD() {
   if (game.bossLocked && boss && boss.hp > 0) drawWeakness();
   text(String(game.score).padStart(7, '0'), VW - 8, 8, '#fcfcfc', 1, 'right');
   text('LIFE ' + Math.max(0, game.lives), VW - 8, 20, '#a8c8f8', 1, 'right');
+  SHOP.filter(it => hasPart(it.key)).forEach((it, i) => drawPartIcon(it.key, VW - 22 - i * 16, 32));
   if (game.popup > 0) text(WEAPONS[player.weapon].name, VW / 2, 14, WEAPONS[player.weapon].pal.b, 1, 'center');
 }
 
@@ -865,6 +945,7 @@ function drawSelect() {
   for (let x = -(frameCount % 16); x < VW; x += 16) R(x, 0, 1, VH, 'rgba(80,100,200,0.12)');
   for (let y = -(frameCount % 16); y < VH; y += 16) R(0, y, VW, 1, 'rgba(80,100,200,0.12)');
   text('STAGE SELECT', VW / 2, 10, '#fcfcfc', 2, 'center');
+  text('POIN ' + save.points, VW - 10, 14, '#f8d800', 1, 'right');
   STAGE_ORDER.forEach((k, i) => {
     const px = SEL_X0 + SEL_POS[i][0] * (PW + 8), py = 32 + SEL_POS[i][1] * (PH + 8), st = STAGES[k], cleared = save.cleared[k];
     R(px - 2, py - 2, PW + 4, PH + 4, '#0a0a16');
@@ -884,7 +965,42 @@ function drawSelect() {
   });
   const ow = ownedWeapons();
   ow.forEach((w, i) => drawWeaponIcon(w, 14 + i * 14, 210));
-  text('ARROWS SELECT  ENTER START', VW - 12, 211, '#a8a8b8', 1, 'right');
+  text('ENTER START  X SHOP', VW - 12, 211, '#a8a8b8', 1, 'right');
+}
+
+// 14x14 icons for the shop parts
+function drawPartIcon(key, x, y) {
+  switch (key) {
+    case 'boots': sprite(x, y, 1, 14, [[3, 1, 5, 8, '#5a6a8a'], [3, 8, 10, 4, '#3a4a6a']], [[3, 12, 10, 1, '#c8c8d0'], [4, 2, 3, 1, '#8a9aba'], [5, 9, 7, 1, '#6a7a9a']]); break;
+    case 'armor': sprite(x, y, 1, 14, [[1, 1, 12, 4, '#c83010'], [3, 4, 8, 9, '#c83010']], [[5, 5, 4, 5, '#f8a800'], [6, 6, 2, 3, '#fcf8c0'], [2, 2, 3, 1, '#f86040']]); break;
+    case 'jet': sprite(x, y, 1, 14, [[2, 1, 4, 10, '#8a8a9a'], [8, 1, 4, 10, '#8a8a9a']], [[3, 11, 2, 3, '#f8a800'], [9, 11, 2, 3, '#f8a800'], [3, 2, 1, 6, '#c8c8d8'], [9, 2, 1, 6, '#c8c8d8']]); break;
+    case 'core': sprite(x, y, 1, 14, [[4, 1, 6, 12, '#2878d8'], [1, 4, 12, 6, '#2878d8']], [[5, 5, 4, 4, '#a8f0fc'], [6, 6, 2, 2, '#fcfcfc']]); break;
+    case 'super': sprite(x, y, 1, 14, [[0, 4, 9, 6, '#3cbcfc']], [[2, 5, 4, 3, '#fcfcfc'], [11, 1, 2, 7, '#f8d800'], [9, 3, 6, 2, '#f8d800']]); break;
+    case 'ultra': sprite(x, y, 1, 14, [[5, 0, 4, 14, '#f8b800'], [0, 5, 14, 4, '#f8b800'], [3, 3, 8, 8, '#f8d800']], [[5, 5, 4, 4, '#fcfcfc']]); break;
+  }
+}
+
+function drawShop() {
+  const g = ctx.createLinearGradient(0, 0, 0, VH);
+  g.addColorStop(0, '#0a1430'); g.addColorStop(1, '#20103a');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH);
+  for (let x = -(frameCount % 16); x < VW; x += 16) R(x, 0, 1, VH, 'rgba(80,100,200,0.1)');
+  text('SHOP', VW / 2, 8, '#fcfcfc', 2, 'center');
+  text('POIN ' + save.points, VW - 12, 12, '#f8d800', 1, 'right');
+  SHOP.forEach((it, i) => {
+    const y = 32 + i * 24, sel = game.shopSel === i, own = save.parts[it.key], locked = !own && it.needs && !save.parts[it.needs];
+    R(12, y - 3, VW - 24, 22, sel ? 'rgba(60,188,252,0.22)' : 'rgba(255,255,255,0.04)');
+    if (sel) R(12, y - 3, 2, 22, '#f8d800');
+    drawPartIcon(it.key, 20, y + 1);
+    text(it.name, 42, y, locked ? '#686878' : sel ? '#f8d800' : '#fcfcfc');
+    text(it.desc, 42, y + 10, locked ? '#4a4a58' : '#8888a0');
+    const status = own ? (own === 'on' ? 'ON' : 'OFF') : locked ? 'TERKUNCI' : it.price + ' POIN';
+    const col = own ? (own === 'on' ? '#b8f818' : '#888898') : locked ? '#686878' : save.points >= it.price ? '#fcfcfc' : '#f87858';
+    text(status, VW - 20, y, col, 1, 'right');
+  });
+  if (game.shopMsgT > 0) text(game.shopMsg, VW / 2, 182, game.shopOk ? '#b8f818' : '#f87858', 1, 'center');
+  text('ATAS/BAWAH PILIH  ENTER BELI/ON-OFF  X KEMBALI', VW / 2, 200, '#8888a0', 1, 'center');
+  drawVersion();
 }
 
 function drawIntro() {
@@ -974,7 +1090,7 @@ function drawPause() {
       text(WEAPONS[it].name, 134, y, sel ? '#f8d800' : it === player.weapon ? '#fcfcfc' : '#a8a8b8');
     }
   });
-  text('LIFE ' + game.lives, VW / 2, 196, '#a8c8f8', 1, 'center');
+  text('LIFE ' + game.lives + '   POIN ' + save.points, VW / 2, 196, '#a8c8f8', 1, 'center');
   text('UP/DOWN PILIH  ENTER OK', VW / 2, 208, '#686878', 1, 'center');
   drawVersion();
 }
@@ -985,6 +1101,7 @@ function render() {
   switch (game.state) {
     case 'title': return drawTitle();
     case 'select': return drawSelect();
+    case 'shop': return drawShop();
     case 'intro': return drawIntro();
     case 'weaponget': return drawWeaponGet();
     case 'ending': return drawEnding();

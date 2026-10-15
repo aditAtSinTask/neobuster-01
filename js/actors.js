@@ -111,16 +111,22 @@ function addShot(o) {
   pshots.push(s);
   return s;
 }
+// ---- shop parts & points ----
+// a bought part is 'on' or 'off' in save.parts; points are the score you earn, kept to spend in the shop
+const hasPart = k => !!(save.parts && save.parts[k] === 'on');
+function addScore(n) { game.score += n; save.points = (save.points || 0) + n; writeSave(); }
+const ULTRA_CHARGE = 150; // frames of holding for the ultra attack (Ultra Booster)
+
 const countShots = k => pshots.reduce((n, s) => n + (s.kind === k && !s.deflected ? 1 : 0), 0);
 
-function fireBuster(p, lvl) {
+function fireBuster(p, lvl, storm = true) {
   if (lvl === 0 && countShots('buster') >= 3) return;
   const [w, h] = [[6, 4], [10, 10], [22, 14]][lvl];
   const x = p.facing > 0 ? p.x + p.w + 4 : p.x - 4 - w;
   addShot({ kind: 'buster', weapon: 'buster', x, y: p.y + 13 - h / 2, w, h, vx: p.facing * (lvl === 2 ? 5.5 : 5), level: lvl, dmg: lvl + 1 });
   p.shootT = 16;
   [sfx.shoot, sfx.shootMid, sfx.shootFull][lvl]();
-  if (lvl === 2 && !p.storm && !countShots('storm')) { p.storm = 40; game.flash = 4; sfx.storm(); }
+  if (lvl === 2 && storm && !p.storm && !countShots('storm')) { p.storm = 40; game.flash = 4; sfx.storm(); }
 }
 // buster storm (full charge): for 40 frames a swarm of small shots pours in from the screen edge behind the player
 function updateStorm(p) {
@@ -173,17 +179,17 @@ function fireCharged(p) {
   const f = p.facing, my = p.y + 13;
   switch (p.weapon) {
     case 'cut': // giant scissors: an upright pair of scissors (feet to well above the head) that snips forward and comes back
-      if (countShots('gscissor')) return;
+      if (countShots('gscissor')) return false;
       addShot({ kind: 'gscissor', weapon: 'cut', x: f > 0 ? p.x + p.w : p.x - 20, y: p.y + p.h - 46, w: 20, h: 44, vx: f * 6, decel: 0.09, dir: f, dmg: 4, bossDmg: 3, pierce: true, charged: true });
       sfx.cutter(); sfx.shootFull();
       break;
     case 'fire': // fire wave: a flame pillar that rolls along the ground and burns enemy bullets
-      if (countShots('pwave')) return;
+      if (countShots('pwave')) return false;
       addShot({ kind: 'pwave', weapon: 'fire', x: f > 0 ? p.x + p.w : p.x - 16, y: p.y + p.h - 36, w: 16, h: 36, vx: f * 3.4, dmg: 4, bossDmg: 3, pierce: true, charged: true });
       sfx.flame(); sfx.fire();
       break;
     case 'elec': { // giga thunder: lightning strikes every enemy on screen and the boss
-      if (countShots('pbolt')) return;
+      if (countShots('pbolt')) return false;
       const targets = enemies.filter(e => !e.dead && !e.hidden && onScreen(e.x + e.w / 2, e.y + e.h / 2, 0)).map(e => [e.x + e.w / 2, e.y + e.h]);
       if (boss && boss.state !== 'drop' && boss.state !== 'pose') targets.push([bcx(boss), boss.y + boss.h]);
       if (!targets.length) for (const d of [48, 104, 160]) { const tx = pcx() + f * d; targets.push([tx, groundBelow(tx, p.y)]); }
@@ -195,7 +201,7 @@ function fireCharged(p) {
       break;
     }
     case 'snow': { // frost nova: a dense ring of 24 big piercing ice crystals (one points straight ahead)
-      if (countShots('bigshard')) return;
+      if (countShots('bigshard')) return false;
       const n = 24;
       for (let i = 0; i < n; i++) {
         const a = i * Math.PI * 2 / n;
@@ -205,26 +211,96 @@ function fireCharged(p) {
       break;
     }
     case 'earth': // rock quake: a boulder that shatters into 8 fragments and shakes every grounded enemy
-      if (countShots('bigrock')) return;
+      if (countShots('bigrock')) return false;
       addShot({ kind: 'bigrock', weapon: 'earth', x: f > 0 ? p.x + p.w - 4 : p.x - 18, y: my - 20, w: 22, h: 22, vx: f * 2.6, vy: -4.6, grav: 0.25, dmg: 5, bossDmg: 3, charged: true });
       sfx.rock(); sfx.shootFull();
       break;
   }
   p.shootT = 16;
+  return true;
+}
+
+// ================= ULTRA ATTACKS (Ultra Booster: hold for ULTRA_CHARGE frames) =================
+function fireUltra(p) {
+  if (pshots.some(s => s.ultra)) return false; // one at a time
+  const f = p.facing;
+  switch (p.weapon) {
+    case 'buster': // hyper beam: a screen-long laser from the buster
+      addShot({ kind: 'hbeam', weapon: 'buster', x: p.x, y: p.y, w: 1, h: 36, dir: f, life: 60, dmg: 6, bossDmg: 7, pierce: true, charged: true, ultra: true });
+      break;
+    case 'cut': // cutter tempest: 8 big cutters spiralling out around the player
+      for (let i = 0; i < 8; i++) addShot({ kind: 'tcutter', weapon: 'cut', x: pcx() - 10, y: pcy() - 10, w: 20, h: 20, ang: i * Math.PI / 4, r: 12, life: 130, dmg: 4, bossDmg: 2, pierce: true, charged: true, ultra: true });
+      break;
+    case 'fire': // inferno: fire pillars erupt along the floor, outward in both directions
+      for (let k = 1; k <= 7; k++) for (const d of [-1, 1]) {
+        const x = pcx() + d * k * 36, gy = groundBelow(x, p.y);
+        if (gy > camY + VH + 32) continue;
+        addShot({ kind: 'ppillar', weapon: 'fire', x: x - 10, y: gy - 88, w: 20, h: 88, delay: k * 5, life: 34, dmg: 4, bossDmg: 3, pierce: true, charged: true, ultra: true });
+      }
+      break;
+    case 'elec': // thunder god: lightning keeps striking enemies (and the boss) for almost two seconds
+      addShot({ kind: 'tgod', weapon: 'elec', x: pcx(), y: pcy(), w: 0, h: 0, life: 110, n: 0, ultra: true });
+      break;
+    case 'snow': absoluteZero(p); break;
+    case 'earth': // meteor: falls ahead of the player and explodes into shockwaves and rocks
+      addShot({ kind: 'meteor', weapon: 'earth', x: pcx() + f * 96 - 20, y: camY - 48, w: 40, h: 40, vy: 4, dmg: 8, bossDmg: 6, pierce: true, charged: true, ultra: true });
+      break;
+  }
+  game.flash = 8; game.shake = 10; sfx.ultra();
+  p.shootT = 20;
+  return true;
+}
+// absolute zero: every enemy on screen takes damage and freezes solid, bullets shatter, ice spikes erupt
+function absoluteZero(p) {
+  for (const e of enemies) {
+    if (e.dead || e.hidden || !onScreen(e.x + e.w / 2, e.y + e.h / 2, 0)) continue;
+    hitEnemy({ kind: 'zero', weapon: 'snow', x: e.x, y: e.y, w: e.w, h: e.h, dmg: 3 }, e);
+    if (!e.dead) e.frozen = 300;
+  }
+  for (const s of eshots) if (!s.harmless && onScreen(s.x + s.w / 2, s.y + s.h / 2, 16)) { s.dead = true; debris(s.x + s.w / 2, s.y + s.h / 2, '#c8f0fc', 3, 1); }
+  if (boss && boss.hp > 0 && boss.state !== 'drop' && boss.state !== 'pose' && BOSSES[boss.type].weapon !== 'snow') {
+    hitBoss({ kind: 'zero', weapon: 'snow', x: boss.x, y: boss.y, w: boss.w, h: boss.h, bossDmg: 5, ultra: true });
+    if (boss) boss.frozenT = 150;
+  }
+  for (let k = -7; k <= 7; k++) {
+    const x = pcx() + k * 26;
+    if (x < camX || x > camX + VW) continue;
+    const gy = groundBelow(x, p.y - 8);
+    if (gy > camY + VH + 16) continue;
+    addShot({ kind: 'icespike', weapon: 'snow', x: x - 6, y: gy - 30, w: 12, h: 30, delay: Math.abs(k) * 3, life: 40, dmg: 3, bossDmg: 2, pierce: true, charged: true, ultra: true });
+  }
+  sfx.freeze(); sfx.shatter();
+}
+function meteorImpact(s) {
+  s.dead = true;
+  const cx = s.x + s.w / 2, gy = s.y + s.h;
+  game.shake = 22; game.flash = 6; sfx.bigBoom(); sfx.quake();
+  for (let i = 0; i < 5; i++) boom(cx + (Math.random() - 0.5) * 40, gy - 10 - Math.random() * 20);
+  debris(cx, gy - 8, '#9a7a5a', 16, 3.5);
+  for (const d of [-1, 1]) addShot({ kind: 'pquake', weapon: 'earth', x: cx - 8 + d * 20, y: gy - 20, w: 16, h: 20, vx: d * 4, life: 70, dmg: 4, bossDmg: 3, pierce: true, charged: true, ultra: true });
+  for (let i = 0; i < 10; i++) { const v = (i - 4.5) * 0.8; addShot({ kind: 'frag', weapon: 'earth', x: cx - 3, y: gy - 16, w: 6, h: 6, vx: v, vy: -4 - Math.random() * 2, grav: 0.22, dmg: 2 }); }
+  for (const e of enemies) if (!e.dead && !e.hidden && Math.hypot(e.x + e.w / 2 - cx, e.y + e.h / 2 - gy) < 80) hitEnemy({ kind: 'blast', weapon: 'earth', x: e.x, y: e.y, w: e.w, h: e.h, dmg: 6 }, e);
+  if (boss && Math.hypot(bcx(boss) - cx, boss.y + boss.h / 2 - gy) < 90) hitBoss({ kind: 'blast', weapon: 'earth', x: boss.x, y: boss.y, w: boss.w, h: boss.h, bossDmg: 6, ultra: true });
 }
 
 function chargeTick(p) {
   p.charge++;
   if (p.charge === 30) sfx.charge();
   if (p.charge >= 75 && p.charge % 16 === 0) sfx.chargeFull();
+  if (p.charge === ULTRA_CHARGE && hasPart('ultra')) sfx.ultraReady();
 }
 // the charge survives getting hit and sliding: a release that happens then fires as soon as the player can shoot again
 function handleShoot(p, canFire) {
   const special = p.weapon !== 'buster';
-  if (hit.shoot && canFire) { if (special) fireSpecial(p); else fireBuster(p, 0); }
+  if (hit.shoot && canFire) {
+    if (hasPart('super')) { if (!special) fireBuster(p, 2, false); else if (!fireCharged(p)) fireSpecial(p); } // Super Booster: every tap is a charged shot
+    else if (special) fireSpecial(p);
+    else fireBuster(p, 0);
+  }
   if (inp.shoot) chargeTick(p);
   else if (p.charge > 0 && canFire) {
-    if (special) { if (p.charge >= 75) fireCharged(p); }
+    if (p.charge >= ULTRA_CHARGE && hasPart('ultra') && fireUltra(p)) { /* ultra attack */ }
+    else if (special) { if (p.charge >= 75) fireCharged(p); }
     else if (p.charge >= 75) fireBuster(p, 2);
     else if (p.charge >= 30) fireBuster(p, 1);
     p.charge = 0;
@@ -280,6 +356,52 @@ function updateShot(s) {
     case 'pbolt':
       if (--s.life <= 0) s.dead = true;
       return;
+    // ---- ultra attacks ----
+    case 'hbeam': { // follows the buster; re-hits enemies every 10 frames
+      const p = player;
+      if (s.dir > 0) { s.x = p.x + p.w + 2; s.w = Math.max(1, camX + VW - s.x); } else { s.x = camX; s.w = Math.max(1, p.x - 2 - camX); }
+      s.y = p.y + 11 - s.h / 2;
+      if (s.t % 10 === 0) for (const e of [...s.hits]) if (e !== boss) s.hits.delete(e);
+      burnShots(s);
+      if (--s.life <= 0 || !alive(p)) s.dead = true;
+      return;
+    }
+    case 'tcutter':
+      s.ang += 0.13; s.r = Math.min(150, s.r + 1.6);
+      s.x = pcx() + Math.cos(s.ang) * s.r - s.w / 2; s.y = pcy() + Math.sin(s.ang) * s.r - s.h / 2;
+      if (s.t % 30 === 0) s.hits.clear();
+      if (--s.life <= 0 || !alive(player)) s.dead = true;
+      return;
+    case 'ppillar': case 'icespike':
+      if (s.delay > 0) { s.delay--; if (!s.delay) s.kind === 'ppillar' ? sfx.flame() : sfx.ice(); return; }
+      if (s.kind === 'ppillar') burnShots(s);
+      if (--s.life <= 0) s.dead = true;
+      return;
+    case 'tgod': {
+      s.x = pcx(); s.y = pcy();
+      if (s.t % 7 === 1) {
+        const ts = enemies.filter(e => !e.dead && !e.hidden && onScreen(e.x + e.w / 2, e.y + e.h / 2, 0)).map(e => [e.x + e.w / 2, e.y + e.h]);
+        if (boss && boss.state !== 'drop' && boss.state !== 'pose') ts.push([bcx(boss), boss.y + boss.h]);
+        let tx, ty;
+        if (ts.length) [tx, ty] = ts[s.n++ % ts.length];
+        else { tx = camX + 16 + Math.random() * (VW - 32); ty = Math.min(groundBelow(tx, player.y), camY + VH); }
+        addShot({ kind: 'pbolt', weapon: 'elec', x: tx - 8, y: camY - 8, w: 16, h: Math.min(ty, camY + VH) - camY + 8, life: 14, dmg: 4, bossDmg: 3, pierce: true, charged: true, ultra: true, seed: Math.random() * 1e4 | 0 });
+        if (s.t % 14 === 1) { sfx.thunder(); game.flash = 2; }
+      }
+      if (--s.life <= 0) s.dead = true;
+      return;
+    }
+    case 'meteor':
+      s.vy = Math.min(s.vy + 0.15, 9); s.y += s.vy;
+      if (s.t % 2 === 0) part({ kind: 'ember', x: s.x + 8 + Math.random() * 24, y: s.y + 4, vx: 0, vy: -1.2, life: 16 });
+      if (s.y > camY && solidPx(s.x + s.w / 2, s.y + s.h)) meteorImpact(s);
+      if (s.y > camY + VH + 64) s.dead = true;
+      return;
+    case 'pquake':
+      s.x += s.vx;
+      if (frameCount % 3 === 0) dust(s.x + 8, s.y + s.h, 1);
+      if (solidPx(s.vx > 0 ? s.x + s.w : s.x, s.y + s.h / 2) || --s.life <= 0) { s.dead = true; debris(s.x + 8, s.y + 10, '#9a7a5a', 4); }
+      return;
     case 'pwave':
       s.vy = Math.min(s.vy + 0.4, 7); s.y += s.vy;
       if (solidPx(s.x + s.w / 2, s.y + s.h)) { s.y = Math.floor((s.y + s.h) / TILE) * TILE - s.h; s.vy = 0; }
@@ -334,7 +456,7 @@ function hitBoss(s) {
     return;
   }
   const weak = s.weapon === def.weak;
-  b.hp -= weak ? (s.charged ? 6 : 4) : s.kind === 'buster' ? s.dmg : s.bossDmg;
+  b.hp -= weak ? (s.ultra ? 8 : s.charged ? 6 : 4) : s.kind === 'buster' ? s.dmg : s.bossDmg;
   b.inv = weak ? 40 : s.kind === 'storm' ? 8 : 24;
   if (weak) {
     sfx.weakHit(); game.flash = 4; b.weakAt = game.time;
@@ -349,7 +471,7 @@ function updatePlayerShots() {
   for (const s of pshots) {
     if (s.dead) continue;
     updateShot(s);
-    if (s.dead || s.deflected) continue;
+    if (s.dead || s.deflected || s.delay > 0) continue;
     for (const e of enemies) {
       if (e.dead || e.hidden || !overlap(s, e) || (s.hits && s.hits.has(e))) continue;
       hitEnemy(s, e);
@@ -359,7 +481,7 @@ function updatePlayerShots() {
     for (const h of hazards) {
       if (h.kind !== 'icicle' || h.state === 'gone' || !overlap(s, h) || (s.hits && s.hits.has(h))) continue;
       if (s.hits) s.hits.add(h);
-      breakIcicle(h); game.score += 50;
+      breakIcicle(h); addScore(50);
       if (isRock(s)) shatterRock(s); else if (!s.pierce) s.dead = true;
       break;
     }
@@ -428,7 +550,8 @@ function updatePlayer() {
   if (p.onGround) p.coyote = 6; else if (p.coyote > 0) p.coyote--;
   p.jumpT++;
   const sand = inSand(p);
-  const doJump = () => { p.vy = sand ? -4.3 : -4.9; p.onGround = false; p.plat = null; p.jumpBuf = 0; p.coyote = 0; p.jumpT = 0; };
+  const jet = hasPart('jet'); // Jetpack: higher jumps
+  const doJump = () => { p.vy = (sand ? -4.3 : -4.9) * (jet ? 1.27 : 1); p.onGround = false; if (jet) sfx.jet(); p.plat = null; p.jumpBuf = 0; p.coyote = 0; p.jumpT = 0; };
   const runTo = (target, accel) => { p.vx = onIce ? p.vx + clamp(target - p.vx, -accel, accel) : target; };
 
   if (p.onGround && (p.state === 'normal' || p.state === 'slide' || p.state === 'hurt')) { const b = beltUnder(p); if (b) moveX(p, b * 0.8); }
@@ -511,7 +634,7 @@ function damagePlayer(dmg) {
   p.hp -= game.tough ? dmg / 10 : dmg; // cheat ILMUKEBAL: 10x thicker HP
   sfx.hurt();
   if (p.hp <= 1e-6) { p.hp = 0; killPlayer(true); return; }
-  p.state = 'hurt'; p.hurtT = 18; p.inv = 90; p.vx = 0; p.plat = null;
+  p.state = 'hurt'; p.hurtT = 18; p.inv = hasPart('core') ? 450 : 90; p.vx = 0; p.plat = null; // Core: 5x longer
   if (p.vy < 0) p.vy = 0;
 }
 function killPlayer(withOrbs) {
@@ -531,8 +654,8 @@ function checkHazards() {
   const y0 = Math.floor(p.y / TILE), y1 = Math.floor((p.y + p.h) / TILE);
   for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) {
     const t = tileAt(tx, ty);
-    if (t === '~' && ty < Math.floor((p.y + p.h - 1) / TILE) + 1 && p.y + p.h > ty * TILE + 4) { killPlayer(true); return; }
-    if (t === '^' && p.inv === 0) { killPlayer(true); return; }
+    if (t === '~' && !hasPart('armor') && ty < Math.floor((p.y + p.h - 1) / TILE) + 1 && p.y + p.h > ty * TILE + 4) { killPlayer(true); return; }
+    if (t === '^' && p.inv === 0 && !hasPart('boots')) { killPlayer(true); return; }
     if (t === 'X') { killPlayer(false); return; }
     if (t === 'Q' && ty === Math.floor((p.y + 3) / TILE)) { killPlayer(false); return; } // sank under the sand
   }
@@ -765,7 +888,7 @@ function killEnemy(e) {
   e.spawn.ent = null;
   boom(e.x + e.w / 2, e.y + e.h / 2);
   sfx.explode();
-  game.score += EN[e.type].score;
+  addScore(EN[e.type].score);
   const r = Math.random();
   if (r < 0.02) pickups.push(makePickup('L', e.x + e.w / 2, e.y));
   else if (r < 0.08) pickups.push(makePickup('E', e.x + e.w / 2, e.y));
@@ -1241,6 +1364,7 @@ function updateBoss() {
   if (b.arm > 0) b.arm--;
   if (b.state === 'drop') { physics(b); if (b.onGround) { b.state = 'pose'; b.t = 0; sfx.land(); dust(bcx(b), b.y + b.h, 4); } return; }
   if (b.state === 'pose') return;
+  if (b.frozenT > 0) { b.frozenT--; physics(b); return; } // frozen solid by Absolute Zero: no attacks, no contact damage
   if (b.state === 'stagger') {
     if (b.h !== 24) { b.y -= 10; b.h = 24; }
     moveX(b, -b.facing * 0.8); physics(b);
@@ -1258,7 +1382,7 @@ function defeatBoss() {
   sfx.bigBoom();
   game.flash = 10;
   boss = null; eshots = [];
-  game.score += 10000;
+  addScore(10000);
   game.state = 'clear'; game.t = 0;
   stopMusic();
 }
@@ -1279,7 +1403,7 @@ function updatePickups() {
       if (k.placed) k.placed.taken = true;
       if (k.kind === 'L') { game.lives = Math.min(9, game.lives + 1); sfx.oneup(); }
       else { game.refill += k.kind === 'h' ? 2 : 10; if (player.hp >= 28) { game.refill = 0; sfx.tick(); } }
-      game.score += 100;
+      addScore(100);
     }
   }
   pickups = pickups.filter(k => !k.dead);

@@ -91,11 +91,13 @@ function updateParticles() {
 // ================= WEAPONS =================
 const WEAPONS = {
   buster: { name: 'NEO BUSTER', short: 'BUSTER', pal: PAL_HERO },
-  cut: { name: 'ROLLING CUTTER', short: 'R.CUTTER', pal: { B: '#5a5a6a', b: '#e0e0ec', S: SKIN }, desc: 'BOOMERANG GUNTING - MENEMBUS MUSUH' },
-  fire: { name: 'FIRE STORM', short: 'F.STORM', pal: { B: '#d83000', b: '#f8b830', S: SKIN }, desc: 'BOLA API + PERISAI API' },
-  snow: { name: 'FROST SHARD', short: 'F.SHARD', pal: { B: '#1888d8', b: '#d0f4fc', S: SKIN }, desc: '3 KRISTAL ES - MEMBEKUKAN MUSUH' },
-  earth: { name: 'ROCK BREAKER', short: 'R.BREAKER', pal: { B: '#7a4a20', b: '#e8b868', S: SKIN }, desc: 'BATU PECAH JADI 4 SERPIHAN' },
+  cut: { name: 'ROLLING CUTTER', short: 'R.CUTTER', pal: { B: '#5a5a6a', b: '#e0e0ec', S: SKIN }, glow: '#e0e0ec', desc: 'BOOMERANG GUNTING - MENEMBUS MUSUH', charged: 'GIANT CUTTER' },
+  fire: { name: 'FIRE STORM', short: 'F.STORM', pal: { B: '#d83000', b: '#f8b830', S: SKIN }, glow: '#f86000', desc: 'BOLA API + PERISAI API', charged: 'FIRE WAVE' },
+  snow: { name: 'FROST SHARD', short: 'F.SHARD', pal: { B: '#1888d8', b: '#d0f4fc', S: SKIN }, glow: '#58d8f8', desc: '3 KRISTAL ES - MEMBEKUKAN MUSUH', charged: 'FROST NOVA' },
+  earth: { name: 'ROCK BREAKER', short: 'R.BREAKER', pal: { B: '#7a4a20', b: '#e8b868', S: SKIN }, glow: '#e8b868', desc: 'BATU PECAH JADI 4 SERPIHAN', charged: 'ROCK QUAKE' },
 };
+// palette the player flashes to while a special weapon is fully charged
+for (const k of ['cut', 'fire', 'snow', 'earth']) WEAPONS[k].full = { B: WEAPONS[k].pal.b, b: '#fcfcfc', S: '#fcfcfc' };
 const WEAPON_ORDER = ['buster', 'cut', 'fire', 'snow', 'earth'];
 const ownedWeapons = () => WEAPON_ORDER.filter(w => w === 'buster' || save.cleared[w]);
 
@@ -121,7 +123,7 @@ function fireSpecial(p) {
   switch (p.weapon) {
     case 'cut':
       if (countShots('cutter') >= 2) return;
-      addShot({ kind: 'cutter', weapon: 'cut', x: mx - 7, y: my - 7, w: 14, h: 14, vx: p.facing * 5, dir: p.facing, dmg: 2, pierce: true });
+      addShot({ kind: 'cutter', weapon: 'cut', x: mx - 7, y: my - 7, w: 14, h: 14, vx: p.facing * 5.5, decel: 0.11, dir: p.facing, dmg: 2, pierce: true });
       sfx.cutter();
       break;
     case 'fire':
@@ -144,61 +146,111 @@ function fireSpecial(p) {
   p.shootT = 16;
 }
 
-function handleShoot(p, canFire) {
-  if (p.weapon !== 'buster') {
-    p.charge = 0;
-    if (hit.shoot && canFire) fireSpecial(p);
-    return;
+// charged special weapons: hold shoot until fully charged, then release
+function fireCharged(p) {
+  const f = p.facing, my = p.y + 13;
+  switch (p.weapon) {
+    case 'cut': // giant cutter: double size, flies across most of the screen and comes back
+      if (countShots('gcutter')) return;
+      addShot({ kind: 'gcutter', weapon: 'cut', x: f > 0 ? p.x + p.w : p.x - 28, y: p.y - 9, w: 28, h: 28, vx: f * 6.5, decel: 0.09, dir: f, dmg: 4, bossDmg: 3, pierce: true, charged: true });
+      sfx.cutter(); sfx.shootFull();
+      break;
+    case 'fire': // fire wave: a flame pillar that rolls along the ground and burns enemy bullets
+      if (countShots('pwave')) return;
+      addShot({ kind: 'pwave', weapon: 'fire', x: f > 0 ? p.x + p.w : p.x - 16, y: p.y + p.h - 36, w: 16, h: 36, vx: f * 3.4, dmg: 4, bossDmg: 3, pierce: true, charged: true });
+      sfx.flame(); sfx.fire();
+      break;
+    case 'snow': // frost nova: 8 big piercing ice crystals in every direction
+      if (countShots('bigshard')) return;
+      for (let i = 0; i < 8; i++) {
+        const a = i * Math.PI / 4;
+        addShot({ kind: 'bigshard', weapon: 'snow', x: p.x + p.w / 2 - 5, y: p.y + p.h / 2 - 5, w: 10, h: 10, vx: Math.cos(a) * 4, vy: Math.sin(a) * 4, dmg: 2, bossDmg: 3, pierce: true, charged: true });
+      }
+      sfx.ice(); sfx.shatter();
+      break;
+    case 'earth': // rock quake: a boulder that shatters into 8 fragments and shakes every grounded enemy
+      if (countShots('bigrock')) return;
+      addShot({ kind: 'bigrock', weapon: 'earth', x: f > 0 ? p.x + p.w - 4 : p.x - 18, y: my - 20, w: 22, h: 22, vx: f * 2.6, vy: -4.6, grav: 0.25, dmg: 5, bossDmg: 3, charged: true });
+      sfx.rock(); sfx.shootFull();
+      break;
   }
-  if (hit.shoot && canFire) fireBuster(p, 0);
+  p.shootT = 16;
+}
+
+function handleShoot(p, canFire) {
+  const special = p.weapon !== 'buster';
+  if (hit.shoot && canFire) { if (special) fireSpecial(p); else fireBuster(p, 0); }
   if (inp.shoot) {
     p.charge++;
     if (p.charge === 30) sfx.charge();
     if (p.charge >= 75 && p.charge % 16 === 0) sfx.chargeFull();
   } else if (rel.shoot) {
     if (canFire) {
-      if (p.charge >= 75) fireBuster(p, 2);
+      if (special) { if (p.charge >= 75) fireCharged(p); }
+      else if (p.charge >= 75) fireBuster(p, 2);
       else if (p.charge >= 30) fireBuster(p, 1);
     }
     p.charge = 0;
   } else p.charge = 0;
 }
 
+const isRock = s => s.kind === 'rock' || s.kind === 'bigrock';
 function shatterRock(s) {
   if (s.dead) return;
   s.dead = true;
-  const cx = s.x + s.w / 2, cy = s.y + s.h / 2;
-  for (const v of [-2.4, -1.1, 1.1, 2.4]) addShot({ kind: 'frag', weapon: 'earth', x: cx - 3, y: cy - 3, w: 6, h: 6, vx: v, vy: -3 - Math.abs(v) * 0.4, grav: 0.22, dmg: 1 });
-  debris(cx, cy, '#9a7a5a', 5);
+  const cx = s.x + s.w / 2, cy = s.y + s.h / 2, big = s.kind === 'bigrock';
+  const vs = big ? [-3.2, -2.4, -1.6, -0.8, 0.8, 1.6, 2.4, 3.2] : [-2.4, -1.1, 1.1, 2.4];
+  for (const v of vs) addShot({ kind: 'frag', weapon: 'earth', x: cx - 3, y: cy - 3, w: 6, h: 6, vx: v, vy: -3 - Math.abs(v) * 0.4, grav: 0.22, dmg: big ? 2 : 1 });
+  debris(cx, cy, '#9a7a5a', big ? 12 : 5, big ? 3 : 2);
   sfx.shatter();
+  if (big) {
+    game.shake = 12; sfx.quake();
+    for (const e of enemies) {
+      if (e.dead || !e.onGround || !onScreen(e.x + e.w / 2, e.y + e.h / 2, 0)) continue;
+      hitEnemy({ kind: 'quake', weapon: 'earth', x: e.x, y: e.y, w: e.w, h: e.h, dmg: 2 }, e);
+    }
+  }
+}
+// fire shield and fire wave destroy small enemy bullets they touch
+function burnShots(s) {
+  for (const e of eshots) if (!e.dead && !e.big && !e.harmless && overlap(s, e)) { e.dead = true; spark(e.x + e.w / 2, e.y + e.h / 2); }
 }
 
 function updateShot(s) {
   s.t++;
   switch (s.kind) {
-    case 'cutter':
+    case 'cutter': case 'gcutter':
       if (!s.back) {
-        s.vx -= s.dir * 0.14;
-        s.x += s.vx; s.y += Math.sin(s.t * 0.15) * 0.6;
+        s.vx -= s.dir * s.decel;
+        s.x += s.vx;
+        if (s.kind === 'cutter') s.y += Math.sin(s.t * 0.15) * 0.6; // the giant cutter flies flat so it never dips into the floor
         if (Math.sign(s.vx) !== s.dir) s.back = true;
       } else {
-        const dx = pcx() - (s.x + 7), dy = pcy() - (s.y + 7), d = Math.hypot(dx, dy) || 1, sp = Math.min(5.5, 2 + s.t * 0.03);
+        const c = s.w / 2, dx = pcx() - (s.x + c), dy = pcy() - (s.y + c), d = Math.hypot(dx, dy) || 1, sp = Math.min(5.5, 2 + s.t * 0.03);
         s.x += dx / d * sp; s.y += dy / d * sp;
         if (d < 10 || !alive(player)) s.dead = true;
       }
-      if (s.t > 240) s.dead = true;
+      if (s.t > 300) s.dead = true;
       return;
     case 'flame':
       s.ang += 0.22;
       s.x = pcx() + Math.cos(s.ang) * 22 - 5; s.y = pcy() + Math.sin(s.ang) * 22 - 5;
       if (--s.life <= 0 || !alive(player)) s.dead = true;
-      for (const e of eshots) if (!e.dead && !e.big && !e.harmless && overlap(s, e)) { e.dead = true; spark(e.x + e.w / 2, e.y + e.h / 2); }
+      burnShots(s);
       return;
-    case 'rock': case 'frag':
+    case 'pwave':
+      s.vy = Math.min(s.vy + 0.4, 7); s.y += s.vy;
+      if (solidPx(s.x + s.w / 2, s.y + s.h)) { s.y = Math.floor((s.y + s.h) / TILE) * TILE - s.h; s.vy = 0; }
+      s.x += s.vx;
+      if (solidPx(s.vx > 0 ? s.x + s.w : s.x, s.y + s.h - 8)) { s.dead = true; debris(s.x + s.w / 2, s.y + s.h - 8, '#f8a800', 6); return; }
+      if (s.t % 3 === 0) part({ kind: 'ember', x: s.x + Math.random() * s.w, y: s.y + Math.random() * s.h, vx: 0, vy: -0.8, life: 14 });
+      burnShots(s);
+      break;
+    case 'rock': case 'bigrock': case 'frag':
       s.vy = Math.min(s.vy + s.grav, 7);
       s.x += s.vx; s.y += s.vy;
       if (solidPx(s.x + s.w / 2, s.y + s.h / 2) || solidPx(s.x + s.w / 2, s.y + s.h)) {
-        if (s.kind === 'rock') shatterRock(s); else { s.dead = true; debris(s.x + 3, s.y + 3, '#9a7a5a', 2, 1); }
+        if (isRock(s)) shatterRock(s); else { s.dead = true; debris(s.x + 3, s.y + 3, '#9a7a5a', 2, 1); }
       }
       break;
     default:
@@ -213,7 +265,7 @@ function hitEnemy(s, e) {
   const def = EN[e.type];
   if (def.hurt && def.hurt(e, s) === 'deflect') {
     if (s.kind === 'buster') { s.deflected = true; s.vx = -s.vx * 0.8; s.vy = -3.5; }
-    else if (s.kind === 'rock') shatterRock(s);
+    else if (isRock(s)) shatterRock(s);
     else if (!s.pierce) s.dead = true;
     spark(s.x + s.w / 2, s.y + s.h / 2); sfx.deflect();
     return;
@@ -224,7 +276,7 @@ function hitEnemy(s, e) {
     sfx.enemyHit();
     if (s.weapon === 'snow') { e.frozen = 150; sfx.freeze(); }
   }
-  if (s.kind === 'rock') shatterRock(s); else if (!s.pierce) s.dead = true;
+  if (isRock(s)) shatterRock(s); else if (!s.pierce) s.dead = true;
 }
 
 function hitBoss(s) {
@@ -235,19 +287,19 @@ function hitBoss(s) {
   if (s.weapon === def.weapon) { // immune to its own weapon
     spark(bx, by); sfx.deflect();
     if (s.kind === 'buster') { s.deflected = true; s.vx = -s.vx * 0.8; s.vy = -3.5; }
-    else if (s.kind === 'rock') shatterRock(s);
+    else if (isRock(s)) shatterRock(s);
     else if (!s.pierce) s.dead = true;
     return;
   }
   const weak = s.weapon === def.weak;
-  b.hp -= weak ? 4 : s.kind === 'buster' ? s.dmg : s.bossDmg;
+  b.hp -= weak ? (s.charged ? 6 : 4) : s.kind === 'buster' ? s.dmg : s.bossDmg;
   b.inv = weak ? 40 : 24;
   if (weak) {
-    sfx.weakHit(); game.flash = 4;
+    sfx.weakHit(); game.flash = 4; b.weakAt = game.time;
     if (b.state !== 'slide' || b.h === 24) { b.state = 'stagger'; b.t = 0; b.vx = 0; }
     debris(bx, by, '#fcfcfc', 6, 2);
   } else sfx.bossHit();
-  if (s.kind === 'rock') shatterRock(s); else if (!s.pierce) s.dead = true;
+  if (isRock(s)) shatterRock(s); else if (!s.pierce) s.dead = true;
   if (b.hp <= 0) defeatBoss();
 }
 
@@ -266,7 +318,7 @@ function updatePlayerShots() {
       if (h.kind !== 'icicle' || h.state === 'gone' || !overlap(s, h) || (s.hits && s.hits.has(h))) continue;
       if (s.hits) s.hits.add(h);
       breakIcicle(h); game.score += 50;
-      if (s.kind === 'rock') shatterRock(s); else if (!s.pierce) s.dead = true;
+      if (isRock(s)) shatterRock(s); else if (!s.pierce) s.dead = true;
       break;
     }
     if (!s.dead && !s.deflected && boss && overlap(s, boss)) hitBoss(s);

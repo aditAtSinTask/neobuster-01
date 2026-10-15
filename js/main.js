@@ -419,6 +419,23 @@ function drawPlayerShot(s) {
       }
       return;
     case 'cutter': drawCutter(x, y, s.t * 0.5, '#f83800'); return;
+    case 'gcutter':
+      glow(x + 14, y + 14, 22, '#e0e0ec', 0.45);
+      ctx.save(); ctx.translate(x, y); ctx.scale(2, 2);
+      drawCutter(0, 0, s.t * 0.4, '#f83800');
+      ctx.restore();
+      return;
+    case 'pwave':
+      drawFlameColumn(x + 8, y + s.h, s.h, 8);
+      glow(x + 8, y + s.h - 10, 24, '#f86000', 0.6);
+      return;
+    case 'bigshard':
+      glow(x + 5, y + 5, 14, '#58d8f8', 0.7);
+      R(x + 3, y - 1, 4, 12, '#0a0a16'); R(x - 1, y + 3, 12, 4, '#0a0a16');
+      R(x + 4, y, 2, 10, '#a8e8fc'); R(x, y + 4, 10, 2, '#a8e8fc');
+      R(x + 2, y + 2, 6, 6, '#a8e8fc'); R(x + 3, y + 3, 4, 4, '#d8f8fc'); R(x + 4, y + 4, 2, 2, '#fcfcfc');
+      return;
+    case 'bigrock': drawRock(x, y, 22); glow(x + 11, y + 11, 18, '#e8b868', 0.3); return;
     case 'fireball':
       glow(x + 6, y + 5, 14, '#f86000', 0.9);
       circle(x + 6, y + 5, 5, '#f87800'); circle(x + 6 + Math.sign(s.vx), y + 5, 3, '#f8d800'); circle(x + 7, y + 5, 1.5, '#fcfcfc');
@@ -510,13 +527,18 @@ function drawPlayer() {
   else if (!p.onGround) pose = 'jump';
   else if (Math.abs(p.vx) > 0.1) { pose = 'run'; fr = [0, 1, 2, 1][(p.anim >> 3) & 3]; }
 
+  // special weapons charge in their own colour; the buster keeps the classic green -> blue
+  const w = WEAPONS[p.weapon], special = p.weapon !== 'buster';
   let pal = wp;
   if (p.state === 'hurt' && frameCount & 2) pal = PAL_FULL;
-  else if (p.charge >= 75) pal = (frameCount >> 2) & 1 ? PAL_FULL : wp;
-  else if (p.charge >= 30) pal = (frameCount >> 3) & 1 ? PAL_MID : wp;
+  else if (p.charge >= 75) pal = (frameCount >> 2) & 1 ? (special ? w.full : PAL_FULL) : wp;
+  else if (p.charge >= 30) pal = (frameCount >> 3) & 1 ? (special ? w.full : PAL_MID) : wp;
 
   drawRobot(sx + p.w / 2 - 12, sy + p.h - 24, p.facing, pose, fr, p.shootT > 0 && pose !== 'slide' && pose !== 'hurt', pal);
-  if (p.charge >= 30) glow(sx + p.w / 2, sy + p.h / 2, p.charge >= 75 ? 22 : 14, p.charge >= 75 ? '#3cbcfc' : '#b8f818', 0.35 + ((frameCount >> 2) & 1) * 0.2);
+  if (p.charge >= 30) {
+    const col = special ? w.glow : p.charge >= 75 ? '#3cbcfc' : '#b8f818';
+    glow(sx + p.w / 2, sy + p.h / 2, p.charge >= 75 ? 22 : 14, col, 0.35 + ((frameCount >> 2) & 1) * 0.2);
+  }
 }
 
 function drawBoss() {
@@ -536,6 +558,18 @@ function drawBoss() {
   drawRobot(sx + b.w / 2 - 12, sy + b.h - 24, b.facing, pose, fr, b.arm > 0 && pose !== 'raise', pal, def.style, { blade: b.hasCutter });
   if (b.type === 'fire') glow(sx + b.w / 2, sy - 2, 16, '#f86000', 0.7);
   if (b.type === 'snow') glow(sx + b.w / 2, sy - 2, 8, '#58e8f8', 0.5);
+  if (game.time - b.weakAt < 40) text('WEAK!', sx + b.w / 2, sy - 16 - ((game.time - b.weakAt) >> 2), '#f8d800', 1, 'center');
+}
+
+// boss weakness panel (bottom-left) for the whole boss fight; grey when that weapon is not owned yet
+function drawWeakness() {
+  const weak = BOSSES[boss.type].weak, w = WEAPONS[weak], owned = ownedWeapons().includes(weak);
+  const label = 'LEMAH: ' + w.name + (owned ? '' : ' (BELUM ADA)');
+  const y = VH - 22, using = player.weapon === weak;
+  R(6, y - 3, textWidth(label) + 28, 17, 'rgba(5,5,20,0.75)');
+  if (using) R(6, y - 3, textWidth(label) + 28, 1, w.pal.b);
+  drawWeaponIcon(weak, 11, y);
+  text(label, 26, y + 2, owned ? w.pal.b : '#888898');
 }
 
 function drawParticles() {
@@ -582,6 +616,7 @@ function drawHUD() {
   drawBar(12, 12, player.hp, '#f8d878');
   drawWeaponIcon(player.weapon, 11, 76);
   if (game.bossLocked) drawBar(26, 12, boss ? (game.state === 'bossintro' ? game.bossBar : boss.hp) : 0, '#f87858');
+  if (game.bossLocked && boss && boss.hp > 0) drawWeakness();
   text(String(game.score).padStart(7, '0'), VW - 8, 8, '#fcfcfc', 1, 'right');
   text('LIFE ' + Math.max(0, game.lives), VW - 8, 20, '#a8c8f8', 1, 'right');
   if (game.popup > 0) text(WEAPONS[player.weapon].name, VW / 2, 14, WEAPONS[player.weapon].pal.b, 1, 'center');
@@ -738,6 +773,7 @@ function drawWeaponGet() {
   text(w.desc, 150, 140, w.pal.b, 1);
   text('SENJATA UNLIMITED - TIDAK HABIS', 150, 154, '#a8a8b8', 1);
   text('Q / E UNTUK GANTI SENJATA', 150, 168, '#a8a8b8', 1);
+  text('TAHAN X: ' + w.charged, 150, 182, w.pal.b, 1);
   if (t > 60 && (frameCount >> 4) & 1) text('PRESS ENTER', VW / 2, 202, '#f8d800', 1, 'center');
 }
 

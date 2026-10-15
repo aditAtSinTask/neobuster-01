@@ -2,7 +2,7 @@
 
 > Game action-platformer 2D bergaya **Mega Man** untuk browser — grafik pixel-art yang lebih kaya, tapi tetap ringan dan optimal untuk web.
 
-**Versi saat ini: `0.2.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
+**Versi saat ini: `0.3.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
 
 ---
 
@@ -25,7 +25,8 @@
 - Setiap stage punya area halang rintang: duri, lava, lantai es, balok rapuh, tangga, jembatan bergerak, gergaji, semburan api, dan musuh.
 - Di ujung stage ada **pintu boss**. Kalahkan boss untuk mendapatkan **senjatanya**.
 - Semua senjata boss **unlimited** — tidak ada energi senjata yang bisa habis.
-- Setiap boss **lemah** terhadap senjata boss lain. Gunakan untuk memberi damage besar.
+- Setiap senjata punya **charge shot**: tahan tombol tembak sampai karakter berkedip, lalu lepas.
+- Setiap boss **lemah** terhadap senjata boss lain. Saat melawan boss, kelemahannya tampil di pojok kiri bawah layar.
 
 ## Cara Menjalankan
 
@@ -46,7 +47,7 @@ Tidak perlu build atau install apa pun — cukup HTML + JavaScript murni.
 | Naik / turun tangga | `↑` `↓` / `W` `S` | D-pad / stik kiri |
 | Lompat | `Z` / `J` / `Space` | A |
 | Tembak | `X` / `K` | X / B |
-| Charge shot | Tahan `X` lalu lepas | Tahan tombol tembak |
+| Charge shot (semua senjata) | Tahan `X` lalu lepas | Tahan tombol tembak |
 | Slide | `C` / `L` (atau `↓` + lompat) | RT / Y |
 | Ganti senjata | `Q` / `E` | LB / RB |
 | Pause & menu senjata | `Enter` / `Esc` | Start |
@@ -56,12 +57,30 @@ Tidak perlu build atau install apa pun — cukup HTML + JavaScript murni.
 
 ## Boss & Senjata
 
-| Stage | Boss | Senjata yang didapat | Efek senjata | Lemah terhadap |
-| --- | --- | --- | --- | --- |
-| Cut | **CUTMAN** — manusia gunting | Rolling Cutter | Boomerang gunting, menembus musuh | Rock Breaker |
-| Fire | **FIREMAN** — manusia api | Fire Storm | Bola api + perisai api | Frost Shard |
-| Snow | **SNOWWOMAN** — wanita es | Frost Shard | 3 kristal es, membekukan musuh | Fire Storm |
-| Earth | **EARTHWOMAN** — wanita tanah & batu | Rock Breaker | Batu yang pecah jadi 4 serpihan | Rolling Cutter |
+| Stage | Boss | Senjata yang didapat | Lemah terhadap |
+| --- | --- | --- | --- |
+| Cut | **CUTMAN** — manusia gunting | Rolling Cutter | Rock Breaker |
+| Fire | **FIREMAN** — manusia api | Fire Storm | Frost Shard |
+| Snow | **SNOWWOMAN** — wanita es | Frost Shard | Fire Storm |
+| Earth | **EARTHWOMAN** — wanita tanah & batu | Rock Breaker | Rolling Cutter |
+
+### Tembakan biasa & charge shot
+
+Tekan `X` untuk tembakan biasa. Tahan `X` sampai karakter berkedip dengan warna senjatanya, lalu lepas untuk charge shot.
+
+| Senjata | Tembakan biasa | Charge shot |
+| --- | --- | --- |
+| Neo Buster | Peluru kecil (maks. 3 di layar) | Tahan sebentar: peluru sedang. Tahan penuh: peluru besar yang menembus musuh |
+| Rolling Cutter | Boomerang gunting yang menembus musuh dan kembali | **Giant Cutter** — gunting 2x lebih besar, terbang hampir selebar layar lalu kembali |
+| Fire Storm | Bola api + perisai api yang berputar | **Fire Wave** — pilar api yang bergulir di tanah, menembus musuh dan membakar peluru musuh |
+| Frost Shard | 3 kristal es yang membekukan musuh | **Frost Nova** — 8 kristal es besar ke segala arah, menembus dan membekukan musuh |
+| Rock Breaker | Batu yang pecah jadi 4 serpihan | **Rock Quake** — batu besar yang pecah jadi 8 serpihan, mengguncang layar dan melukai semua musuh yang menapak tanah |
+
+### Melawan boss
+
+- Kelemahan boss tampil di **pojok kiri bawah** selama pertarungan. Tulisannya abu-abu dengan keterangan "(BELUM ADA)" kalau senjatanya belum kamu punya, dan ada garis berwarna di atas panel kalau senjata itu sedang dipakai.
+- Serangan ke kelemahan boss memunculkan tulisan **WEAK!** dan memberi 4 damage. Kalau pakai charge shot, damage-nya 6.
+- Boss kebal terhadap senjatanya sendiri.
 
 Setelah keempat boss dikalahkan, muncul layar ending.
 
@@ -112,6 +131,13 @@ Detail teknis:
 ## Versi & Changelog
 
 Versi ditulis di konstanta `VERSION` di `js/engine.js`. Setiap ada perubahan, naikkan versinya dan tambahkan catatan di bawah.
+
+### 0.3.0
+- Charge shot untuk semua special weapon: Giant Cutter, Fire Wave, Frost Nova, Rock Quake.
+- Saat charge, karakter berkedip dan bersinar dengan warna senjata yang dipakai.
+- Panel kelemahan boss di pojok kiri bawah selama pertarungan, dan tulisan "WEAK!" saat kena senjata kelemahannya.
+- Jarak Rolling Cutter lebih jauh (sekitar 90 px menjadi sekitar 140 px).
+- Layar "Weapon Get" menampilkan nama charge shot senjata baru.
 
 ### 0.2.0
 - Nomor versi tampil di layar title, pause, cheat box, dan judul tab browser.

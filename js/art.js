@@ -1,5 +1,5 @@
 'use strict';
-// Art: robot sprites (hero + 4 bosses), themed parallax backgrounds and tilesets, weapon icons.
+// Art: robot sprites (hero + 5 bosses), themed parallax backgrounds and tilesets, weapon icons.
 
 const SKIN = '#fcd8a8';
 const PAL_HERO = { B: '#0058f8', b: '#3cbcfc', S: SKIN };
@@ -7,7 +7,7 @@ const PAL_MID = { B: '#00a800', b: '#b8f818', S: SKIN };
 const PAL_FULL = { B: '#3cbcfc', b: '#fcfcfc', S: '#fcfcfc' };
 const PAL_WHITE = { B: '#fcfcfc', b: '#fcfcfc', S: '#fcfcfc' };
 
-// 24x24 robot. ox,oy = top-left of the box (feet at oy+24). style: hero | cut | fire | snow | earth
+// 24x24 robot. ox,oy = top-left of the box (feet at oy+24). style: hero | cut | fire | elec | snow | earth
 function drawRobot(ox, oy, f, pose, fr, arm, pal, style = 'hero', opt = {}) {
   const { B, b, S } = pal, W = '#fcfcfc', K = '#000000';
   const P = [], D = [];
@@ -40,6 +40,9 @@ function drawRobot(ox, oy, f, pose, fr, arm, pal, style = 'hero', opt = {}) {
     p(9, -3 + dy, 7, 5, white ? W : '#f87800'); p(10 + (fl === 1 ? 1 : 0), -6 - fl + dy, 4, 5, white ? W : '#f8d800');
   }
   if (style === 'snow') { p(10, -2 + dy, 5, 3, white ? W : '#58e8f8'); p(11, -4 + dy, 3, 2, white ? W : '#c8fcfc'); }
+  if (style === 'elec') { // tall lightning-fin helmet
+    p(9, -3 + dy, 6, 5, white ? W : '#f8d800'); p(10, -7 + dy, 3, 5, white ? W : '#fcf8a0'); p(12, -9 + dy, 2, 3, white ? W : '#fcfcfc');
+  }
 
   p(7, 1 + dy, 10, 10, B); // head
   p(8, 11 + dy, 8, 6, b);  // torso
@@ -91,6 +94,10 @@ function drawRobot(ox, oy, f, pose, fr, arm, pal, style = 'hero', opt = {}) {
   }
   if (style === 'cut' && opt.blade !== false) d(11, -1 + dy, 2, 2, '#f83800');
   if (style === 'earth') d(7, hy + 2, 10, 1, '#4a8a30');
+  if (style === 'elec' && !white) { // lightning bolt on the chest
+    const k = '#202028';
+    d(12, 11 + dy, 2, 1, k); d(11, 12 + dy, 2, 1, k); d(10, 13 + dy, 4, 1, k); d(12, 14 + dy, 1, 1, k);
+  }
   d(8, 15 + dy, 8, 2, B);
   sprite(ox, oy, f, 24, P, D);
 }
@@ -105,6 +112,7 @@ function drawWeaponIcon(kind, x, y, s = 1) {
     case 'fire': sprite(0, 0, 1, 10, [[2, 3, 6, 7, '#f87800'], [3, 0, 3, 5, '#f8d800']], [[4, 6, 2, 3, '#fcfcfc']]); break;
     case 'snow': sprite(0, 0, 1, 10, [[4, 0, 2, 10, '#a8e8fc'], [0, 4, 10, 2, '#a8e8fc']], [[4, 4, 2, 2, '#fcfcfc'], [1, 1, 2, 2, '#d8f8fc'], [7, 7, 2, 2, '#d8f8fc']]); break;
     case 'earth': sprite(0, 0, 1, 10, [[1, 2, 8, 7, '#9a7a5a'], [3, 0, 4, 4, '#b89878']], [[3, 4, 2, 2, '#6a4a2a'], [6, 6, 2, 1, '#6a4a2a']]); break;
+    case 'elec': sprite(0, 0, 1, 10, [[5, 0, 4, 3, '#f8d800'], [3, 2, 4, 3, '#f8d800'], [1, 4, 8, 2, '#f8d800'], [4, 6, 3, 2, '#f8d800'], [2, 7, 3, 3, '#f8d800']], [[6, 1, 2, 1, '#fcfcfc'], [2, 5, 5, 1, '#fcf8a0']]); break;
   }
   ctx.restore();
 }
@@ -178,6 +186,40 @@ const BG_PAINTERS = {
         g.strokeStyle = '#a03010'; g.lineWidth = 1;
         g.beginPath(); g.moveTo(x + w * 0.4, BG_H - h); g.lineTo(x + w * 0.2, BG_H); g.stroke();
         x += w * 0.7;
+      }
+    } },
+  ],
+  elec: [
+    { k: 0.1, ky: 0.4, paint(g, rnd) {
+      skyGrad(g, [[0, '#06060f'], [0.5, '#141430'], [0.85, '#2a2450'], [1, '#3a3060']]);
+      for (let i = 0; i < 16; i++) {
+        const cx = rnd() * BG_W, cy = 8 + rnd() * 80;
+        g.fillStyle = 'rgba(46,46,90,0.55)';
+        for (let k = 0; k < 5; k++) { g.beginPath(); g.arc(cx + k * 14 - 28, cy + (k % 2) * 5, 12 + rnd() * 9, 0, 7); g.fill(); }
+      }
+      let x = 0;
+      while (x < BG_W) {
+        const w = 18 + rnd() * 36 | 0, h = 30 + rnd() * 70 | 0;
+        g.fillStyle = '#14142a'; g.fillRect(x, BG_H - h, w, h);
+        g.fillStyle = '#f8e070';
+        for (let wy = BG_H - h + 5; wy < BG_H - 4; wy += 7) for (let wx = x + 3; wx < x + w - 3; wx += 5) if (rnd() < 0.12) g.fillRect(wx, wy, 2, 2);
+        x += w + (rnd() * 6 | 0);
+      }
+    } },
+    { k: 0.35, ky: 1, paint(g) {
+      // transmission towers with sagging cables (spacing divides BG_W so the layer tiles seamlessly)
+      const xs = [], top = BG_H - 150;
+      for (let x = 48 - 192; x < BG_W + 192; x += 192) xs.push(x);
+      g.strokeStyle = '#34346a'; g.lineWidth = 1;
+      for (let i = 0; i < xs.length - 1; i++) for (const [o, y] of [[-24, top + 10], [24, top + 10], [-18, top + 40], [18, top + 40]]) {
+        g.beginPath(); g.moveTo(xs[i] + o, y); g.quadraticCurveTo((xs[i] + xs[i + 1]) / 2 + o, y + 34, xs[i + 1] + o, y); g.stroke();
+      }
+      for (const x of xs) {
+        poly(g, [x - 20, BG_H, x - 4, top, x + 4, top, x + 20, BG_H], '#22223e');
+        g.fillStyle = '#22223e'; g.fillRect(x - 26, top + 8, 52, 4); g.fillRect(x - 20, top + 38, 40, 4);
+        g.strokeStyle = '#16162a';
+        for (let y = top + 16; y < BG_H - 8; y += 22) { const w = 4 + (y - top) * 0.1; g.beginPath(); g.moveTo(x - w, y); g.lineTo(x + w, y + 22); g.moveTo(x + w, y); g.lineTo(x - w, y + 22); g.stroke(); }
+        g.fillStyle = '#f83800'; g.fillRect(x - 1, top - 4, 2, 4);
       }
     } },
   ],
@@ -343,6 +385,24 @@ const TILESETS = {
     },
     spike: (F, x, y) => drawSpikes(F, x, y, '#d0f4fc', '#78b8e0', '#4a7aa8'),
     ladder: (F, x, y) => drawLadder(F, x, y, '#d0d8e8', '#a8b8d0', '#6a7a98'),
+  },
+  elec: {
+    ground(F, x, y, v, exp) {
+      F(x, y, 16, 16, v & 1 ? '#262a3a' : '#232736');
+      const ty = y + 6 + (v % 5), tx = x + 3 + (v >> 3) % 8;
+      F(x + 2, ty, 12, 1, '#363e58'); F(tx, ty, 1, 16 - (ty - y) - 2, '#363e58'); F(tx - 1, y + 13, 3, 2, '#4a5474');
+      F(x + 15, y, 1, 16, '#16192a'); F(x, y + 15, 16, 1, '#16192a');
+      if (exp) {
+        F(x, y, 16, 5, '#4a5068'); F(x, y, 16, 1, '#8a96b8'); F(x, y + 5, 16, 1, '#12141f');
+        F(x, y + 2, 16, 1, '#a88800'); if (v & 2) F(x + 4 + (v % 6), y + 2, 4, 1, '#f8e030');
+      }
+    },
+    block(F, x, y) {
+      F(x, y, 16, 16, '#1a1c28'); F(x + 1, y + 1, 14, 14, '#4a5578'); F(x + 1, y + 1, 14, 1, '#7a88b0'); F(x + 1, y + 14, 14, 1, '#323a54');
+      F(x + 8, y + 3, 3, 3, '#f8d800'); F(x + 6, y + 6, 4, 2, '#f8d800'); F(x + 6, y + 8, 2, 2, '#f8d800'); F(x + 5, y + 10, 2, 3, '#f8d800');
+    },
+    spike: (F, x, y) => drawSpikes(F, x, y, '#c8d0e0', '#6a7490', '#2a3044', '#f8d800'),
+    ladder: (F, x, y) => drawLadder(F, x, y, '#8a96b8', '#c8a800', '#3a4258'),
   },
   earth: {
     ground(F, x, y, v, exp) {

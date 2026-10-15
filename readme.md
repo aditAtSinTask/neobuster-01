@@ -2,7 +2,7 @@
 
 > Game action-platformer 2D bergaya **Mega Man** untuk browser — grafik pixel-art yang lebih kaya, tapi tetap ringan dan optimal untuk web.
 
-**Versi saat ini: `0.3.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
+**Versi saat ini: `0.4.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
 
 ---
 
@@ -21,11 +21,11 @@
 
 ## Konsep
 
-- Pilih salah satu dari **4 stage** boss, dalam urutan bebas.
-- Setiap stage punya area halang rintang: duri, lava, lantai es, balok rapuh, tangga, jembatan bergerak, gergaji, semburan api, dan musuh.
+- Pilih salah satu dari **5 stage** boss, dalam urutan bebas.
+- Setiap stage punya area halang rintang: duri, lava, lantai es, balok rapuh, tangga, jembatan bergerak, gergaji, semburan api, sinar listrik, dan musuh.
 - Di ujung stage ada **pintu boss**. Kalahkan boss untuk mendapatkan **senjatanya**.
 - Semua senjata boss **unlimited** — tidak ada energi senjata yang bisa habis.
-- Setiap senjata punya **charge shot**: tahan tombol tembak sampai karakter berkedip, lalu lepas.
+- Setiap senjata punya **charge shot**: tahan tombol tembak sampai karakter berkedip, lalu lepas. Charge tidak batal walau terkena serangan.
 - Setiap boss **lemah** terhadap senjata boss lain. Saat melawan boss, kelemahannya tampil di pojok kiri bawah layar.
 
 ## Cara Menjalankan
@@ -61,8 +61,9 @@ Tidak perlu build atau install apa pun — cukup HTML + JavaScript murni.
 | --- | --- | --- | --- |
 | Cut | **CUTMAN** — manusia gunting | Rolling Cutter | Rock Breaker |
 | Fire | **FIREMAN** — manusia api | Fire Storm | Frost Shard |
+| Elec | **ELECMAN** — manusia listrik & petir | Thunder Beam | Rolling Cutter |
 | Snow | **SNOWWOMAN** — wanita es | Frost Shard | Fire Storm |
-| Earth | **EARTHWOMAN** — wanita tanah & batu | Rock Breaker | Rolling Cutter |
+| Earth | **EARTHWOMAN** — wanita tanah & batu | Rock Breaker | Thunder Beam |
 
 ### Tembakan biasa & charge shot
 
@@ -70,9 +71,10 @@ Tekan `X` untuk tembakan biasa. Tahan `X` sampai karakter berkedip dengan warna 
 
 | Senjata | Tembakan biasa | Charge shot |
 | --- | --- | --- |
-| Neo Buster | Peluru kecil (maks. 3 di layar) | Tahan sebentar: peluru sedang. Tahan penuh: peluru besar yang menembus musuh |
-| Rolling Cutter | Boomerang gunting yang menembus musuh dan kembali | **Giant Cutter** — gunting 2x lebih besar, terbang hampir selebar layar lalu kembali |
+| Neo Buster | Peluru kecil (maks. 3 di layar) | Tahan sebentar: peluru sedang. Tahan penuh: peluru besar yang menembus musuh **+ Buster Storm**, ratusan peluru kecil yang datang dari belakang dan menyapu seluruh layar ke depan, mengenai semua musuh termasuk yang berlindung |
+| Rolling Cutter | Boomerang gunting yang menembus musuh dan kembali | **Giant Scissors** — gunting raksasa berdiri tegak (dari kaki sampai jauh di atas kepala) yang menggunting maju, menembus musuh, lalu kembali |
 | Fire Storm | Bola api + perisai api yang berputar | **Fire Wave** — pilar api yang bergulir di tanah, menembus musuh dan membakar peluru musuh |
+| Thunder Beam | Sinar petir cepat yang menembus musuh | **Giga Thunder** — petir menyambar dari langit ke setiap musuh di layar, termasuk boss |
 | Frost Shard | 3 kristal es yang membekukan musuh | **Frost Nova** — 8 kristal es besar ke segala arah, menembus dan membekukan musuh |
 | Rock Breaker | Batu yang pecah jadi 4 serpihan | **Rock Quake** — batu besar yang pecah jadi 8 serpihan, mengguncang layar dan melukai semua musuh yang menapak tanah |
 
@@ -82,7 +84,7 @@ Tekan `X` untuk tembakan biasa. Tahan `X` sampai karakter berkedip dengan warna 
 - Serangan ke kelemahan boss memunculkan tulisan **WEAK!** dan memberi 4 damage. Kalau pakai charge shot, damage-nya 6.
 - Boss kebal terhadap senjatanya sendiri.
 
-Setelah keempat boss dikalahkan, muncul layar ending.
+Setelah kelima boss dikalahkan, muncul layar ending.
 
 ## Progress & Save
 
@@ -115,7 +117,7 @@ neobuster/
 ├── readme.md
 └── js/
     ├── engine.js   # versi, canvas, input, audio & musik, font pixel, sprite & glow
-    ├── art.js      # sprite robot (hero + 4 boss), background parallax, tileset, ikon senjata
+    ├── art.js      # sprite robot (hero + 5 boss), background parallax, tileset, ikon senjata
     ├── levels.js   # data stage & layout level
     ├── actors.js   # fisika, player, senjata, musuh, hazard, platform, boss
     ├── cheats.js   # cheat box (P + O) dan daftar cheat code
@@ -131,6 +133,15 @@ Detail teknis:
 ## Versi & Changelog
 
 Versi ditulis di konstanta `VERSION` di `js/engine.js`. Setiap ada perubahan, naikkan versinya dan tambahkan catatan di bawah.
+
+### 0.4.0
+- Boss baru **ELECMAN** (manusia listrik & petir) dengan stage power plant: badai, hujan, kilat di langit, dan sinar listrik yang menyala-mati. Serangan boss: Thunder Beam 3 arah, sambaran petir dari langit-langit, dan lompatan dengan bola listrik.
+- Senjata baru **Thunder Beam**, dengan charge shot **Giga Thunder**.
+- Kelemahan: Elecman lemah terhadap Rolling Cutter. Earthwoman sekarang lemah terhadap Thunder Beam (sebelumnya Rolling Cutter).
+- Charge shot Neo Buster penuh sekarang juga memicu **Buster Storm**.
+- Charge Rolling Cutter diganti menjadi **Giant Scissors** yang berdiri tegak.
+- Terkena serangan tidak lagi membatalkan charge. Kalau tombol dilepas saat terkena hit atau saat slide, tembakan keluar begitu karakter bisa menembak lagi.
+- Layar stage select, title, dan ending disusun ulang untuk 5 boss.
 
 ### 0.3.0
 - Charge shot untuk semua special weapon: Giant Cutter, Fire Wave, Frost Nova, Rock Quake.

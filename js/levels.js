@@ -1,22 +1,25 @@
 'use strict';
 // Stage layouts. Each stage is 200x26 tiles; floor top is row 22, the boss room is the last 24 columns.
 // Tiles: # ground, = block, I ice (slippery), C crumbling block, ^ spikes, ~ lava, H ladder, D boss door.
+// Hazards: saw, jet (fire), icicle, rockfall, zap (electric beam from a ceiling emitter down to row y1).
 
 const LEVEL_H = 26, FLOOR = 22, LEVEL_W = 200, DOOR_COL = 176;
 
 const STAGES = {
   cut: { name: 'CUTMAN', title: 'MANUSIA GUNTING', theme: 'cut', music: 'cut', ambient: 'dust', color: '#f87858' },
   fire: { name: 'FIREMAN', title: 'MANUSIA API', theme: 'fire', music: 'fire', ambient: 'embers', color: '#f8a800' },
+  elec: { name: 'ELECMAN', title: 'MANUSIA LISTRIK', theme: 'elec', music: 'elec', ambient: 'rain', color: '#f8e030' },
   snow: { name: 'SNOWWOMAN', title: 'WANITA ES', theme: 'snow', music: 'snow', ambient: 'snow', color: '#a8e8fc' },
   earth: { name: 'EARTHWOMAN', title: 'WANITA TANAH & BATU', theme: 'earth', music: 'earth', ambient: 'dust', color: '#c8a060' },
 };
-const STAGE_ORDER = ['cut', 'fire', 'snow', 'earth'];
+const STAGE_ORDER = ['cut', 'fire', 'elec', 'snow', 'earth'];
 
 const ENEMY_COLORS = {
   cut: { a: '#f8b800', c: '#c87800', fly: '#9020c8', fly2: '#e070f8', hop: '#00a800', hop2: '#58d854', tur: '#686878' },
   fire: { a: '#f85818', c: '#a82808', fly: '#e88800', fly2: '#f8e050', hop: '#a83818', hop2: '#f87858', tur: '#5a3a3a' },
   snow: { a: '#e8f4fc', c: '#88b0d8', fly: '#3878d8', fly2: '#a8d8fc', hop: '#384868', hop2: '#d8e8fc', tur: '#58789a' },
   earth: { a: '#8ab838', c: '#4a7a20', fly: '#a8682a', fly2: '#e8b868', hop: '#7a5a3a', hop2: '#b89870', tur: '#6a6458' },
+  elec: { a: '#f8d800', c: '#a88800', fly: '#2838a8', fly2: '#f8f058', hop: '#303848', hop2: '#f8d800', tur: '#4a4a58' },
 };
 
 function makeBuilder() {
@@ -87,6 +90,28 @@ const LAYOUTS = {
     B.rect(124, 0, 132, 18, '='); B.add('jet', 128, FLOOR, { phase: 0 });
     B.lava(136, 138);
     B.ground(139, 175); B.add('E', 145); B.add('met', 150); B.add('flyer', 156, 15); B.add('jet', 162, FLOOR, { phase: 60 }); B.add('hopper', 168);
+    bossRoom(B, DOOR_COL);
+  },
+
+  elec(B) {
+    B.ground(0, 18); B.add('start', 3); B.add('met', 12);
+    // two electric gates under a ceiling: run through between pulses
+    B.ground(19, 40); B.rect(22, 12, 34, 13, '=');
+    B.add('zap', 25, 14, { y1: 21, phase: 0 }); B.add('zap', 31, 14, { y1: 21, phase: 70 }); B.add('h', 28); B.add('flyer', 38, 15);
+    // pit 41-43
+    B.ground(44, 56); B.add('hopper', 49); B.rect(54, 20, 56, 25, '#');
+    // spike pit crossed on a moving platform that rides through an electric beam
+    B.ground(57, 68); B.spikes(57, 68); B.add('plat', 57, 19, { x1: 66, y1: 19, speed: 0.9 });
+    B.rect(61, 9, 63, 10, '='); B.add('zap', 62, 11, { y1: 21, phase: 30 });
+    B.ground(69, 92); B.add('cp', 72); B.add('met', 78); B.rect(82, 20, 82, 21, '='); B.add('turret', 82, 19); B.add('flyer', 88, 14);
+    // floating blocks over a bottomless pit
+    B.rect(95, 20, 96, 20, '='); B.rect(99, 18, 100, 18, '='); B.rect(103, 20, 104, 20, '='); B.add('flyer', 100, 11);
+    B.ground(107, 175); B.add('hopper', 112);
+    B.rect(116, 18, 126, 25, '#'); B.ladder(115, 18, 21); B.add('met', 120, 17); B.add('L', 124, 17);
+    // low tunnel with three beams pulsing in sequence
+    B.rect(132, 0, 148, 17, '=');
+    B.add('zap', 136, 18, { y1: 21, phase: 0 }); B.add('zap', 141, 18, { y1: 21, phase: 50 }); B.add('zap', 146, 18, { y1: 21, phase: 100 });
+    B.add('E', 152); B.add('hopper', 156); B.rect(162, 20, 162, 21, '='); B.add('turret', 162, 19); B.add('met', 168); B.add('flyer', 172, 15);
     bossRoom(B, DOOR_COL);
   },
 

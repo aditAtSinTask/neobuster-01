@@ -2,7 +2,7 @@
 // NEOBUSTER — core: canvas, helpers, input, audio, music, pixel font, sprite + glow primitives.
 
 // bump on every change (and add a line to the changelog in readme.md)
-const VERSION = '0.3.0';
+const VERSION = '0.4.0';
 document.title = 'Neobuster v' + VERSION;
 
 const TILE = 16, VW = 384, VH = 224;
@@ -94,6 +94,20 @@ function glowSprite(color, r) {
   });
   _glow.set(k, c);
   return c;
+}
+// jagged lightning from (x0,y0) to (x1,y1): a coloured core with a white centre, re-rolled whenever seed changes
+function drawBolt(x0, y0, x1, y1, seed, col = '#f8f058', thick = 2, amp = 12) {
+  const rnd = mulberry(seed | 0), len = Math.hypot(x1 - x0, y1 - y0) || 1, n = Math.max(2, Math.round(len / 10));
+  const nx = -(y1 - y0) / len, ny = (x1 - x0) / len, pts = [[x0, y0]];
+  for (let i = 1; i < n; i++) { const t = i / n, o = (rnd() - 0.5) * amp; pts.push([x0 + (x1 - x0) * t + nx * o, y0 + (y1 - y0) * t + ny * o]); }
+  pts.push([x1, y1]);
+  for (const [w, c] of [[thick + 2, col], [Math.max(1, thick - 1), '#fcfcfc']]) {
+    ctx.fillStyle = c;
+    for (let i = 1; i < pts.length; i++) {
+      const [ax, ay] = pts[i - 1], [bx, by] = pts[i], st = Math.max(1, Math.ceil(Math.max(Math.abs(bx - ax), Math.abs(by - ay))));
+      for (let k = 0; k <= st; k++) ctx.fillRect(Math.round(ax + (bx - ax) * k / st - w / 2), Math.round(ay + (by - ay) * k / st - w / 2), w, w);
+    }
+  }
 }
 function glow(x, y, r, color, a = 1) {
   r = Math.max(2, Math.round(r / 2) * 2);
@@ -230,6 +244,10 @@ const sfx = {
   door: () => noise(0.5, 0.18, 0, 400),
   bossHit: () => { tone(400, 100, 0.12, 'square', 0.18); noise(0.08, 0.12); },
   weakHit: () => { tone(900, 100, 0.2, 'sawtooth', 0.2); noise(0.15, 0.2); },
+  zap: () => { noise(0.12, 0.14, 0, 5000); tone(1400, 300, 0.1, 'sawtooth', 0.1); },
+  thunder: () => { noise(0.7, 0.35, 0, 1600); tone(90, 35, 0.6, 'sawtooth', 0.16); },
+  rumble: () => noise(0.9, 0.12, 0, 400),
+  storm: () => { tone(220, 1800, 0.35, 'sawtooth', 0.14); noise(0.5, 0.18, 0, 3500); },
   bigBoom: () => { noise(0.8, 0.35, 0, 900); tone(120, 40, 0.8, 'sawtooth', 0.2); },
   pause: () => tone(880, 880, 0.06, 'square', 0.1),
   victory: () => [[72, 0], [76, 0.12], [79, 0.24], [84, 0.36], [79, 0.6], [84, 0.72]]
@@ -269,6 +287,12 @@ const SONGS = {
     lead: [62, 0, 65, 0, 67, 0, 65, 62, 0, 0, 60, 0, 62, 0, 0, 0, 62, 0, 65, 0, 67, 0, 69, 70, 69, 0, 67, 0, 65, 0, 0, 0,
       70, 0, 69, 0, 67, 0, 65, 0, 67, 0, 0, 65, 0, 0, 62, 0, 60, 0, 62, 0, 65, 0, 67, 0, 69, 0, 0, 0, 0, 0, 0, 0],
     bass: [...bar(38), ...bar(38), ...bar(34), ...bar(36)],
+  },
+  elec: {
+    step: 7,
+    lead: [69, 0, 72, 76, 0, 72, 69, 0, 71, 0, 74, 77, 0, 74, 71, 0, 72, 0, 76, 79, 0, 76, 72, 0, 76, 0, 74, 0, 72, 0, 71, 0,
+      69, 0, 72, 76, 0, 72, 69, 0, 71, 0, 74, 77, 0, 74, 71, 0, 79, 0, 77, 0, 76, 0, 74, 0, 76, 0, 0, 0, 81, 0, 0, 0],
+    bass: [...bar(45), ...bar(43), ...bar(41), ...bar(40)],
   },
   boss: {
     step: 7,

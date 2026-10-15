@@ -48,7 +48,7 @@ function restartFromCheckpoint() {
   for (let y = 0; y < LH; y++) map[y] = level.orig[y].slice();
   crumbling.clear();
   enemies = []; pshots = []; eshots = []; particles = []; boss = null;
-  hazards = level.ents.filter(e => ['saw', 'jet', 'icicle', 'rockfall'].includes(e.type)).map(makeHazard);
+  hazards = level.ents.filter(e => ['saw', 'jet', 'icicle', 'rockfall', 'zap'].includes(e.type)).map(makeHazard);
   plats = level.ents.filter(e => e.type === 'plat').map(makePlat);
   pickups = game.placed.filter(p => !p.taken).map(p => makePickup(p.kind, p.tx * TILE + 8, p.ty * TILE + 4, p));
   for (const s of spawns) { s.armed = true; s.ent = null; }
@@ -57,7 +57,7 @@ function restartFromCheckpoint() {
   const sx = (game.checkpoint ? level.cpCol : level.startCol) * TILE + 1;
   Object.assign(player, {
     x: sx, w: 14, h: 22, vx: 0, vy: 0, facing: 1, onGround: false, state: 'beam', hp: 28, inv: 0,
-    shootT: 0, charge: 0, anim: 0, slideT: 0, hurtT: 0, plat: null, jumpBuf: 0, coyote: 0, jumpT: 99,
+    shootT: 0, charge: 0, storm: 0, anim: 0, slideT: 0, hurtT: 0, plat: null, jumpBuf: 0, coyote: 0, jumpT: 99,
   });
   game.noLerp = true;
   player.targetY = groundBelow(sx + 7, 0) - player.h;
@@ -137,7 +137,7 @@ function updatePlay() {
   }
   if (!game.bossLocked && game.state === 'play' && player.state === 'normal' && player.onGround && player.x + player.w >= level.doorCol * TILE - 1) {
     game.state = 'door'; door.phase = 'open';
-    pshots = []; eshots = []; player.vx = 0; player.charge = 0;
+    pshots = []; eshots = []; player.vx = 0; player.charge = 0; player.storm = 0;
     sfx.door();
   }
 }
@@ -206,8 +206,12 @@ function step() {
     case 'select': {
       game.t++;
       let s = game.sel;
-      if (hit.left || hit.right) s ^= 1;
-      if (hit.up || hit.down) s ^= 2;
+      const [c, r] = SEL_POS[s], row = SEL_POS.map((q, i) => i).filter(i => SEL_POS[i][1] === r);
+      if (hit.left || hit.right) s = row[(row.indexOf(s) + (hit.right ? 1 : row.length - 1)) % row.length];
+      if (hit.up || hit.down) { // jump to the nearest panel in the other row
+        const other = SEL_POS.map((q, i) => i).filter(i => SEL_POS[i][1] !== r);
+        s = other.reduce((a, i) => (Math.abs(SEL_POS[i][0] - c) < Math.abs(SEL_POS[a][0] - c) ? i : a));
+      }
       if (s !== game.sel) { game.sel = s; sfx.select(); }
       if (go) { sfx.confirm(); game.state = 'intro'; game.t = 0; game.introKey = STAGE_ORDER[game.sel]; stopMusic(); }
       break;
@@ -272,14 +276,18 @@ function step() {
 let ambient = { type: '', ps: [] };
 function makeAmbient(type) {
   const rnd = Math.random, ps = [];
-  const n = type === 'snow' ? 70 : type === 'embers' ? 40 : 30;
+  const n = type === 'snow' ? 70 : type === 'rain' ? 90 : type === 'embers' ? 40 : 30;
   for (let i = 0; i < n; i++) ps.push({ x: rnd() * VW, y: rnd() * VH, s: 1 + (rnd() * 2 | 0), ph: rnd() * 6.28, sp: 0.3 + rnd() * 0.6 });
   return { type, ps };
 }
+// elec stage: a lightning flash in the sky every STORM_T frames
+const STORM_T = 260;
 function updateAmbient() {
   if (!ambient.type || !['play', 'ready', 'door', 'bossintro', 'clear', 'pause'].includes(game.state)) return;
+  if (ambient.type === 'rain' && game.state !== 'pause' && frameCount % STORM_T === 4) sfx.rumble();
   for (const q of ambient.ps) {
     if (ambient.type === 'snow') { q.y += q.sp; q.x += Math.sin(frameCount * 0.02 + q.ph) * 0.3; }
+    else if (ambient.type === 'rain') { q.y += 5 + q.sp * 3; q.x -= 1.2; }
     else if (ambient.type === 'embers') { q.y -= q.sp; q.x += Math.sin(frameCount * 0.03 + q.ph) * 0.4; }
     else { q.x += Math.sin(frameCount * 0.01 + q.ph) * 0.2 + 0.1; q.y += Math.cos(frameCount * 0.013 + q.ph) * 0.15; }
   }
@@ -289,9 +297,18 @@ function drawAmbient() {
   for (const q of ambient.ps) {
     const x = wrap(q.x - camX * 0.6, VW), y = wrap(q.y - camY * 0.6, VH);
     if (ambient.type === 'snow') R(x, y, q.s, q.s, q.s > 1 ? '#fcfcfc' : '#c8d8f0');
+    else if (ambient.type === 'rain') R(x, y, 1, 4 + q.s * 2, q.s > 1 ? '#a8b8e8' : '#6070a0');
     else if (ambient.type === 'embers') { R(x, y, q.s, q.s, q.s > 1 ? '#f8d800' : '#f87800'); if (q.s > 1) glow(x, y, 6, '#f86000', 0.5); }
     else R(x, y, 1, 1, game.stage === 'earth' ? '#f0d8b0' : '#b8a8a0');
   }
+}
+
+function drawStormSky() {
+  const t = frameCount % STORM_T, cyc = Math.floor(frameCount / STORM_T);
+  if (t >= 14 || (t >= 4 && t < 8)) return;
+  const rnd = mulberry(cyc * 7919 + 1), x = 40 + rnd() * (VW - 80);
+  ctx.globalAlpha = 0.16; R(0, 0, VW, VH, '#d8e0ff'); ctx.globalAlpha = 1;
+  drawBolt(x, -8, x + (rnd() - 0.5) * 90, VH * 0.5, cyc, '#b8c4ff', 1, 22);
 }
 
 const VIGNETTE = makeCanvas(VW, VH, g => {
@@ -332,7 +349,7 @@ function drawDynamicTiles() {
   for (const [x, y] of lavaGlows) glow(x, y, 22, '#f85000', 0.35);
 }
 
-const PLAT_COL = { cut: '#d8a020', fire: '#7a7a88', snow: '#a8e0f8', earth: '#9a7a50' };
+const PLAT_COL = { cut: '#d8a020', fire: '#7a7a88', elec: '#5868a0', snow: '#a8e0f8', earth: '#9a7a50' };
 function drawPlatsAndHazards() {
   for (const pl of plats) {
     const x = Math.round(pl.x) - camX, y = Math.round(pl.y) - camY, c = PLAT_COL[level.theme];
@@ -363,6 +380,13 @@ function drawPlatsAndHazards() {
       case 'icicle':
         if (h.state !== 'gone') drawIcicle(h.x - camX, h.y - camY);
         break;
+      case 'zap': {
+        const x = h.cx - camX, top = h.top - camY, bot = h.bot - camY;
+        for (const [y, ly] of [[top, top + 4], [bot - 5, bot - 6]]) { R(x - 6, y, 12, 5, '#0a0a16'); R(x - 5, y + (y === top ? 0 : 1), 10, 4, '#6a7490'); R(x - 2, ly, 4, 2, h.on || h.warn ? '#f8e030' : '#685800'); }
+        if (h.on) { drawBolt(x, top + 6, x, bot - 6, (frameCount >> 1) + h.cx, '#f8f058', 2, 10); glow(x, (top + bot) / 2, 26, '#f8e030', 0.5); }
+        else if (h.warn && (frameCount & 4)) { glow(x, top + 6, 8, '#f8e030', 0.8); glow(x, bot - 6, 8, '#f8e030', 0.8); R(x - 1, top + 6, 2, 3, '#fcfcfc'); R(x - 1, bot - 9, 2, 3, '#fcfcfc'); }
+        break;
+      }
     }
   }
 }
@@ -400,6 +424,25 @@ function drawCutter(x, y, rot, handle) {
   ctx.restore();
 }
 
+// upright scissors around a pivot at (cx, cy): blades point up, ring handles point down, `open` is the half-angle
+function drawScissors(cx, cy, open) {
+  ctx.save();
+  ctx.translate(Math.round(cx), Math.round(cy));
+  for (const pass of [0, 1]) for (const sg of [-1, 1]) {
+    ctx.save(); ctx.rotate(sg * open);
+    if (pass === 0) { ctx.fillStyle = '#0a0a16'; ctx.fillRect(-3, -24, 6, 26); ctx.fillRect(-5, 7, 10, 14); }
+    else {
+      ctx.fillStyle = '#e8e8f0'; ctx.fillRect(-2, -22, 4, 22); ctx.fillStyle = '#fcfcfc'; ctx.fillRect(sg > 0 ? -2 : 1, -22, 1, 22);
+      ctx.fillStyle = '#8888a0'; ctx.fillRect(-1, -23, 2, 2);
+      ctx.fillStyle = '#f83800'; ctx.fillRect(-1, 0, 2, 8); ctx.fillRect(-4, 8, 8, 12);
+      ctx.fillStyle = '#0a0a16'; ctx.fillRect(-2, 11, 4, 6);
+    }
+    ctx.restore();
+  }
+  ctx.fillStyle = '#505060'; ctx.fillRect(-2, -2, 4, 4); ctx.fillStyle = '#d0d0dc'; ctx.fillRect(-1, -1, 1, 1);
+  ctx.restore();
+}
+
 function drawPlayerShot(s) {
   const x = Math.round(s.x) - camX, y = Math.round(s.y) - camY;
   switch (s.kind) {
@@ -419,12 +462,26 @@ function drawPlayerShot(s) {
       }
       return;
     case 'cutter': drawCutter(x, y, s.t * 0.5, '#f83800'); return;
-    case 'gcutter':
-      glow(x + 14, y + 14, 22, '#e0e0ec', 0.45);
-      ctx.save(); ctx.translate(x, y); ctx.scale(2, 2);
-      drawCutter(0, 0, s.t * 0.4, '#f83800');
-      ctx.restore();
+    case 'gscissor':
+      glow(x + 10, y + 22, 24, '#e0e0ec', 0.4);
+      drawScissors(x + 10, y + 23, 0.1 + 0.32 * Math.abs(Math.sin(s.t * 0.22)));
       return;
+    case 'tbeam':
+      drawBolt(x, y + 4, x + s.w, y + 4, (s.t >> 1) + s.seed, '#f8f058', 2, 7);
+      glow(x + s.w / 2, y + 4, 12, '#f8e030', 0.6);
+      return;
+    case 'pbolt':
+      drawBolt(x + 8, y, x + 8, y + s.h, (frameCount >> 1) + s.seed, '#f8f058', 3, 16);
+      glow(x + 8, y + s.h - 4, 22, '#f8e030', 0.9);
+      if (s.life > 16) glow(x + 8, y + s.h / 2, 30, '#fcfcfc', 0.4);
+      return;
+    case 'storm': {
+      const c = s.hue ? '#3cbcfc' : '#a8f0fc', f = s.vx > 0 ? 1 : -1;
+      R(f > 0 ? x - 5 : x + 5, y + 1, 6, 2, 'rgba(60,188,252,0.45)');
+      R(x + 1, y, 4, 4, c); R(x, y + 1, 6, 2, c); R(x + 2, y + 1, 2, 2, '#fcfcfc');
+      if (s.lit) glow(x + 3, y + 2, 8, '#3cbcfc', 0.5);
+      return;
+    }
     case 'pwave':
       drawFlameColumn(x + 8, y + s.h, s.h, 8);
       glow(x + 8, y + s.h - 10, 24, '#f86000', 0.6);
@@ -464,6 +521,28 @@ function drawEnemyShot(s) {
       return;
     case 'pwarn':
       if (frameCount & 4) { R(x, y + 4, s.w, 2, '#f8a800'); glow(x + s.w / 2, y + 4, 12, '#f86000', 0.6); }
+      return;
+    case 'bwarn':
+      if (frameCount & 4) { R(x, y + 4, s.w, 2, '#f8f058'); glow(x + s.w / 2, y + 4, 12, '#f8e030', 0.6); R(x + s.w / 2 - 1, ROOM().ceil - camY, 2, 4, '#fcfcfc'); }
+      return;
+    case 'lbolt':
+      drawBolt(x + 8, y, x + 8, y + s.h, (frameCount >> 1) + s.x, '#f8f058', 3, 18);
+      glow(x + 8, y + s.h - 6, 22, '#f8e030', 0.9); glow(x + 8, y + 10, 14, '#f8e030', 0.5);
+      return;
+    case 'ebolt': {
+      const cx = x + 7, cy = y + 4;
+      drawBolt(cx - s.vx * 3, cy - s.vy * 3, cx + s.vx * 2, cy + s.vy * 2, (s.t >> 1) + s.vy * 10, '#f8f058', 2, 7);
+      glow(cx, cy, 12, '#f8e030', 0.6);
+      return;
+    }
+    case 'eball':
+      glow(x + 5, y + 5, 12, '#f8e030', 0.8);
+      circle(x + 5, y + 5, 5, '#c8a800'); circle(x + 5, y + 5, 3, '#f8f058'); circle(x + 5, y + 5, 1.5, '#fcfcfc');
+      if (frameCount & 2) { R(x - 2, y + 4, 3, 1, '#fcfcfc'); R(x + 9, y + 6, 3, 1, '#fcfcfc'); }
+      return;
+    case 'gspark':
+      for (let i = 0; i < 3; i++) drawBolt(x + 2 + i * 4, y + s.h, x + 2 + i * 4 + ((frameCount + i) % 3 - 1) * 2, y + 2 + i * 3, frameCount + i * 7, '#f8f058', 1, 6);
+      glow(x + 6, y + s.h - 4, 14, '#f8e030', 0.7);
       return;
     case 'pillar':
       drawFlameColumn(x + 10, y + s.h, s.h * Math.min(1, (40 - s.life + 4) / 8), 9);
@@ -551,13 +630,14 @@ function drawBoss() {
   if (b.state === 'slide' && b.h < 24) pose = 'slide';
   else if (!b.onGround) pose = 'jump';
   else if (b.state === 'run' || (b.state === 'walk' && b.t < 30)) { pose = 'run'; fr = [0, 1, 2, 1][(b.anim >> 3) & 3]; }
-  else if ((b.state === 'pillar' && b.t < 45) || (b.state === 'rockrain' && b.t > 6 && b.t < 30)) pose = 'raise';
+  else if ((b.state === 'pillar' && b.t < 45) || (b.state === 'strike' && b.t < 42) || (b.state === 'rockrain' && b.t > 6 && b.t < 30)) pose = 'raise';
   let pal = def.pal;
   if (b.state === 'stagger' && (frameCount & 2)) pal = PAL_WHITE;
   else if (b.state === 'slide' && b.t < 14 && (frameCount & 2)) pal = PAL_WHITE;
   drawRobot(sx + b.w / 2 - 12, sy + b.h - 24, b.facing, pose, fr, b.arm > 0 && pose !== 'raise', pal, def.style, { blade: b.hasCutter });
   if (b.type === 'fire') glow(sx + b.w / 2, sy - 2, 16, '#f86000', 0.7);
   if (b.type === 'snow') glow(sx + b.w / 2, sy - 2, 8, '#58e8f8', 0.5);
+  if (b.type === 'elec') glow(sx + b.w / 2, sy - 6, 12, '#f8f058', 0.5 + ((frameCount >> 2) & 1) * 0.2);
   if (game.time - b.weakAt < 40) text('WEAK!', sx + b.w / 2, sy - 16 - ((game.time - b.weakAt) >> 2), '#f8d800', 1, 'center');
 }
 
@@ -626,6 +706,7 @@ function renderWorld() {
   ctx.save();
   if (game.shake > 0) ctx.translate((game.shake & 1) ? 1 : -1, (game.shake & 2) ? 2 : -2);
   drawBackground(level.theme, camX, camY, maxCamY());
+  if (level.theme === 'elec') drawStormSky();
   ctx.drawImage(levelCanvas, camX, camY, VW, VH, 0, 0, VW, VH);
   drawDynamicTiles();
   drawPlatsAndHazards();
@@ -666,9 +747,9 @@ function drawTitle() {
   ctx.restore();
   glow(VW / 2, 120, 50, '#3cbcfc', 0.25);
   STAGE_ORDER.forEach((k, i) => {
-    const def = BOSSES[k], x = i < 2 ? 40 + i * 44 : VW - 108 + (i - 2) * 44;
+    const def = BOSSES[k], left = i < 3, x = left ? 14 + i * 38 : VW - 108 + (i - 3) * 44;
     ctx.save(); ctx.translate(x, 116); ctx.scale(1.5, 1.5);
-    drawRobot(0, 0, i < 2 ? 1 : -1, 'stand', 0, false, save.cleared[k] ? PAL_WHITE : def.pal, def.style);
+    drawRobot(0, 0, left ? 1 : -1, 'stand', 0, false, save.cleared[k] ? PAL_WHITE : def.pal, def.style);
     ctx.restore();
   });
   if (save.snap) {
@@ -691,27 +772,29 @@ function drawPortrait(k, x, y, s, pal) {
   ctx.restore();
 }
 
+// stage select grid: [column, row]; three panels on top, two centred below
+const SEL_POS = [[0, 0], [1, 0], [2, 0], [0.5, 1], [1.5, 1]];
+const PW = 116, PH = 70, SEL_X0 = (VW - (3 * PW + 16)) / 2;
 function drawSelect() {
   const g = ctx.createLinearGradient(0, 0, 0, VH);
   g.addColorStop(0, '#0a0a2a'); g.addColorStop(1, '#1a1040');
   ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH);
   for (let x = -(frameCount % 16); x < VW; x += 16) R(x, 0, 1, VH, 'rgba(80,100,200,0.12)');
   for (let y = -(frameCount % 16); y < VH; y += 16) R(0, y, VW, 1, 'rgba(80,100,200,0.12)');
-  text('STAGE SELECT', VW / 2, 12, '#fcfcfc', 2, 'center');
-  const PW = 176, PH = 76;
+  text('STAGE SELECT', VW / 2, 10, '#fcfcfc', 2, 'center');
   STAGE_ORDER.forEach((k, i) => {
-    const px = 12 + (i & 1) * (PW + 8), py = 38 + (i >> 1) * (PH + 8), st = STAGES[k], cleared = save.cleared[k];
+    const px = SEL_X0 + SEL_POS[i][0] * (PW + 8), py = 32 + SEL_POS[i][1] * (PH + 8), st = STAGES[k], cleared = save.cleared[k];
     R(px - 2, py - 2, PW + 4, PH + 4, '#0a0a16');
     const pg = ctx.createLinearGradient(px, py, px + PW, py + PH);
     pg.addColorStop(0, shade(st.color, -0.55)); pg.addColorStop(1, shade(st.color, -0.85));
     ctx.fillStyle = pg; ctx.fillRect(px, py, PW, PH);
     R(px, py, PW, 1, shade(st.color, -0.2));
-    drawPortrait(k, px + 6, py + 18, 2, cleared ? PAL_WHITE : null);
-    text(st.name, px + 62, py + 20, cleared ? '#888898' : '#fcfcfc');
-    text(st.title, px + 62, py + 34, cleared ? '#686878' : st.color);
-    drawWeaponIcon(k, px + 62, py + 50);
-    text(WEAPONS[k].short, px + 76, py + 52, cleared ? '#686878' : '#a8a8b8');
-    if (cleared) text('CLEAR', px + PW - 8, py + 6, '#f8d800', 1, 'right');
+    drawPortrait(k, px + 4, py + 13, 1.5, cleared ? PAL_WHITE : null);
+    text(st.name, px + 44, py + 16, cleared ? '#888898' : '#fcfcfc');
+    drawWeaponIcon(k, px + 44, py + 30);
+    text(WEAPONS[k].short, px + 58, py + 32, cleared ? '#686878' : '#a8a8b8');
+    text(st.title, px + PW / 2, py + 56, cleared ? '#686878' : st.color, 1, 'center');
+    if (cleared) text('CLEAR', px + PW - 4, py + 4, '#f8d800', 1, 'right');
     if (game.sel === i && (frameCount >> 3) & 1) {
       ctx.strokeStyle = '#f8d800'; ctx.lineWidth = 2; ctx.strokeRect(px - 1, py - 1, PW + 2, PH + 2);
     }
@@ -765,7 +848,7 @@ function drawWeaponGet() {
   const px = 110 + (t * 3) % 260, py = 110;
   const save_ = [camX, camY];
   camX = 0; camY = 0;
-  const demo = { cut: { kind: 'cutter', t }, fire: { kind: 'fireball', vx: 1 }, snow: { kind: 'shard' }, earth: { kind: 'rock' } }[game.stage];
+  const demo = { cut: { kind: 'cutter', t }, fire: { kind: 'fireball', vx: 1 }, elec: { kind: 'tbeam', w: 24, h: 8, seed: 1 }, snow: { kind: 'shard' }, earth: { kind: 'rock' } }[game.stage];
   drawPlayerShot(Object.assign({ x: px, y: py - 6, w: 12, h: 10, t, level: 0 }, demo));
   [camX, camY] = save_;
   text('YOU GOT', 150, 64, '#a8c8f8', 1);
@@ -786,7 +869,7 @@ function drawEnding() {
   drawRobot(0, 0, 1, (frameCount >> 5) & 1 ? 'jump' : 'stand', 0, false, PAL_HERO);
   ctx.restore();
   STAGE_ORDER.forEach((k, i) => {
-    const x = i < 2 ? 30 + i * 52 : VW - 126 + (i - 2) * 52;
+    const x = i < 3 ? 6 + i * 48 : VW - 106 + (i - 3) * 52;
     drawPortrait(k, x, 90, 2, PAL_WHITE);
     drawWeaponIcon(k, x + 19, 146);
   });

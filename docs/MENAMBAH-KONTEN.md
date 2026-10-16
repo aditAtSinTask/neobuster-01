@@ -2,13 +2,13 @@
 
 Panduan untuk menambah benua, boss, part shop, atau musuh tanpa merusak yang sudah ada.
 
-Semua konten disimpan di tabel yang dikunci dengan **key** yang sama. Satu stage, boss-nya, dan senjata yang didapat dari boss itu memakai satu key (misalnya `cut`). Karena itu save (`save.cleared`), daftar senjata, menu pause, dan layar kelemahan otomatis ikut bertambah begitu tabelnya diisi.
+Semua konten disimpan di tabel yang dikunci dengan **key** yang sama. Satu stage, boss-nya, dan senjata yang didapat dari boss itu memakai satu key (misalnya `hydro`). Karena itu save (`save.cleared`), daftar senjata, menu pause, layar kelemahan, peta dunia, dan ending otomatis ikut bertambah begitu tabelnya diisi.
 
 Setelah menambah apa pun, buka game lalu lihat **console browser**. `validateContent()` (di `js/main.js`) mencetak peringatan `[neobuster] ...` untuk setiap bagian yang belum lengkap. Kalau console bersih, datanya sudah lengkap.
 
 ## Menambah benua baru
 
-Satu benua = **6 boss**. Benua baru terbuka setelah semua boss di benua sebelumnya dikalahkan, dan muncul otomatis di Peta Dunia, Stage Select, grid senjata di menu pause, dan layar kelemahan.
+Satu benua = **6 boss** dalam **satu file** sendiri, misalnya `js/borea.js`. Contoh lengkapnya adalah `js/vespera.js` (Benua Vespera). Benua baru terbuka setelah semua boss di benua sebelumnya dikalahkan.
 
 1. Tambahkan entri di `CONTINENTS` (`js/levels.js`):
 
@@ -16,29 +16,79 @@ Satu benua = **6 boss**. Benua baru terbuka setelah semua boss di benua sebelumn
    { key: 'borea', name: 'BOREA', color: '#78a8f8', stages: ['k1', 'k2', 'k3', 'k4', 'k5', 'k6'] },
    ```
 
-   - `name` paling pas 5 huruf atau kurang (dipakai juga sebagai label baris di menu pause).
+   - `name` paling banyak 7 huruf (dipakai juga sebagai label baris di menu pause).
    - `color` dipakai untuk warna daratan di peta.
 
-2. Tambahkan keenam boss-nya (lihat bagian berikut).
-3. Susun kelemahan supaya **setiap senjata benua itu menjadi kelemahan tepat satu boss di benua yang sama**. Validator memperingatkan kalau aturan ini dilanggar. Layar kelemahan dan urutan saran dihitung otomatis dari aturan ini.
+2. Buat file benua, lalu muat di `index.html` **setelah `cheats.js` dan sebelum `main.js`**:
+
+   ```html
+   <script src="js/vespera.js"></script>
+   <script src="js/borea.js"></script>
+   <script src="js/main.js"></script>
+   ```
+
+3. Isi keenam boss di file itu (lihat bagian berikut).
+4. Susun kelemahan supaya **setiap senjata benua itu menjadi kelemahan tepat satu boss di benua yang sama**. Validator memperingatkan kalau aturan ini dilanggar. Layar kelemahan dan urutan saran dihitung otomatis dari aturan ini.
+
+Semua script berbagi satu scope global, jadi nama `const` / `function` di level atas file benua tidak boleh sama dengan nama di file lain (helper lokal sebaiknya diberi nama yang khas).
 
 ## Menambah boss / stage
 
-Ganti `k` dengan key boss baru. `theme` boleh sama dengan key-nya.
+File benua cukup mengisi tabel dan **registry** yang sudah ada dengan `Object.assign(TABEL, { k: ... })`. Tidak ada `switch` di file inti yang perlu diubah. Ganti `k` dengan key boss baru; `theme` boleh sama dengan key-nya.
 
-| File           | Yang ditambahkan                                                                                                                                                                                                                 |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `js/levels.js` | `STAGES[k]` (`name`, `title`, `theme`, `music`, `ambient`, `color`), `LAYOUTS[k](B)` berisi layout level 300 × 44 tile, `ENEMY_COLORS[theme]`, dan opsional gimmick ruang boss di `bossRoom()`                                   |
-| `js/art.js`    | `TILESETS[theme]` (`ground`, `block`, `spike`, `ladder`, opsional `ice`), `BG_PAINTERS[theme]` (2 lapis parallax), opsional `ROOM_ART[theme]`, tampilan boss di `drawRobot()` (`style`), dan ikon senjata di `drawWeaponIcon()`  |
-| `js/actors.js` | `WEAPONS[k]` (`name`, `short`, `pal`, `glow`, `desc`, `charged`, `demo`), `BOSSES[k]` (`name`, `style`, `pal`, `weapon: k`, `weak`, `update`), serta tembakan senjata di `fireSpecial`, `fireCharged`, `fireUltra`, `updateShot` |
-| `js/main.js`   | `PLAT_COL[theme]`, gambar proyektil di `drawPlayerShot`, opsional animasi ruang boss di `drawRoomFx`, dan efek ambient baru di `makeAmbient`, `updateAmbient`, `drawAmbient`                                                     |
-| `js/engine.js` | Lagu `SONGS[music]`                                                                                                                                                                                                              |
+### Data stage (`js/levels.js`)
 
-Tips layout:
+| Tabel             | Isi                                                                          |
+| ----------------- | ---------------------------------------------------------------------------- |
+| `STAGES[k]`       | `name`, `title`, `theme`, `music`, `ambient`, `color`                        |
+| `LAYOUTS[k](B)`   | layout level 300 × 44 tile, diakhiri `bossRoom(B, DOOR_COL, theme)`          |
+| `ENEMY_COLORS[k]` | warna musuh umum (met, flyer, hopper, turret) di stage ini                   |
+| `BOSS_ROOMS[k]`   | opsional: gimmick ruang boss, `(B, dc) => { ... }` (`dc` = kolom pintu boss) |
+
+### Gambar (`js/art.js`)
+
+| Tabel / registry  | Isi                                                                                                 |
+| ----------------- | --------------------------------------------------------------------------------------------------- |
+| `TILESETS[k]`     | `ground`, `block`, `spike`, `ladder`, opsional `ice`                                                |
+| `BG_PAINTERS[k]`  | 2 lapis background parallax                                                                         |
+| `ROOM_ART[k]`     | opsional: hiasan dinding ruang boss                                                                 |
+| `ROBOT_STYLES[k]` | tampilan boss: `female`, `hair`, `skirt`, `back(p, dy, white)`, `front(d, dy, white)`               |
+| `WEAPON_ICONS[k]` | ikon senjata                                                                                        |
+| `PLAT_COL[k]`     | warna platform bergerak                                                                             |
+| `AMBIENTS[name]`  | opsional: efek ambient baru `{ n, update(q), draw(q, x, y) }` (nama dipakai di `STAGES[k].ambient`) |
+| `ROOM_FX[k]`      | opsional: animasi di ruang boss `(rx, ry) => { ... }`                                               |
+| `POST_FX[k]`      | opsional: efek layar penuh setelah semua digambar (contoh: kegelapan stage `shadow`)                |
+| `PAD_DRAW[k]`     | opsional: gambar pad lontar `U` `(sx, sy) => { ... }`                                               |
+| `LIQUID[k]`       | opsional: warna cairan `~` `[dasar, puncak, buih]` (contoh: lumpur racun stage `toxic`)             |
+
+### Senjata, boss, musuh (`js/actors.js`)
+
+| Tabel / registry     | Isi                                                                                                                                                                  |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `WEAPONS[k]`         | `name`, `short`, `pal`, `glow`, `desc`, `charged`, `demo`, plus `fire(p)`, `charge(p)` (kembalikan `false` kalau tidak bisa menembak), dan `ultra(p)`                |
+| `SHOT_KINDS[kind]`   | proyektil pemain: `update(s)`, `draw(s, x, y)`, opsional `offscreen: true` (tidak dihapus saat keluar layar)                                                         |
+| `BOSSES[k]`          | `name`, `style`, `pal`, `weapon: k`, `weak`, `update(b, enraged)`, opsional `tick(b)`, `pose(b, pose)`, `draw(b, sx, sy)`, `drawBehind(b, sx, sy)`                   |
+| `ESHOT_KINDS[kind]`  | proyektil musuh/boss: opsional `update(s)` (tanpa ini bergerak lurus dengan `vx`/`vy`), `draw(s, x, y)`, opsional `pierce: true` (tidak hilang saat mengenai pemain) |
+| `HAZARD_KINDS[type]` | hazard: `make(d)`, `update(h, p)`, `draw(h)`; pasang di layout dengan `B.add(type, x, y, {...})`                                                                     |
+| `EN[name]`           | musuh (lihat [Menambah musuh](#menambah-musuh))                                                                                                                      |
+
+### Lagu (`js/engine.js`)
+
+`SONGS[music]`, bisa juga diisi dari file benua dengan `Object.assign(SONGS, {...})`.
+
+### Mekanik bawaan yang bisa dipakai
+
+- Tile `W` (air): pemain jatuh pelan dan lompat lebih tinggi. Isi rongga dengan air setelah `cave`/`shaft`, supaya tangga tidak tertimpa.
+- `game.timeStop = n`: membekukan musuh, peluru musuh, hazard, dan boss selama `n` frame.
+- `player.stun = n`: pemain tidak bisa bergerak selama `n` frame.
+- Platform melingkar: `B.add('plat', x, y, { r: 3, speed: 0.02, phase: 0 })` (pusat di tile `x`, `y`, jari-jari `r` tile).
+
+### Tips layout
 
 - Lompatan normal melewati 3 tile kosong dan naik paling tinggi 2 tile.
 - Duri paling lebar 2 tile, karena duri langsung mematikan begitu tersentuh.
-- Pad angin (`U`) naik sekitar 8 tile.
+- Pad lontar (`U`) naik sekitar 8 tile.
+- Paling aman, mulai dari geometri stage yang sudah terbukti bisa diselesaikan, lalu ganti hazard, musuh, dan tile yang tidak mengubah jalur. Benua Vespera memakai cara ini.
 - Semua aturan tile dan helper builder (`ground`, `pillar`, `cave`, `shaft`, `pit`, `pool`, dan lainnya) dijelaskan di komentar atas `js/levels.js`.
 
 ## Menambah part shop
@@ -51,7 +101,7 @@ Tab bisa digulir, jadi jumlah part per tab tidak dibatasi. Untuk kategori baru, 
 
 ## Menambah musuh
 
-1. Tambahkan definisi di `EN` (`js/actors.js`): `w`, `h`, `hp`, `dmg`, `score`, opsional `grav`, serta `init`, `update`, dan `draw`.
+1. Tambahkan definisi di `EN` (di `js/actors.js`, atau dengan `Object.assign(EN, {...})` di file benua): `w`, `h`, `hp`, `dmg`, `score`, opsional `grav` (jatuh saat dibekukan), serta `init`, `update`, dan `draw`.
 2. Pasang musuhnya di layout dengan `B.add('namamusuh', x, y)`.
 
 Warna musuh umum diambil dari `ENEMY_COLORS[theme]` lewat `EC()`.

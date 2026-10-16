@@ -46,6 +46,7 @@ const STAGES = {
 // docs/MENAMBAH-KONTEN.md. validateContent() in main.js warns in the console about anything missing.
 const CONTINENTS = [
   { key: 'azura', name: 'AZURA', color: '#58c878', stages: ['cut', 'fire', 'elec', 'snow', 'earth', 'wind'] },
+  { key: 'vespera', name: 'VESPERA', color: '#a878d8', stages: ['hydro', 'toxic', 'shadow', 'sonic', 'light', 'time'] },
 ];
 const STAGE_ORDER = CONTINENTS.flatMap(c => c.stages);
 const continentOf = key =>
@@ -158,6 +159,8 @@ function makeBuilder() {
 }
 
 // the boss room, with a themed back wall (painted by ROOM_ART) and a gimmick of its own
+// boss-room gimmicks registered by continent files: BOSS_ROOMS[theme](B, dc)
+const BOSS_ROOMS = {};
 function bossRoom(B, dc, theme) {
   B.ground(dc, dc + 23);
   B.rect(dc, 0, dc, 18, '=');
@@ -165,6 +168,7 @@ function bossRoom(B, dc, theme) {
   B.rect(dc + 23, 0, dc + 23, 21, '=');
   B.rect(dc + 1, 0, dc + 22, 12, '=');
   B.cave(dc + 1, 13, dc + 22, 21);
+  if (BOSS_ROOMS[theme]) BOSS_ROOMS[theme](B, dc);
   switch (theme) {
     case 'cut':
       B.rect(dc + 8, FLOOR, dc + 15, FLOOR, '<');

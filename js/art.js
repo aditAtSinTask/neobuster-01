@@ -8,6 +8,28 @@ const PAL_FULL = { B: '#3cbcfc', b: '#fcfcfc', S: '#fcfcfc' };
 const PAL_WHITE = { B: '#fcfcfc', b: '#fcfcfc', S: '#fcfcfc' };
 
 // 24x24 robot. ox,oy = top-left of the box (feet at oy+24). style: hero | cut | fire | elec | snow | earth | wind
+// ---------- content registries (filled by the base game and by continent files such as js/vespera.js) ----------
+// ROBOT_STYLES[style] = { female, hair, skirt, back(p, dy, white), front(d, dy, white) }: extra looks for a boss
+// WEAPON_ICONS[key]() draws a 10x10 weapon icon at the origin; AMBIENTS[type] = { n, update(q), draw(q, x, y) };
+// ROOM_FX[theme](rx, ry) animates a boss room; POST_FX[theme]() draws over the world (e.g. darkness);
+// PAD_DRAW[theme](sx, sy) skins updraft pads; LIQUID[theme] = [base, crest, foam] recolours '~' tiles;
+// PLAT_COL[theme] is the moving-platform colour.
+const ROBOT_STYLES = {},
+  WEAPON_ICONS = {},
+  AMBIENTS = {},
+  ROOM_FX = {},
+  POST_FX = {},
+  PAD_DRAW = {},
+  LIQUID = {};
+const PLAT_COL = {
+  cut: '#d8a020',
+  fire: '#7a7a88',
+  elec: '#5868a0',
+  snow: '#a8e0f8',
+  earth: '#9a7a50',
+  wind: '#e8f0f8',
+};
+
 function drawRobot(ox, oy, f, pose, fr, arm, pal, style = 'hero', opt = {}) {
   const { B, b, S } = pal,
     W = '#fcfcfc',
@@ -16,9 +38,18 @@ function drawRobot(ox, oy, f, pose, fr, arm, pal, style = 'hero', opt = {}) {
     D = [];
   const p = (x, y, w, h, c) => P.push([x, y, w, h, c]);
   const d = (x, y, w, h, c) => D.push([x, y, w, h, c]);
-  const female = style === 'snow' || style === 'earth' || style === 'wind';
+  const ext = ROBOT_STYLES[style];
+  const female = style === 'snow' || style === 'earth' || style === 'wind' || !!(ext && ext.female);
   const white = pal === PAL_WHITE;
-  const hair = white ? W : style === 'snow' ? '#d8f0fc' : style === 'wind' ? '#58c8a8' : '#6a3818';
+  const hair = white
+    ? W
+    : ext && ext.hair
+      ? ext.hair
+      : style === 'snow'
+        ? '#d8f0fc'
+        : style === 'wind'
+          ? '#58c8a8'
+          : '#6a3818';
 
   if (pose === 'slide') {
     if (female) p(0, 9, 5, 9, hair);
@@ -78,6 +109,8 @@ function drawRobot(ox, oy, f, pose, fr, arm, pal, style = 'hero', opt = {}) {
     p(10, -7 + dy, 3, 5, white ? W : '#fcf8a0');
     p(12, -9 + dy, 2, 3, white ? W : '#fcfcfc');
   }
+
+  if (ext && ext.back) ext.back(p, dy, white);
 
   p(7, 1 + dy, 10, 10, B); // head
   p(8, 11 + dy, 8, 6, b); // torso
@@ -157,7 +190,22 @@ function drawRobot(ox, oy, f, pose, fr, arm, pal, style = 'hero', opt = {}) {
       p(17, 3, 3, 8, b);
       break;
   }
-  if (female) p(6, 15 + dy, 12, 3, white ? W : style === 'snow' ? '#e8f8fc' : style === 'wind' ? '#e8fcf4' : '#4a8a30');
+  if (female)
+    p(
+      6,
+      15 + dy,
+      12,
+      3,
+      white
+        ? W
+        : ext && ext.skirt
+          ? ext.skirt
+          : style === 'snow'
+            ? '#e8f8fc'
+            : style === 'wind'
+              ? '#e8fcf4'
+              : '#4a8a30',
+    );
   if (style === 'earth') {
     const pad = white ? W : '#8a8070';
     p(3, 10 + dy, 5, 4, pad);
@@ -194,6 +242,7 @@ function drawRobot(ox, oy, f, pose, fr, arm, pal, style = 'hero', opt = {}) {
     d(10, 13 + dy, 4, 1, k);
     d(12, 14 + dy, 1, 1, k);
   }
+  if (ext && ext.front) ext.front(d, dy, white);
   d(8, 15 + dy, 8, 2, B);
   sprite(ox, oy, f, 24, P, D);
 }
@@ -299,6 +348,8 @@ function drawWeaponIcon(kind, x, y, s = 1) {
         ],
       );
       break;
+    default:
+      if (WEAPON_ICONS[kind]) WEAPON_ICONS[kind]();
   }
   ctx.restore();
 }
@@ -1040,7 +1091,7 @@ function backdropCells(lv) {
       [x, y - 1],
       [x, y + 1],
     ]) {
-      if (nx < 0 || ny < 0 || nx >= lv.LW || ny >= lv.LH || back.has(ny * lv.LW + nx) || !'H^C'.includes(m[ny][nx]))
+      if (nx < 0 || ny < 0 || nx >= lv.LW || ny >= lv.LH || back.has(ny * lv.LW + nx) || !'H^CW'.includes(m[ny][nx]))
         continue;
       back.add(ny * lv.LW + nx);
       q.push([nx, ny]);

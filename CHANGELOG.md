@@ -2,6 +2,27 @@
 
 Semua perubahan NEOBUSTER, versi terbaru di atas. Versi ditulis di konstanta `VERSION` di `js/engine.js`.
 
+## 1.0.0
+
+- **Benua Vespera**: benua kedua dengan 6 boss baru, terbuka setelah Benua Azura ditaklukkan.
+
+  | Boss    | Gender | Stage                                 | Senjata      | Lemah terhadap |
+  | ------- | ------ | ------------------------------------- | ------------ | -------------- |
+  | HYDROS  | Pria   | Menara air dan gorong-gorong banjir   | Hydro Blast  | Venom Drip     |
+  | TOXARIS | Pria   | Pabrik limbah dan lautan lumpur racun | Venom Drip   | Shadow Clone   |
+  | UMBRION | Pria   | Benteng gelap gulita                  | Shadow Clone | Prism Laser    |
+  | SONIQUE | Wanita | Panggung melayang di atas awan        | Sonic Boom   | Time Stopper   |
+  | LUMINA  | Wanita | Istana kristal                        | Prism Laser  | Sonic Boom     |
+  | CHRONIA | Wanita | Menara jam                            | Time Stopper | Hydro Blast    |
+
+- Setiap boss punya 3 serangan sendiri. Chronia bisa menghentikan waktu sehingga pemain tidak bisa bergerak sebentar.
+- 6 senjata baru, masing-masing dengan charge shot dan ultra attack: Tidal Wave/Tsunami, Acid Rain/Plague, Shadow Army/Eclipse, Bass Drop/Supersonic, Spectrum/Supernova, Time Stop/Chrono Break. Charge Time Stopper membekukan musuh, peluru, hazard, dan boss selama 3 detik.
+- Musuh baru: Jelly, Slime, Shade, Speakerbot, Prismo, Gearbot.
+- Mekanik baru: air (jatuh pelan, lompat lebih tinggi), ventilasi gas racun, kegelapan dengan obor, speaker dan drum lontar, gerbang laser, bandul, platform yang berputar melingkar, dan tetesan air.
+- Ruang boss unik untuk keenam boss.
+- Konten benua sekarang ditulis dalam satu file per benua (`js/vespera.js`) lewat registry, tanpa mengubah `switch` di file inti. Panduan `docs/MENAMBAH-KONTEN.md` diperbarui.
+- Label baris benua di menu pause muat sampai 7 huruf.
+
 ## 0.15.0
 
 - **Peta Dunia**: boss dikelompokkan per benua (6 boss per benua). Keenam boss sekarang berada di **Benua Azura**; benua berikutnya tampil terkunci "SEGERA HADIR" dan akan terbuka setelah semua boss di benua sebelumnya kalah. Ending muncul setelah semua benua selesai.

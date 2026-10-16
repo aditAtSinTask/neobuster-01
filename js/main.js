@@ -81,7 +81,7 @@ function restartFromCheckpoint() {
   eshots = [];
   particles = [];
   boss = null;
-  hazards = level.ents.filter(e => HAZARD_TYPES.includes(e.type)).map(makeHazard);
+  hazards = level.ents.filter(e => HAZARD_TYPES.includes(e.type) || HAZARD_KINDS[e.type]).map(makeHazard);
   plats = level.ents.filter(e => e.type === 'plat').map(makePlat);
   pickups = game.placed.filter(p => !p.taken).map(p => makePickup(p.kind, p.tx * TILE + 8, p.ty * TILE + 4, p));
   for (const s of spawns) {
@@ -91,7 +91,16 @@ function restartFromCheckpoint() {
   door.open = 0;
   door.solid = true;
   door.phase = '';
-  Object.assign(game, { bossLocked: false, bossBar: 0, refill: 0, deadT: 0, shake: 0, flash: 0, popup: 0 });
+  Object.assign(game, {
+    bossLocked: false,
+    bossBar: 0,
+    refill: 0,
+    deadT: 0,
+    shake: 0,
+    flash: 0,
+    popup: 0,
+    timeStop: 0,
+  });
   const spot = game.checkpoint ? level.cps[Math.min(game.checkpoint, level.cps.length) - 1] : level.start;
   const sx = spot.x * TILE + 1;
   Object.assign(player, {
@@ -105,9 +114,11 @@ function restartFromCheckpoint() {
     state: 'beam',
     hp: 28,
     inv: 0,
+    stun: 0,
     shootT: 0,
     charge: 0,
     storm: 0,
+    stun: 0,
     shieldCd: [0, 0],
     shieldAng: 0,
     anim: 0,
@@ -188,6 +199,7 @@ function updatePlay() {
   }
   game.time++;
   if (game.shake > 0) game.shake--;
+  if (game.timeStop > 0) game.timeStop--;
   if (game.flash > 0) game.flash--;
   if (game.popup > 0) game.popup--;
   updatePlats();
@@ -682,7 +694,17 @@ let ambient = { type: '', ps: [] };
 function makeAmbient(type) {
   const rnd = Math.random,
     ps = [];
-  const n = type === 'snow' ? 70 : type === 'rain' ? 90 : type === 'breeze' ? 34 : type === 'embers' ? 40 : 30;
+  const n = AMBIENTS[type]
+    ? AMBIENTS[type].n
+    : type === 'snow'
+      ? 70
+      : type === 'rain'
+        ? 90
+        : type === 'breeze'
+          ? 34
+          : type === 'embers'
+            ? 40
+            : 30;
   for (let i = 0; i < n; i++)
     ps.push({ x: rnd() * VW, y: rnd() * VH, s: 1 + ((rnd() * 2) | 0), ph: rnd() * 6.28, sp: 0.3 + rnd() * 0.6 });
   return { type, ps };
@@ -693,7 +715,8 @@ function updateAmbient() {
   if (!ambient.type || !['play', 'ready', 'door', 'bossintro', 'clear', 'pause'].includes(game.state)) return;
   if (ambient.type === 'rain' && game.state !== 'pause' && frameCount % STORM_T === 4) sfx.rumble();
   for (const q of ambient.ps) {
-    if (ambient.type === 'snow') {
+    if (AMBIENTS[ambient.type]) AMBIENTS[ambient.type].update(q);
+    else if (ambient.type === 'snow') {
       q.y += q.sp;
       q.x += Math.sin(frameCount * 0.02 + q.ph) * 0.3;
     } else if (ambient.type === 'rain') {
@@ -716,7 +739,8 @@ function drawAmbient() {
   for (const q of ambient.ps) {
     const x = wrap(q.x - camX * 0.6, VW),
       y = wrap(q.y - camY * 0.6, VH);
-    if (ambient.type === 'snow') R(x, y, q.s, q.s, q.s > 1 ? '#fcfcfc' : '#c8d8f0');
+    if (AMBIENTS[ambient.type]) AMBIENTS[ambient.type].draw(q, x, y);
+    else if (ambient.type === 'snow') R(x, y, q.s, q.s, q.s > 1 ? '#fcfcfc' : '#c8d8f0');
     else if (ambient.type === 'rain') R(x, y, 1, 4 + q.s * 2, q.s > 1 ? '#a8b8e8' : '#6070a0');
     else if (ambient.type === 'breeze') {
       if (q.s > 1) {
@@ -758,19 +782,31 @@ function drawDynamicTiles() {
   for (let ty = r0; ty <= r0 + 14; ty++)
     for (let tx = t0; tx <= t0 + 24; tx++) {
       const t = tileAt(tx, ty);
-      if (t !== '~' && t !== 'C' && t !== 'D' && t !== '<' && t !== '>' && t !== 'U') continue;
+      if (t !== '~' && t !== 'C' && t !== 'D' && t !== '<' && t !== '>' && t !== 'U' && t !== 'W') continue;
       const sx = tx * TILE - camX,
         sy = ty * TILE - camY;
+      if (t === 'W') {
+        // water: translucent, with a moving crest on its surface
+        ctx.globalAlpha = 0.45;
+        R(sx, sy, 16, 16, '#2878d8');
+        ctx.globalAlpha = 1;
+        if (tileAt(tx, ty - 1) !== 'W')
+          for (let i = 0; i < 16; i += 2)
+            R(sx + i, sy + ((Math.sin((tx * 16 + i) * 0.4 + frameCount * 0.1) + 1) | 0), 2, 1, '#a8e8fc');
+        continue;
+      }
       if (t === '~') {
-        R(sx, sy, 16, 16, '#c82800');
+        const [base, crest, foam] = LIQUID[level.theme] || ['#c82800', '#f8d800', '#f87800']; // lava, or acid
+        R(sx, sy, 16, 16, base);
         for (let i = 0; i < 16; i += 2) {
           const h = (3 + Math.sin((tx * 16 + i) * 0.3 + frameCount * 0.08) * 2) | 0;
-          R(sx + i, sy, 2, h, '#f8d800');
-          R(sx + i, sy + h, 2, 2, '#f87800');
+          R(sx + i, sy, 2, h, crest);
+          R(sx + i, sy + h, 2, 2, foam);
         }
-        if ((tx * 7 + (frameCount >> 4)) % 5 === 0) R(sx + 6, sy + 9, 3, 3, '#f8a800');
+        if ((tx * 7 + (frameCount >> 4)) % 5 === 0) R(sx + 6, sy + 9, 3, 3, foam);
         if (tx % 2 === 0) lavaGlows.push([sx + 16, sy + 2]);
-      } else if (t === 'U') {
+      } else if (t === 'U' && PAD_DRAW[level.theme]) PAD_DRAW[level.theme](sx, sy);
+      else if (t === 'U') {
         // updraft pad: a grille with air streaming up from it
         R(sx, sy, 16, 16, '#5a6a8a');
         R(sx, sy, 16, 4, '#2a3248');
@@ -816,7 +852,7 @@ function drawDynamicTiles() {
         R(sx + 15, sy, 1, 16, '#404048');
       }
     }
-  for (const [x, y] of lavaGlows) glow(x, y, 22, '#f85000', 0.35);
+  for (const [x, y] of lavaGlows) glow(x, y, 22, (LIQUID[level.theme] || [])[2] || '#f85000', 0.35);
 }
 
 // animated parts of the themed boss rooms (the static wall art is painted into the level canvas)
@@ -824,6 +860,7 @@ function drawRoomFx() {
   const rx = (level.doorCol + 1) * TILE - camX,
     ry = 13 * TILE - camY;
   if (rx > VW || rx + 352 < 0 || ry > VH || ry + 144 < 0) return;
+  if (ROOM_FX[level.theme]) return ROOM_FX[level.theme](rx, ry);
   switch (level.theme) {
     case 'cut': // two big gears turning on the back wall
       for (const [gx, gy, r, d] of [
@@ -867,14 +904,6 @@ function drawRoomFx() {
 }
 
 const PAL_GOLD = { B: '#f8b800', b: '#fcf0a0', S: '#fcfcfc' };
-const PLAT_COL = {
-  cut: '#d8a020',
-  fire: '#7a7a88',
-  elec: '#5868a0',
-  snow: '#a8e0f8',
-  earth: '#9a7a50',
-  wind: '#e8f0f8',
-};
 function drawPlatsAndHazards() {
   for (const pl of plats) {
     const x = Math.round(pl.x) - camX,
@@ -896,6 +925,10 @@ function drawPlatsAndHazards() {
     glow(x + 16, y + 12, 8, '#58d8f8', 0.5);
   }
   for (const h of hazards) {
+    if (HAZARD_KINDS[h.kind]) {
+      HAZARD_KINDS[h.kind].draw(h);
+      continue;
+    }
     switch (h.kind) {
       case 'saw': {
         const ax = h.ax - camX,
@@ -1133,6 +1166,7 @@ function drawWhirl(cx, by, w, h, t, col = '#b8fce0') {
 function drawPlayerShot(s) {
   const x = Math.round(s.x) - camX,
     y = Math.round(s.y) - camY;
+  if (SHOT_KINDS[s.kind] && SHOT_KINDS[s.kind].draw) return SHOT_KINDS[s.kind].draw(s, x, y);
   switch (s.kind) {
     case 'buster':
       if (s.deflected) {
@@ -1312,6 +1346,7 @@ function drawPlayerShot(s) {
 function drawEnemyShot(s) {
   const x = Math.round(s.x) - camX,
     y = Math.round(s.y) - camY;
+  if (ESHOT_KINDS[s.kind] && ESHOT_KINDS[s.kind].draw) return ESHOT_KINDS[s.kind].draw(s, x, y);
   switch (s.kind) {
     case 'bcutter':
       drawCutter(x, y, -s.t * 0.5, '#c83010');
@@ -1493,6 +1528,13 @@ function drawPlayer() {
     glow(sx + 7, sy + 16, 14, wp.b, 0.6);
     return;
   }
+  if (p.stun > 0) {
+    // frozen in time: a ring of clock ticks around the player
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2 + frameCount * 0.05;
+      R(sx + p.w / 2 + Math.cos(a) * 16 - 0.5, sy + p.h / 2 + Math.sin(a) * 16 - 0.5, 1, 1, '#f8e8b0');
+    }
+  }
   if (p.inv > 0 && p.state !== 'hurt' && (frameCount & 3) < 2) return;
 
   let pose = 'stand',
@@ -1586,12 +1628,15 @@ function drawBoss() {
     (b.state === 'rockrain' && b.t > 6 && b.t < 30)
   )
     pose = 'raise';
+  if (def.pose) pose = def.pose(b, pose);
   let pal = def.pal;
   if (b.state === 'stagger' && frameCount & 2) pal = PAL_WHITE;
   else if (b.state === 'slide' && b.t < 14 && frameCount & 2) pal = PAL_WHITE;
+  if (def.drawBehind) def.drawBehind(b, sx, sy);
   drawRobot(sx + b.w / 2 - 12, sy + b.h - 24, b.facing, pose, fr, b.arm > 0 && pose !== 'raise', pal, def.style, {
     blade: b.hasCutter,
   });
+  if (def.draw) def.draw(b, sx, sy);
   if (b.frozenT > 0) {
     ctx.globalAlpha = 0.55;
     R(sx - 3, sy - 3, b.w + 6, b.h + 6, '#a8e8fc');
@@ -1654,6 +1699,9 @@ function drawParticles() {
         ctx.globalAlpha = 1 - q.t / q.life;
         circle(x, y, 2 + q.t * 0.15, '#d8d0c0');
         ctx.globalAlpha = 1;
+        break;
+      case 'bubble':
+        circle(x, y, 1.5, 'rgba(200,240,255,0.8)');
         break;
       case 'debris':
         R(x, y, q.size, q.size, q.col);
@@ -1736,6 +1784,7 @@ function renderWorld() {
   drawParticles();
   ctx.restore();
   drawAmbient();
+  if (POST_FX[level.theme]) POST_FX[level.theme]();
   ctx.drawImage(VIGNETTE, 0, 0);
   if (game.flash > 0) {
     ctx.globalAlpha = game.flash / 12;
@@ -2448,7 +2497,8 @@ function drawPause() {
       text('EXIT STAGE', 58, y + 5, sel ? '#f8d800' : '#a8a8b8');
       return;
     }
-    text(r === 0 ? 'NEO' : CONTINENTS[r - 1].name.slice(0, 5), 20, y + 5, '#686878');
+    const label = r === 0 ? 'NEO' : CONTINENTS[r - 1].name.slice(0, 7); // right-aligned against the grid
+    text(label, 51 - textWidth(label), y + 5, '#686878');
     row.forEach((k, c) => {
       const x = 56 + c * 22,
         sel = game.pcol === 0 && game.pr === r && game.pc === c;
@@ -2537,6 +2587,10 @@ function render() {
 
 // ================= CONTENT CHECK =================
 // Warns in the console when a continent, stage or shop part is missing a piece, so new content fails loudly.
+function finishContent() {
+  for (const k of STAGE_ORDER)
+    if (WEAPONS[k] && !WEAPONS[k].full) WEAPONS[k].full = { B: WEAPONS[k].pal.b, b: '#fcfcfc', S: '#fcfcfc' };
+}
 function validateContent() {
   const warn = m => console.warn('[neobuster] ' + m);
   const keys = new Set();
@@ -2573,6 +2627,7 @@ function validateContent() {
     if (it.needs && !SHOP.some(o => o.key === it.needs)) warn(`part ${it.key}: butuh ${it.needs} yang tidak ada`);
   }
 }
+finishContent();
 validateContent();
 
 // ================= LOOP =================

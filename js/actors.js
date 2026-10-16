@@ -246,6 +246,12 @@ const WEAPONS = {
 // palette the player flashes to while a special weapon is fully charged
 for (const k of STAGE_ORDER) if (WEAPONS[k]) WEAPONS[k].full = { B: WEAPONS[k].pal.b, b: '#fcfcfc', S: '#fcfcfc' };
 const WEAPON_ORDER = ['buster', ...STAGE_ORDER]; // each boss drops the weapon with its stage key
+// Content registries for continent files: SHOT_KINDS[kind] = { update(s), draw(s, x, y), offscreen } for player
+// shots, ESHOT_KINDS[kind] = { update(s), draw(s, x, y), pierce } for enemy shots, HAZARD_KINDS[type] =
+// { make(d), update(h, p), draw(h) } for hazards. A weapon can also bring its own fire(p) / charge(p) / ultra(p).
+const SHOT_KINDS = {},
+  ESHOT_KINDS = {},
+  HAZARD_KINDS = {};
 const ownedWeapons = () => WEAPON_ORDER.filter(w => w === 'buster' || save.cleared[w]);
 
 function addShot(o) {
@@ -325,7 +331,12 @@ function updateStorm(p) {
 
 function fireSpecial(p) {
   const mx = p.facing > 0 ? p.x + p.w + 2 : p.x - 2,
-    my = p.y + 13;
+    my = p.y + 13,
+    W_ = WEAPONS[p.weapon];
+  if (W_ && W_.fire) {
+    if (W_.fire(p) !== false) p.shootT = 16;
+    return;
+  }
   switch (p.weapon) {
     case 'cut':
       if (countShots('cutter') >= 2) return;
@@ -413,7 +424,13 @@ function fireSpecial(p) {
 // charged special weapons: hold shoot until fully charged, then release
 function fireCharged(p) {
   const f = p.facing,
-    my = p.y + 13;
+    my = p.y + 13,
+    W_ = WEAPONS[p.weapon];
+  if (W_ && W_.charge) {
+    if (W_.charge(p) === false) return false;
+    p.shootT = 16;
+    return true;
+  }
   switch (p.weapon) {
     case 'cut': // giant shuriken: a big four-bladed steel star that spins far forward and comes back
       if (countShots('shuriken')) return false;
@@ -557,109 +574,112 @@ function fireCharged(p) {
 // ================= ULTRA ATTACKS (Ultra Booster: hold for ULTRA_CHARGE frames) =================
 function fireUltra(p) {
   if (pshots.some(s => s.ultra)) return false; // one at a time
-  const f = p.facing;
-  switch (p.weapon) {
-    case 'buster': // hyper beam: a screen-long laser from the buster
-      addShot({
-        kind: 'hbeam',
-        weapon: 'buster',
-        x: p.x,
-        y: p.y,
-        w: 1,
-        h: 36,
-        dir: f,
-        life: 60,
-        dmg: 6,
-        bossDmg: 7,
-        pierce: true,
-        charged: true,
-        ultra: true,
-      });
-      break;
-    case 'cut': // cutter tempest: 8 big cutters spiralling out around the player
-      for (let i = 0; i < 8; i++)
+  const f = p.facing,
+    W_ = WEAPONS[p.weapon];
+  if (W_ && W_.ultra) W_.ultra(p);
+  else
+    switch (p.weapon) {
+      case 'buster': // hyper beam: a screen-long laser from the buster
         addShot({
-          kind: 'tcutter',
-          weapon: 'cut',
-          x: pcx() - 10,
-          y: pcy() - 10,
-          w: 20,
-          h: 20,
-          ang: (i * Math.PI) / 4,
-          r: 12,
-          life: 130,
-          dmg: 4,
-          bossDmg: 2,
+          kind: 'hbeam',
+          weapon: 'buster',
+          x: p.x,
+          y: p.y,
+          w: 1,
+          h: 36,
+          dir: f,
+          life: 60,
+          dmg: 6,
+          bossDmg: 7,
           pierce: true,
           charged: true,
           ultra: true,
         });
-      break;
-    case 'fire': // inferno: fire pillars erupt along the floor, outward in both directions
-      for (let k = 1; k <= 7; k++)
-        for (const d of [-1, 1]) {
-          const x = pcx() + d * k * 36,
-            gy = groundBelow(x, p.y);
-          if (gy > camY + VH + 32) continue;
+        break;
+      case 'cut': // cutter tempest: 8 big cutters spiralling out around the player
+        for (let i = 0; i < 8; i++)
           addShot({
-            kind: 'ppillar',
-            weapon: 'fire',
-            x: x - 10,
-            y: gy - 88,
+            kind: 'tcutter',
+            weapon: 'cut',
+            x: pcx() - 10,
+            y: pcy() - 10,
             w: 20,
-            h: 88,
-            delay: k * 5,
-            life: 34,
+            h: 20,
+            ang: (i * Math.PI) / 4,
+            r: 12,
+            life: 130,
             dmg: 4,
+            bossDmg: 2,
+            pierce: true,
+            charged: true,
+            ultra: true,
+          });
+        break;
+      case 'fire': // inferno: fire pillars erupt along the floor, outward in both directions
+        for (let k = 1; k <= 7; k++)
+          for (const d of [-1, 1]) {
+            const x = pcx() + d * k * 36,
+              gy = groundBelow(x, p.y);
+            if (gy > camY + VH + 32) continue;
+            addShot({
+              kind: 'ppillar',
+              weapon: 'fire',
+              x: x - 10,
+              y: gy - 88,
+              w: 20,
+              h: 88,
+              delay: k * 5,
+              life: 34,
+              dmg: 4,
+              bossDmg: 3,
+              pierce: true,
+              charged: true,
+              ultra: true,
+            });
+          }
+        break;
+      case 'elec': // thunder god: lightning keeps striking enemies (and the boss) for almost two seconds
+        addShot({ kind: 'tgod', weapon: 'elec', x: pcx(), y: pcy(), w: 0, h: 0, life: 110, n: 0, ultra: true });
+        break;
+      case 'snow':
+        absoluteZero(p);
+        break;
+      case 'wind': // hurricane: three screen-high tornadoes sweep the screen from behind the player
+        for (let i = 0; i < 3; i++)
+          addShot({
+            kind: 'hurricane',
+            weapon: 'wind',
+            x: f > 0 ? camX - 56 : camX + VW,
+            y: camY,
+            w: 56,
+            h: VH,
+            vx: f * 3.2,
+            delay: i * 22,
+            life: 170,
+            dmg: 3,
             bossDmg: 3,
             pierce: true,
             charged: true,
             ultra: true,
           });
-        }
-      break;
-    case 'elec': // thunder god: lightning keeps striking enemies (and the boss) for almost two seconds
-      addShot({ kind: 'tgod', weapon: 'elec', x: pcx(), y: pcy(), w: 0, h: 0, life: 110, n: 0, ultra: true });
-      break;
-    case 'snow':
-      absoluteZero(p);
-      break;
-    case 'wind': // hurricane: three screen-high tornadoes sweep the screen from behind the player
-      for (let i = 0; i < 3; i++)
+        break;
+      case 'earth': // meteor: falls ahead of the player and explodes into shockwaves and rocks
         addShot({
-          kind: 'hurricane',
-          weapon: 'wind',
-          x: f > 0 ? camX - 56 : camX + VW,
-          y: camY,
-          w: 56,
-          h: VH,
-          vx: f * 3.2,
-          delay: i * 22,
-          life: 170,
-          dmg: 3,
-          bossDmg: 3,
+          kind: 'meteor',
+          weapon: 'earth',
+          x: pcx() + f * 96 - 20,
+          y: camY - 48,
+          w: 40,
+          h: 40,
+          vy: 4,
+          dmg: 8,
+          bossDmg: 6,
           pierce: true,
           charged: true,
           ultra: true,
         });
-      break;
-    case 'earth': // meteor: falls ahead of the player and explodes into shockwaves and rocks
-      addShot({
-        kind: 'meteor',
-        weapon: 'earth',
-        x: pcx() + f * 96 - 20,
-        y: camY - 48,
-        w: 40,
-        h: 40,
-        vy: 4,
-        dmg: 8,
-        bossDmg: 6,
-        pierce: true,
-        charged: true,
-        ultra: true,
-      });
-      break;
-  }
+        break;
+    }
   game.flash = 8;
   game.shake = 10;
   sfx.ultra();
@@ -832,6 +852,12 @@ function burnShots(s) {
 
 function updateShot(s) {
   s.t++;
+  const K = SHOT_KINDS[s.kind];
+  if (K && K.update) {
+    K.update(s);
+    if (!K.offscreen && !onScreen(s.x + s.w / 2, s.y + s.h / 2, 24)) s.dead = true;
+    return;
+  }
   switch (s.kind) {
     case 'cutter':
     case 'shuriken':
@@ -1176,8 +1202,12 @@ function beltUnder(e) {
   }
   return 0;
 }
+// body centre inside water ('W' tiles): lighter gravity and slow sinking
+const inWater = e => tileAt(Math.floor((e.x + e.w / 2) / TILE), Math.floor((e.y + e.h / 2) / TILE)) === 'W';
 function applyGravity(p) {
-  p.vy = Math.min(p.vy + 0.25, 7);
+  const water = inWater(p);
+  p.vy = Math.min(p.vy + (water ? 0.15 : 0.25), water ? 2.6 : 7);
+  if (water && frameCount % 24 === 0) part({ kind: 'bubble', x: p.x + p.w / 2, y: p.y + 4, vx: 0, vy: -0.5, life: 50 });
   const sand = inSand(p);
   if (sand && p.vy > 0.3) p.vy = 0.3; // sinking slowly; checkHazards kills once the head goes under
   const wasGround = p.onGround;
@@ -1270,6 +1300,13 @@ function updatePlayer() {
   if (p.shootT > 0) p.shootT--;
   updateStorm(p);
   updateShield(p);
+  if (p.stun > 0 && alive(p)) {
+    // frozen in time by a boss: no control for a moment
+    p.stun--;
+    p.vx = 0;
+    if (p.state !== 'climb') applyGravity(p);
+    return;
+  }
   const dir = (inp.right ? 1 : 0) - (inp.left ? 1 : 0);
   const onIce = p.onGround && standingOn(p, 'I');
   // jump buffer: a press shortly before landing still counts (as long as the key is held)
@@ -2106,6 +2143,7 @@ function killEnemy(e) {
 function updateEnemies() {
   for (const e of enemies) {
     if (e.flash > 0) e.flash--;
+    if (game.timeStop > 0) e.frozen = Math.max(e.frozen, 2); // Time Stopper
     if (e.frozen > 0) {
       e.frozen--;
       if (EN[e.type].grav) physics(e);
@@ -2124,6 +2162,7 @@ function updateEnemies() {
 
 // ================= HAZARDS & PLATFORMS =================
 function makeHazard(d) {
+  if (HAZARD_KINDS[d.type]) return Object.assign({ kind: d.type }, HAZARD_KINDS[d.type].make(d));
   switch (d.type) {
     case 'saw': {
       const ax = d.x * TILE + 8,
@@ -2248,7 +2287,12 @@ function breakIcicle(h) {
 }
 function updateHazards() {
   const p = player;
+  if (game.timeStop > 0) return; // Time Stopper: everything holds still
   for (const h of hazards) {
+    if (HAZARD_KINDS[h.kind]) {
+      HAZARD_KINDS[h.kind].update(h, p);
+      continue;
+    }
     switch (h.kind) {
       case 'saw': {
         h.u += h.du;
@@ -2383,6 +2427,22 @@ function updateHazards() {
 }
 
 function makePlat(d) {
+  // a platform on a circle (gear platforms): centre at tile x,y, radius r tiles, speed in radians per frame
+  if (d.r)
+    return {
+      circle: true,
+      cx: d.x * TILE + 16,
+      cy: d.y * TILE + 4,
+      r: d.r * TILE,
+      a: d.phase || 0,
+      spd: d.speed || 0.02,
+      x: 0,
+      y: 0,
+      w: 32,
+      h: 8,
+      dx: 0,
+      dy: 0,
+    };
   const ax = d.x * TILE,
     ay = d.y * TILE,
     bx = d.x1 * TILE,
@@ -2407,7 +2467,11 @@ function updatePlats() {
   for (const pl of plats) {
     const ox = pl.x,
       oy = pl.y;
-    if (pl.hold > 0) pl.hold--;
+    if (pl.circle) {
+      pl.a += pl.spd;
+      pl.x = pl.cx + Math.cos(pl.a) * pl.r - 16;
+      pl.y = pl.cy + Math.sin(pl.a) * pl.r - 4;
+    } else if (pl.hold > 0) pl.hold--;
     else {
       pl.u += pl.du;
       if (pl.u > 1 || pl.u < 0) {
@@ -2416,8 +2480,10 @@ function updatePlats() {
         pl.hold = 30;
       }
     }
-    pl.x = pl.ax + (pl.bx - pl.ax) * pl.u;
-    pl.y = pl.ay + (pl.by - pl.ay) * pl.u;
+    if (!pl.circle) {
+      pl.x = pl.ax + (pl.bx - pl.ax) * pl.u;
+      pl.y = pl.ay + (pl.by - pl.ay) * pl.u;
+    }
     pl.dx = pl.x - ox;
     pl.dy = pl.y - oy;
     if (player.plat === pl && alive(player) && player.state !== 'climb') {
@@ -2450,6 +2516,7 @@ function updateCrumbles() {
 const PIERCING = new Set(['bcutter', 'wave', 'pillar', 'quake', 'lbolt', 'gspark', 'ecyclone']);
 function updateEnemyShots() {
   const R_ = ROOM();
+  if (game.timeStop > 0) return; // Time Stopper: shots hang in the air
   for (const s of eshots) {
     s.t++;
     if (s.delay > 0) {
@@ -2458,86 +2525,89 @@ function updateEnemyShots() {
         part({ kind: 'debris', x: s.x + s.w / 2, y: s.y, vy: 1, grav: 0.15, life: 30, col: '#8a6a4a', size: 2 });
       continue;
     }
-    switch (s.kind) {
-      case 'bcutter': {
-        const o = s.owner;
-        if (!boss || boss !== o) {
-          s.dead = true;
+    const EK = ESHOT_KINDS[s.kind];
+    if (EK && EK.update) EK.update(s);
+    else
+      switch (s.kind) {
+        case 'bcutter': {
+          const o = s.owner;
+          if (!boss || boss !== o) {
+            s.dead = true;
+            break;
+          }
+          const tx = s.back ? o.x + o.w / 2 : s.tx,
+            ty = s.back ? o.y + 6 : s.ty;
+          const dx = tx - (s.x + 7),
+            dy = ty - (s.y + 7),
+            d = Math.hypot(dx, dy) || 1,
+            sp = s.back ? 4.6 : 4.2;
+          s.x += (dx / d) * Math.min(sp, d);
+          s.y += (dy / d) * Math.min(sp, d);
+          if (!s.back && (d < 6 || s.t > 55)) s.back = true;
+          else if (s.back && d < 10) {
+            s.dead = true;
+            o.hasCutter = true;
+          }
           break;
         }
-        const tx = s.back ? o.x + o.w / 2 : s.tx,
-          ty = s.back ? o.y + 6 : s.ty;
-        const dx = tx - (s.x + 7),
-          dy = ty - (s.y + 7),
-          d = Math.hypot(dx, dy) || 1,
-          sp = s.back ? 4.6 : 4.2;
-        s.x += (dx / d) * Math.min(sp, d);
-        s.y += (dy / d) * Math.min(sp, d);
-        if (!s.back && (d < 6 || s.t > 55)) s.back = true;
-        else if (s.back && d < 10) {
-          s.dead = true;
-          o.hasCutter = true;
-        }
-        break;
+        case 'pillar':
+        case 'pwarn':
+        case 'lbolt':
+        case 'bwarn':
+          if (--s.life <= 0) s.dead = true;
+          break;
+        case 'wave':
+        case 'quake':
+        case 'gspark':
+        case 'ecyclone':
+          s.x += s.vx;
+          if (solidPx(s.vx > 0 ? s.x + s.w : s.x, s.y + s.h / 2)) {
+            s.dead = true;
+            debris(
+              s.x + s.w / 2,
+              s.y + s.h / 2,
+              { wave: '#f8a800', quake: '#8a6a4a', gspark: '#f8f058', ecyclone: '#d8f8ec' }[s.kind],
+              4,
+            );
+          }
+          if (s.kind === 'quake' && frameCount % 4 === 0) dust(s.x + s.w / 2, s.y + s.h, 1);
+          break;
+        case 'boulder':
+          s.vy = Math.min(s.vy + s.grav, 7);
+          s.x += s.vx;
+          s.y += s.vy;
+          if (solidPx(s.x + s.w / 2, s.y + s.h) || solidPx(s.vx > 0 ? s.x + s.w : s.x, s.y + s.h / 2)) {
+            s.dead = true;
+            sfx.shatter();
+            const cx = s.x + s.w / 2,
+              cy = Math.min(s.y + s.h / 2, R_.floor - 8);
+            for (const v of [-2.6, -1.2, 1.2, 2.6])
+              enemyShot(cx, cy, v, -3 - Math.abs(v) * 0.3, 3, { kind: 'frag', grav: 0.2, solidDie: true });
+            debris(cx, cy, '#8a6a4a', 8);
+          }
+          break;
+        default:
+          if (s.grav) s.vy = Math.min(s.vy + s.grav, 8);
+          s.x += s.vx;
+          s.y += s.vy;
+          if (s.solidDie && s.vy > 0 && s.y > camY && solidPx(s.x + s.w / 2, s.y + s.h)) {
+            s.dead = true;
+            const ice = s.kind === 'fallice' || s.kind === 'snowball';
+            debris(
+              s.x + s.w / 2,
+              s.y + s.h - 2,
+              s.kind === 'snowball' ? '#f0f8ff' : ice ? '#c8f0fc' : s.kind === 'fireball' ? '#f8a800' : '#8a6a4a',
+              6,
+              1.5,
+            );
+            if (ice) sfx.shatter();
+            else if (s.kind !== 'frag') sfx.crumble();
+          }
       }
-      case 'pillar':
-      case 'pwarn':
-      case 'lbolt':
-      case 'bwarn':
-        if (--s.life <= 0) s.dead = true;
-        break;
-      case 'wave':
-      case 'quake':
-      case 'gspark':
-      case 'ecyclone':
-        s.x += s.vx;
-        if (solidPx(s.vx > 0 ? s.x + s.w : s.x, s.y + s.h / 2)) {
-          s.dead = true;
-          debris(
-            s.x + s.w / 2,
-            s.y + s.h / 2,
-            { wave: '#f8a800', quake: '#8a6a4a', gspark: '#f8f058', ecyclone: '#d8f8ec' }[s.kind],
-            4,
-          );
-        }
-        if (s.kind === 'quake' && frameCount % 4 === 0) dust(s.x + s.w / 2, s.y + s.h, 1);
-        break;
-      case 'boulder':
-        s.vy = Math.min(s.vy + s.grav, 7);
-        s.x += s.vx;
-        s.y += s.vy;
-        if (solidPx(s.x + s.w / 2, s.y + s.h) || solidPx(s.vx > 0 ? s.x + s.w : s.x, s.y + s.h / 2)) {
-          s.dead = true;
-          sfx.shatter();
-          const cx = s.x + s.w / 2,
-            cy = Math.min(s.y + s.h / 2, R_.floor - 8);
-          for (const v of [-2.6, -1.2, 1.2, 2.6])
-            enemyShot(cx, cy, v, -3 - Math.abs(v) * 0.3, 3, { kind: 'frag', grav: 0.2, solidDie: true });
-          debris(cx, cy, '#8a6a4a', 8);
-        }
-        break;
-      default:
-        if (s.grav) s.vy = Math.min(s.vy + s.grav, 8);
-        s.x += s.vx;
-        s.y += s.vy;
-        if (s.solidDie && s.vy > 0 && s.y > camY && solidPx(s.x + s.w / 2, s.y + s.h)) {
-          s.dead = true;
-          const ice = s.kind === 'fallice' || s.kind === 'snowball';
-          debris(
-            s.x + s.w / 2,
-            s.y + s.h - 2,
-            s.kind === 'snowball' ? '#f0f8ff' : ice ? '#c8f0fc' : s.kind === 'fireball' ? '#f8a800' : '#8a6a4a',
-            6,
-            1.5,
-          );
-          if (ice) sfx.shatter();
-          else if (s.kind !== 'frag') sfx.crumble();
-        }
-    }
     if (s.dead) continue;
     if (!s.harmless && alive(player) && overlap(s, player)) {
       damagePlayer(s.dmg);
-      if (!PIERCING.has(s.kind)) s.dead = true;
+      if (!PIERCING.has(s.kind) && !(ESHOT_KINDS[s.kind] && ESHOT_KINDS[s.kind].pierce)) s.dead = true;
     }
     if (
       s.kind !== 'bcutter' &&
@@ -3208,9 +3278,10 @@ function updateBoss() {
     return;
   }
   if (b.state === 'pose') return;
+  if (game.timeStop > 0 && !b.frozenT) b.frozenT = game.timeStop;
   if (b.frozenT > 0) {
     b.frozenT--;
-    physics(b);
+    if (b.y > 0) physics(b); // a boss hidden mid-warp stays hidden
     return;
   } // frozen solid by Absolute Zero: no attacks, no contact damage
   if (b.state === 'stagger') {
@@ -3222,6 +3293,7 @@ function updateBoss() {
     physics(b);
     if (b.t > 18) bossToIdle(b);
   } else BOSSES[b.type].update(b, b.hp <= 14);
+  if (BOSSES[b.type].tick) BOSSES[b.type].tick(b);
   if (b.type === 'elec' && frameCount % 9 === 0) spark(bcx(b) + (Math.random() - 0.5) * 22, b.y + Math.random() * b.h);
   if (b.type === 'fire' && frameCount % 4 === 0)
     part({ kind: 'ember', x: bcx(b) + (Math.random() - 0.5) * 6, y: b.y - 4, vy: -0.8, life: 18 });

@@ -2,7 +2,7 @@
 
 > Game action-platformer 2D bergaya **Mega Man** untuk browser — pixel art dengan kepadatan pixel 2x yang detail, tapi tetap ringan dan optimal untuk web.
 
-**Versi saat ini: `0.15.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
+**Versi saat ini: `1.0.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
 
 ---
 
@@ -26,8 +26,8 @@
 
 ## Konsep
 
-- Dunia terbagi menjadi **benua**, masing-masing berisi **6 boss**. Pilih benua di **Peta Dunia**, lalu pilih boss di benua itu dalam urutan bebas. Benua berikutnya terbuka setelah semua boss di benua sebelumnya dikalahkan. Saat ini tersedia **Benua Azura**; benua baru akan menyusul.
-- Setiap stage panjang dan bertingkat: ada bagian **naik** (menara, tebing, lift) dan bagian **bawah tanah** (gua, saluran, tambang), dengan rintangan seperti duri, jurang, lava, lantai es, balok rapuh, tangga, platform bergerak, gergaji, semburan api, sinar listrik, batu jatuh, dan musuh.
+- Dunia terbagi menjadi **benua**, masing-masing berisi **6 boss**. Pilih benua di **Peta Dunia**, lalu pilih boss di benua itu dalam urutan bebas. Benua berikutnya terbuka setelah semua boss di benua sebelumnya dikalahkan. Saat ini tersedia **Benua Azura** dan **Benua Vespera** (12 boss); benua baru akan menyusul.
+- Setiap stage panjang dan bertingkat: ada bagian **naik** (menara, tebing, lift) dan bagian **bawah tanah** (gua, saluran, tambang), dengan rintangan seperti duri, jurang, lava, lantai es, balok rapuh, tangga, platform bergerak, gergaji, semburan api, sinar listrik, batu jatuh, air, gas racun, kegelapan, laser, bandul, dan musuh.
 - Ada **2 checkpoint** di setiap stage. Kalau mati, kamu lanjut dari checkpoint terakhir yang sudah dilewati.
 - Di ujung stage ada **pintu boss**. Kalahkan boss untuk mendapatkan **senjatanya**.
 - Semua senjata boss **unlimited** — tidak ada energi senjata yang bisa habis.
@@ -68,6 +68,8 @@ Tidak perlu build atau install apa pun — cukup HTML + JavaScript murni.
 
 Setiap stage berukuran 300 × 44 tile. Jalur utama ada di permukaan, dengan bagian yang wajib dilewati di atas dan di bawahnya.
 
+### Benua Azura
+
 | Stage | Bagian naik                                                  | Bagian bawah tanah                                                            | Rintangan khas                                    |
 | ----- | ------------------------------------------------------------ | ----------------------------------------------------------------------------- | ------------------------------------------------- |
 | Cut   | Menara pabrik (tangga, gergaji di atap), lift ke atap gudang | Saluran air di bawah ladang duri                                              | Gergaji di rel, koridor rendah untuk slide        |
@@ -88,7 +90,29 @@ Setiap stage juga punya musuh, mekanik, dan ruang boss yang hanya ada di stage i
 | Earth | **Mole**: menggali di bawah tanah mengikuti kamu, lalu menyembul tepat di bawahmu                  | **Pasir hisap**: kamu tenggelam pelan dan berjalan lambat; lompat keluar sebelum kepala tenggelam                         | Penyangga tambang dan permata di dinding batu                                                   |
 | Wind  | **Fanbot**: kipas melayang yang meniupmu mundur saat kamu di depannya                              | **Pad angin**: menginjaknya melontarkanmu sekitar 8 tile ke atas                                                          | Jendela langit, pilar marmer, dan awan melayang yang bisa dipijak                               |
 
+### Benua Vespera
+
+| Stage  | Bagian naik                                        | Bagian bawah tanah                                     | Rintangan khas                                                  |
+| ------ | -------------------------------------------------- | ------------------------------------------------------ | --------------------------------------------------------------- |
+| Hydro  | Menara air dengan arus di atap, lift ke puncak dam | Gorong-gorong banjir di bawah ladang bulu babi         | Kanal dangkal, arus, tetesan air dari pipa                      |
+| Toxic  | Gunungan limbah, pilar karat di atas lautan lumpur | Terowongan pengolahan lewat cerobong                   | Lumpur racun, ventilasi gas, terowongan gas                     |
+| Shadow | Undakan benteng, dua lift ke puncak menara         | Penjara bawah tanah dengan lantai rapuh di atas jurang | Gelap gulita (hanya obor, tembakan, dan dirimu yang bercahaya)  |
+| Sonic  | Drum ke aula konser, jembatan langit               | Sumur gema di dalam batu melayang, keluar lewat drum   | Panggung melayang di atas lautan awan, speaker                  |
+| Light  | Menara kristal dengan gerbang laser di atap        | Terowongan cermin, lubang prisma dengan lift           | Gerbang laser yang menyala-mati, laser di atas jurang duri      |
+| Time   | Undakan menara jam                                 | Ruang roda gigi lewat lubang menara                    | Bandul berayun, lantai roda gigi berjalan, roda putar di jurang |
+
+| Stage  | Musuh khas                                                                         | Mekanik khas                                                                                                    | Ruang boss                                                              |
+| ------ | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Hydro  | **Jelly**: ubur-ubur yang naik turun sambil mendekat                               | **Air**: di dalam air kamu jatuh pelan dan lompat lebih tinggi                                                  | Lantai tergenang air                                                    |
+| Toxic  | **Slime**: menempel di langit-langit, jatuh saat kamu lewat, lalu merayap mengejar | **Ventilasi gas**: berkedip sebagai peringatan, lalu menyemburkan awan racun                                    | Dua ventilasi gas yang bergantian                                       |
+| Shadow | **Shade**: hantu tembus dinding yang samar-samar terlihat                          | **Kegelapan**: hanya sekitar dirimu, obor, tembakanmu, dan mata boss yang terang                                | Tiga obor di dinding yang menerangi ruangan gelap                       |
+| Sonic  | **Speakerbot**: speaker berjalan yang mengirim cincin suara ke dua arah            | **Drum & speaker**: drum melontarkanmu ke atas; speaker mengirim cincin suara yang bergulir di lantai (lompati) | Equalizer raksasa dan dua speaker yang bergantian                       |
+| Light  | **Prismo**: kristal yang mengisi daya lalu menembak 4 laser miring                 | **Gerbang laser**: laser pendek yang menyala-mati; lompati atau tunggu padam                                    | Laser horizontal melintang di tengah ruangan                            |
+| Time   | **Gearbot**: roda gigi yang berbalik arah di dinding dan tepi jurang               | **Roda putar**: platform yang berputar melingkar; naiki sampai puncak                                           | Jam raksasa dengan jarum berputar, dua platform yang berputar melingkar |
+
 ## Boss & Senjata
+
+### Benua Azura
 
 | Stage | Boss                                  | Senjata yang didapat | Lemah terhadap |
 | ----- | ------------------------------------- | -------------------- | -------------- |
@@ -99,9 +123,34 @@ Setiap stage juga punya musuh, mekanik, dan ruang boss yang hanya ada di stage i
 | Earth | **TERRALYN** — wanita tanah & batu    | Rock Breaker         | Thunder Beam   |
 | Wind  | **WINDERWOMEN** — wanita angin        | Gale Shot            | Rock Breaker   |
 
+### Benua Vespera
+
+| Stage  | Boss                           | Senjata yang didapat | Lemah terhadap |
+| ------ | ------------------------------ | -------------------- | -------------- |
+| Hydro  | **HYDROS** — manusia air       | Hydro Blast          | Venom Drip     |
+| Toxic  | **TOXARIS** — manusia racun    | Venom Drip           | Shadow Clone   |
+| Shadow | **UMBRION** — manusia bayangan | Shadow Clone         | Prism Laser    |
+| Sonic  | **SONIQUE** — wanita suara     | Sonic Boom           | Time Stopper   |
+| Light  | **LUMINA** — wanita cahaya     | Prism Laser          | Sonic Boom     |
+| Time   | **CHRONIA** — wanita waktu     | Time Stopper         | Hydro Blast    |
+
+Serangan boss Vespera:
+
+| Boss    | Serangan                                                                                                                                           |
+| ------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| HYDROS  | Meriam air yang mendorongmu mundur, gelembung yang melayang ke arahmu, dan lompatan yang memecah ombak ke dua arah                                 |
+| TOXARIS | Ludah racun melengkung yang meninggalkan genangan, awan gas di sekeliling tubuhnya (menjauhlah), dan lompatan yang meninggalkan genangan racun     |
+| UMBRION | Bayangan kembar yang berlari menerjang, menghilang lalu muncul di belakangmu, dan orb gelap yang mengejar                                          |
+| SONIQUE | Cincin suara di dua ketinggian, teriakan yang mendorongmu menjauh sambil menggulirkan cincin, dan lari kencang dengan bayangan                     |
+| LUMINA  | Laser yang memantul di dinding, pilar cahaya dari langit-langit (lantai ditandai dulu), dan kilatan yang menyebarkan gelombang cahaya              |
+| CHRONIA | Jarum jam yang terbang seperti bumerang, **menghentikan waktu** (kamu tidak bisa bergerak sebentar setelah denting jam), dan teleport dengan jarum |
+
 Tekan `C` di **Stage Select** untuk membuka layar **Kelemahan Boss**. Layar ini berisi tabel senjata yang didapat dan kelemahan tiap boss, tanda **ADA** kalau senjata kelemahannya sudah kamu punya, dan **urutan saran** berupa rantai boss: senjata dari tiap boss adalah kelemahan boss berikutnya.
 
-Setiap senjata adalah kelemahan tepat satu boss: es membuat gunting rapuh, angin memadamkan api, gunting memotong kabel, api mencairkan es, petir menghancurkan batu, dan batu terlalu berat untuk diterbangkan angin.
+Setiap senjata adalah kelemahan tepat satu boss di benuanya sendiri:
+
+- **Azura**: es membuat gunting rapuh, angin memadamkan api, gunting memotong kabel, api mencairkan es, petir menghancurkan batu, dan batu terlalu berat untuk diterbangkan angin.
+- **Vespera**: racun mencemari air, bayangan menyelinap menembus kabut racun, cahaya mengusir bayangan, waktu yang berhenti membungkam suara, getaran suara memecahkan kristal cahaya, dan air membuat mesin jam berkarat.
 
 ### Tembakan biasa & charge shot
 
@@ -116,6 +165,12 @@ Tekan `X` untuk tembakan biasa. Tahan `X` sampai karakter berkedip dengan warna 
 | Frost Shard    | 3 kristal es yang membekukan musuh                      | **Frost Nova** — cincin rapat 24 kristal es besar ke segala arah, menembus dan membekukan musuh                                                                                                                                   |
 | Gale Shot      | 3 pusaran angin yang melayang naik dengan sudut berbeda | **Cyclone** — tornado besar yang bergulir di tanah, terus menggerus musuh yang dilewati dan menyedot peluru kecil                                                                                                                 |
 | Rock Breaker   | Batu yang pecah jadi 4 serpihan                         | **Rock Quake** — batu besar yang pecah jadi 8 serpihan, mengguncang layar dan melukai semua musuh yang menapak tanah                                                                                                              |
+| Hydro Blast    | 2 semburan air cepat                                    | **Tidal Wave** — ombak yang bergulir di tanah dan menembus musuh                                                                                                                                                                  |
+| Venom Drip     | Bola racun melengkung yang menjadi genangan beracun     | **Acid Rain** — 10 tetes hujan asam jatuh dari langit di depanmu                                                                                                                                                                  |
+| Shadow Clone   | Bayanganmu menerjang ke depan                           | **Shadow Army** — 3 bayangan sekaligus, salah satunya melompat                                                                                                                                                                    |
+| Sonic Boom     | Cincin suara yang membesar dan menembus musuh           | **Bass Drop** — 2 gelombang bass ke dua arah dan melukai semua musuh yang menapak tanah                                                                                                                                           |
+| Prism Laser    | Laser yang memantul di dinding                          | **Spectrum** — 7 laser pelangi yang menyebar dan memantul                                                                                                                                                                         |
+| Time Stopper   | Jarum jam yang cepat                                    | **Time Stop** — waktu berhenti 3 detik: musuh, peluru musuh, hazard, dan boss membeku                                                                                                                                             |
 
 ### Melawan boss
 
@@ -123,7 +178,7 @@ Tekan `X` untuk tembakan biasa. Tahan `X` sampai karakter berkedip dengan warna 
 - Serangan ke kelemahan boss memunculkan tulisan **WEAK!** dan memberi 4 damage. Kalau pakai charge shot, damage-nya 6.
 - Boss kebal terhadap senjatanya sendiri.
 
-Setelah keenam boss dikalahkan, muncul layar ending.
+Setelah semua boss di semua benua dikalahkan, muncul layar ending.
 
 ## Peta Dunia & Menu Pause
 
@@ -161,6 +216,12 @@ Ultra attack setiap senjata:
 | Frost Shard    | **Absolute Zero**: semua musuh di layar membeku dan terluka, peluru musuh pecah, boss membeku, dan duri es muncul dari lantai |
 | Gale Shot      | **Hurricane**: 3 tornado setinggi layar menyapu dari belakangmu ke depan, terus menggerus musuh dan meniup peluru musuh       |
 | Rock Breaker   | **Meteor**: meteor jatuh di depanmu lalu meledak menjadi gelombang kejut dan hujan batu                                       |
+| Hydro Blast    | **Tsunami**: ombak setinggi layar menyapu dari belakangmu ke depan dan menyapu peluru musuh                                   |
+| Venom Drip     | **Plague**: kabut racun memenuhi layar selama 3 detik, terus melukai semua musuh dan boss                                     |
+| Shadow Clone   | **Eclipse**: layar menggelap dan tebasan bayangan menyambar musuh dan boss satu per satu                                      |
+| Sonic Boom     | **Supersonic**: dentuman suara beruntun yang melukai semua musuh di layar dan menghancurkan peluru kecil                      |
+| Prism Laser    | **Supernova**: cincin cahaya yang meluas dari dirimu, melukai semua yang dilewati dan menghapus peluru musuh                  |
+| Time Stopper   | **Chrono Break**: waktu berhenti 4 detik sementara jam raksasa terus melukai semua musuh dan boss                             |
 
 Ultra attack ke senjata kelemahan boss memberi 8 damage.
 
@@ -211,10 +272,11 @@ neobuster/
 ├── .prettierrc.json
 └── js/
     ├── engine.js   # versi, canvas, input, audio & musik, font pixel, sprite & glow
-    ├── art.js      # sprite robot (hero + 6 boss), background parallax, tileset, ikon senjata
-    ├── levels.js   # data benua, stage & layout level
-    ├── actors.js   # fisika, player, senjata, musuh, hazard, platform, boss
+    ├── art.js      # sprite robot, background parallax, tileset, ikon senjata (+ registry untuk file benua)
+    ├── levels.js   # data benua, stage & layout level Benua Azura
+    ├── actors.js   # fisika (termasuk air), player, senjata, musuh, hazard, platform, boss Benua Azura
     ├── cheats.js   # cheat box (P + O) dan daftar cheat code
+    ├── vespera.js  # Benua Vespera: 6 stage, boss, senjata, musuh, hazard, dan gambarnya dalam satu file
     └── main.js     # alur game (title, peta, select, stage, boss, ending), shop, render, save, validator konten, game loop
 ```
 

@@ -2,7 +2,7 @@
 
 > Game action-platformer 2D bergaya **Mega Man** untuk browser — pixel art dengan kepadatan pixel 2x yang detail, tapi tetap ringan dan optimal untuk web.
 
-**Versi saat ini: `0.13.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
+**Versi saat ini: `0.14.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
 
 ---
 
@@ -137,6 +137,7 @@ Tekan `X` di **Stage Select** untuk membuka Shop. Pilih part dengan tombol atas/
 | Super Booster   | 15.000 | Setiap tembakan biasa langsung keluar sebagai charge shot (Neo Buster: peluru besar; senjata spesial: charge shot-nya)                                                                                                                                                                                                 |
 | Ultra Booster   | 25.000 | Harus punya Super Booster. Tahan tembak sekitar 2,5 detik sampai karakter berkilau emas, lalu lepas untuk **ultra attack**                                                                                                                                                                                             |
 | Shield          | 12.000 | 2 orb perisai mengorbit di sekitarmu. Orb yang terkena musuh atau peluru musuh menangkisnya (musuh kena damage, peluru kecil hancur), lalu hilang 10 detik sebelum muncul lagi                                                                                                                                         |
+| Anti Angin      | 10.000 | Kebal terhadap semua dorongan angin: badai di stage Glacielle, tiupan Fanbot, dan serangan Gust Winderwomen. Pad angin tetap berfungsi karena dibutuhkan untuk menyelesaikan stage Winderwomen                                                                                                                         |
 | Omega Booster   | 40.000 | Harus punya Ultra Booster. Setiap tembakan langsung jadi ultra attack tanpa menahan tombol (kalau ultra sebelumnya masih berjalan, keluar charge shot). Selama Omega ON, Super Booster dan Ultra Booster berstatus **DISABLED**: tidak bisa diubah, dan setelan ON/OFF-nya kembali seperti semula saat Omega dimatikan |
 
 Ultra attack setiap senjata:

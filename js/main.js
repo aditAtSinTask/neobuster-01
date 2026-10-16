@@ -295,6 +295,7 @@ const SHOP = [
   { key: 'super', name: 'SUPER BOOSTER', price: 15000, desc: 'TEMBAKAN BIASA LANGSUNG JADI CHARGE SHOT' },
   { key: 'ultra', name: 'ULTRA BOOSTER', price: 25000, needs: 'super', desc: 'TAHAN TEMBAK 2.5 DETIK: ULTRA ATTACK' },
   { key: 'shield', name: 'SHIELD', price: 12000, desc: '2 PERISAI - YANG KENA HIT HILANG 10 DETIK' },
+  { key: 'windproof', name: 'ANTI ANGIN', price: 10000, desc: 'TIDAK TERDORONG BADAI, FANBOT, ATAU BOSS' },
   {
     key: 'omega',
     name: 'OMEGA BOOSTER',
@@ -1920,6 +1921,26 @@ function drawPartIcon(key, x, y) {
         ],
       );
       break;
+    case 'windproof': // an anchor
+      sprite(
+        x,
+        y,
+        1,
+        14,
+        [
+          [5, 0, 4, 3, '#8898b8'],
+          [6, 2, 2, 9, '#8898b8'],
+          [3, 4, 8, 2, '#8898b8'],
+          [1, 8, 3, 4, '#8898b8'],
+          [10, 8, 3, 4, '#8898b8'],
+          [3, 11, 8, 2, '#8898b8'],
+        ],
+        [
+          [6, 1, 2, 1, '#1a1c24'],
+          [6, 3, 1, 7, '#c8d4ec'],
+        ],
+      );
+      break;
     case 'omega':
       sprite(
         x,
@@ -2025,12 +2046,12 @@ function drawShop() {
   text('SHOP', VW / 2, 8, '#fcfcfc', 2, 'center');
   text('POIN ' + save.points, VW - 12, 12, '#f8d800', 1, 'right');
   SHOP.forEach((it, i) => {
-    const y = 28 + i * 19,
+    const y = 24 + i * 18,
       sel = game.shopSel === i,
       own = partState(it.key),
       locked = !own && it.needs && !save.parts[it.needs];
-    R(12, y - 2, VW - 24, 18, sel ? 'rgba(60,188,252,0.22)' : 'rgba(255,255,255,0.04)');
-    if (sel) R(12, y - 2, 2, 18, '#f8d800');
+    R(12, y - 1, VW - 24, 17, sel ? 'rgba(60,188,252,0.22)' : 'rgba(255,255,255,0.04)');
+    if (sel) R(12, y - 1, 2, 17, '#f8d800');
     drawPartIcon(it.key, 20, y);
     text(it.name, 42, y, locked ? '#686878' : sel ? '#f8d800' : '#fcfcfc');
     text(it.desc, 42, y + 9, locked ? '#4a4a58' : '#8888a0');
@@ -2038,8 +2059,8 @@ function drawShop() {
     const col = own ? STATE_COL[own] : locked ? '#686878' : save.points >= it.price ? '#fcfcfc' : '#f87858';
     text(status, VW - 20, y, col, 1, 'right');
   });
-  if (game.shopMsgT > 0) text(game.shopMsg, VW / 2, 186, game.shopOk ? '#b8f818' : '#f87858', 1, 'center');
-  text('ATAS/BAWAH PILIH  ENTER BELI/ON-OFF  X KEMBALI', VW / 2, 200, '#8888a0', 1, 'center');
+  if (game.shopMsgT > 0) text(game.shopMsg, VW / 2, 189, game.shopOk ? '#b8f818' : '#f87858', 1, 'center');
+  text('ATAS/BAWAH PILIH  ENTER BELI/ON-OFF  X KEMBALI', VW / 2, 202, '#8888a0', 1, 'center');
   drawVersion();
 }
 
@@ -2159,9 +2180,9 @@ function drawPause() {
   text('TOOLS', 206, 36, '#a8c8f8');
   R(196, 34, 1, 150, 'rgba(168,200,248,0.25)');
   weps.forEach((it, i) => {
-    const y = 50 + i * 17,
+    const y = 50 + i * 15,
       sel = game.pcol === 0 && game.sel === i;
-    if (sel) R(18, y - 4, 172, 15, 'rgba(60,188,252,0.25)');
+    if (sel) R(18, y - 4, 172, 14, 'rgba(60,188,252,0.25)');
     if (it === 'exit') text('EXIT STAGE', 42, y, sel ? '#f8d800' : '#a8a8b8');
     else {
       drawWeaponIcon(it, 24, y - 2);
@@ -2173,12 +2194,12 @@ function drawPause() {
     text('BELI DI SHOP', 206, 64, '#686878');
   }
   tools.forEach((k, i) => {
-    const y = 50 + i * 17,
+    const y = 50 + i * 15,
       sel = game.pcol === 1 && game.sel === i,
       st = partState(k),
       on = st === 'on',
       it = SHOP.find(s => s.key === k);
-    if (sel) R(200, y - 4, 172, 15, 'rgba(60,188,252,0.25)');
+    if (sel) R(200, y - 4, 172, 14, 'rgba(60,188,252,0.25)');
     drawPartIcon(k, 204, y - 4);
     text(it.name.replace(' ANTI ', ' '), 222, y, sel ? '#f8d800' : on ? '#fcfcfc' : '#686878');
     text(STATE_TEXT[st], 366, y, STATE_COL[st], 1, 'right');

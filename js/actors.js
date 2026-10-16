@@ -1944,7 +1944,7 @@ const EN = {
       const dx = pcx() - (e.x + 8);
       e.facing = dx < 0 ? -1 : 1;
       e.blowing = Math.abs(dx) < 130 && Math.abs(pcy() - (e.y + 8)) < 56 && alive(player) && player.state !== 'climb';
-      if (e.blowing) moveX(player, e.facing * 0.75);
+      if (e.blowing && !hasPart('windproof')) moveX(player, e.facing * 0.75);
     },
     draw(e, x, y) {
       const spin = (e.t >> 1) & 1;
@@ -2309,7 +2309,8 @@ function updateHazards() {
         h.state = t < 120 ? 'calm' : t < 160 ? 'warn' : 'gust';
         const inside = pcx() > h.x0 && pcx() < h.x1;
         if (t === 160 && inside) noise(1.6, 0.12, 0, 900);
-        if (h.state === 'gust' && inside && alive(p) && p.state !== 'climb') moveX(p, h.dir * 0.7);
+        if (h.state === 'gust' && inside && alive(p) && p.state !== 'climb' && !hasPart('windproof'))
+          moveX(p, h.dir * 0.7);
         break;
       }
       case 'zap': {
@@ -2989,7 +2990,8 @@ const BOSSES = {
           }
           b.arm = 4;
           const push = b.facing;
-          if (alive(player) && player.state !== 'climb') moveX(player, push * (enr ? 1.05 : 0.8));
+          if (alive(player) && player.state !== 'climb' && !hasPart('windproof'))
+            moveX(player, push * (enr ? 1.05 : 0.8));
           if (b.t % 26 === 13)
             eshots.push({
               kind: 'etornado',

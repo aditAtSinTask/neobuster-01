@@ -2,6 +2,11 @@
 
 Semua perubahan NEOBUSTER, versi terbaru di atas. Versi ditulis di konstanta `VERSION` di `js/engine.js`.
 
+## 0.14.0
+
+- Part baru **Anti Angin** (10.000 POIN): kebal terhadap badai, tiupan Fanbot, dan serangan Gust Winderwomen. Pad angin tetap berfungsi.
+- Shop dan kolom TOOLS di menu pause dipadatkan supaya muat 9 part.
+
 ## 0.13.0
 
 - Halaman depan baru: langit malam, bulan, siluet kota, dan pahlawan di atap dengan lingkaran energi dan buster yang menyala (potret boss dihapus).

@@ -2,7 +2,7 @@
 // NEOBUSTER — core: canvas, helpers, input, audio, music, text, sprite + glow primitives.
 
 // bump on every change (and add an entry to CHANGELOG.md)
-const VERSION = '0.14.0';
+const VERSION = '0.15.0';
 document.title = 'Neobuster v' + VERSION;
 
 const TILE = 16,
@@ -222,10 +222,11 @@ const KEYMAP = {
   KeyQ: 'prev',
   KeyE: 'next',
   Enter: 'start',
-  Escape: 'start',
+  Escape: 'back', // leaves menus; also pauses in a stage
+  Backspace: 'back',
   KeyR: 'reset', // P + O opens the cheat box (cheats.js)
 };
-const ACTIONS = ['left', 'right', 'up', 'down', 'jump', 'shoot', 'slide', 'prev', 'next', 'start', 'reset'];
+const ACTIONS = ['left', 'right', 'up', 'down', 'jump', 'shoot', 'slide', 'prev', 'next', 'start', 'back', 'reset'];
 const GP_BTN = {
   jump: [0],
   shoot: [2, 1],
@@ -233,6 +234,7 @@ const GP_BTN = {
   prev: [4],
   next: [5],
   start: [9],
+  back: [8],
   up: [12],
   down: [13],
   left: [14],

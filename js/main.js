@@ -24,10 +24,12 @@ function writeSave() {
 }
 const save = loadSave();
 const allCleared = () => STAGE_ORDER.every(k => save.cleared[k]);
+const continentCleared = i => CONTINENTS[i].stages.every(k => save.cleared[k]);
+const continentUnlocked = i => i === 0 || continentCleared(i - 1);
 
 // states where the player is inside a stage, and states where a run is in progress at all
 const IN_STAGE = ['ready', 'play', 'pause', 'door', 'bossintro'];
-const IN_GAME = ['select', 'intro', ...IN_STAGE, 'clear', 'weaponget'];
+const IN_GAME = ['map', 'select', 'intro', ...IN_STAGE, 'clear', 'weaponget'];
 
 // save point (cheat INGATANKUAT): lives, score, weapon and, inside a stage, the stage + checkpoint
 function saveSnapshot() {
@@ -48,7 +50,7 @@ function continueGame() {
   game.score = s.score;
   if (ownedWeapons().includes(s.weapon)) player.weapon = s.weapon;
   if (s.stage) startStage(s.stage, s.checkpoint);
-  else goSelect();
+  else goMap();
 }
 
 // ================= STAGE FLOW =================
@@ -159,10 +161,16 @@ function cycleWeapon(d) {
 }
 
 function updatePlay() {
-  if (hit.start && alive(player)) {
+  if ((hit.start || hit.back) && alive(player)) {
     game.state = 'pause';
     game.pcol = 0;
-    game.sel = Math.max(0, ownedWeapons().indexOf(player.weapon));
+    const grid = pauseGrid();
+    game.pr = Math.max(
+      0,
+      grid.findIndex(row => row.includes(player.weapon)),
+    );
+    game.pc = Math.max(0, grid[game.pr].indexOf(player.weapon));
+    game.tsel = 0;
     sfx.pause();
     return;
   }
@@ -287,23 +295,48 @@ function updateBossIntro() {
 }
 
 // ================= SHOP =================
+// Shop parts, grouped into tabs by `cat`. Add a part here (with its effect in actors.js and an icon in
+// drawPartIcon); a tab scrolls once it holds more than SHOP_ROWS parts.
+const SHOP_TABS = [
+  { key: 'move', name: 'GERAK' },
+  { key: 'guard', name: 'PERTAHANAN' },
+  { key: 'attack', name: 'SERANGAN' },
+];
 const SHOP = [
-  { key: 'boots', name: 'BOOTS ANTI DURI', price: 8000, desc: 'JALAN DI ATAS DURI TANPA MATI' },
-  { key: 'armor', name: 'ARMOR ANTI API', price: 8000, desc: 'MASUK DAN JALAN DI LAVA TANPA MATI' },
-  { key: 'jet', name: 'JETPACK', price: 10000, desc: 'LOMPAT 1.6X LEBIH TINGGI' },
-  { key: 'core', name: 'CORE', price: 6000, desc: 'KEBAL 5X LEBIH LAMA SETELAH KENA HIT' },
-  { key: 'super', name: 'SUPER BOOSTER', price: 15000, desc: 'TEMBAKAN BIASA LANGSUNG JADI CHARGE SHOT' },
-  { key: 'ultra', name: 'ULTRA BOOSTER', price: 25000, needs: 'super', desc: 'TAHAN TEMBAK 2.5 DETIK: ULTRA ATTACK' },
-  { key: 'shield', name: 'SHIELD', price: 12000, desc: '2 PERISAI - YANG KENA HIT HILANG 10 DETIK' },
-  { key: 'windproof', name: 'ANTI ANGIN', price: 10000, desc: 'TIDAK TERDORONG BADAI, FANBOT, ATAU BOSS' },
+  { key: 'boots', cat: 'move', name: 'BOOTS ANTI DURI', price: 8000, desc: 'JALAN DI ATAS DURI TANPA MATI' },
+  { key: 'jet', cat: 'move', name: 'JETPACK', price: 10000, desc: 'LOMPAT 1.6X LEBIH TINGGI' },
+  { key: 'windproof', cat: 'move', name: 'ANTI ANGIN', price: 10000, desc: 'TIDAK TERDORONG BADAI, FANBOT, ATAU BOSS' },
+  { key: 'armor', cat: 'guard', name: 'ARMOR ANTI API', price: 8000, desc: 'MASUK DAN JALAN DI LAVA TANPA MATI' },
+  { key: 'core', cat: 'guard', name: 'CORE', price: 6000, desc: 'KEBAL 5X LEBIH LAMA SETELAH KENA HIT' },
+  { key: 'shield', cat: 'guard', name: 'SHIELD', price: 12000, desc: '2 PERISAI - YANG KENA HIT HILANG 10 DETIK' },
+  {
+    key: 'super',
+    cat: 'attack',
+    name: 'SUPER BOOSTER',
+    price: 15000,
+    desc: 'TEMBAKAN BIASA LANGSUNG JADI CHARGE SHOT',
+  },
+  {
+    key: 'ultra',
+    cat: 'attack',
+    name: 'ULTRA BOOSTER',
+    price: 25000,
+    needs: 'super',
+    desc: 'TAHAN TEMBAK 2.5 DETIK: ULTRA ATTACK',
+  },
   {
     key: 'omega',
+    cat: 'attack',
     name: 'OMEGA BOOSTER',
     price: 40000,
     needs: 'ultra',
     desc: 'ULTRA ATTACK TANPA DELAY, SUPER/ULTRA DISABLED',
   },
 ];
+const SHOP_ROWS = 7;
+const shopItems = () => SHOP.filter(it => it.cat === SHOP_TABS[game.shopTab].key);
+// first visible row of a scrolling list of n rows showing `rows` at a time, keeping `sel` in view
+const scrollStart = (sel, n, rows) => clamp(sel - (rows >> 1), 0, Math.max(0, n - rows));
 // a part's state for menus: undefined (not bought), 'on', 'off' or 'disabled' (overridden by Omega Booster)
 const partState = k => (save.parts[k] && partDisabled(k) ? 'disabled' : save.parts[k]);
 const STATE_TEXT = { on: 'ON', off: 'OFF', disabled: 'DISABLED' },
@@ -339,11 +372,24 @@ function shopAction(it) {
   }
 }
 
-function goSelect() {
+// stage select for continent ci (defaults to the current one)
+function goSelect(ci = game.continent || 0) {
+  game.continent = ci;
   game.state = 'select';
   game.t = 0;
-  const i = STAGE_ORDER.findIndex(k => !save.cleared[k]);
+  const i = CONTINENTS[ci].stages.findIndex(k => !save.cleared[k]);
   game.sel = i < 0 ? 0 : i;
+  playMusic('title');
+}
+// world map, with the cursor on the first continent that still has bosses to beat
+function goMap(msg = '') {
+  game.state = 'map';
+  game.t = 0;
+  const open = CONTINENTS.findIndex((c, i) => continentUnlocked(i) && !continentCleared(i));
+  game.mapSel = game.continent !== undefined && !msg ? game.continent : open < 0 ? 0 : open;
+  game.mapX = game.mapSel * MAP_SLOT;
+  game.mapMsg = msg;
+  game.mapMsgT = msg ? 240 : 0;
   playMusic('title');
 }
 
@@ -379,7 +425,7 @@ function step() {
         else {
           game.lives = 2;
           game.score = 0;
-          goSelect();
+          goMap();
         }
       }
       break;
@@ -400,6 +446,7 @@ function step() {
       }
       if (hit.shoot) {
         game.state = 'shop';
+        game.shopTab = game.shopTab || 0;
         game.shopSel = 0;
         game.shopMsg = '';
         sfx.pause();
@@ -410,11 +457,16 @@ function step() {
         sfx.pause();
         break;
       }
+      if (hit.back) {
+        sfx.pause();
+        goMap();
+        break;
+      }
       if (go) {
         sfx.confirm();
         game.state = 'intro';
         game.t = 0;
-        game.introKey = STAGE_ORDER[game.sel];
+        game.introKey = CONTINENTS[game.continent].stages[game.sel];
         stopMusic();
       }
       break;
@@ -447,66 +499,130 @@ function step() {
     case 'shop': {
       game.t++;
       if (game.shopMsgT > 0) game.shopMsgT--;
-      if (hit.up) {
-        game.shopSel = (game.shopSel + SHOP.length - 1) % SHOP.length;
+      if (hit.left || hit.right) {
+        game.shopTab = (game.shopTab + (hit.right ? 1 : SHOP_TABS.length - 1)) % SHOP_TABS.length;
+        game.shopSel = 0;
         sfx.select();
       }
-      if (hit.down) {
-        game.shopSel = (game.shopSel + 1) % SHOP.length;
+      const items = shopItems();
+      if (hit.up && items.length) {
+        game.shopSel = (game.shopSel + items.length - 1) % items.length;
         sfx.select();
       }
-      if (hit.shoot) {
+      if (hit.down && items.length) {
+        game.shopSel = (game.shopSel + 1) % items.length;
+        sfx.select();
+      }
+      if (hit.shoot || hit.back) {
         game.state = 'select';
         sfx.pause();
         break;
       }
-      if (go) shopAction(SHOP[game.shopSel]);
+      if (go && items.length) shopAction(items[game.shopSel]);
+      break;
+    }
+    case 'map': {
+      game.t++;
+      if (game.mapMsgT > 0) game.mapMsgT--;
+      const slots = CONTINENTS.length + 1; // the last slot is the next continent, still to come
+      if (hit.left && game.mapSel > 0) {
+        game.mapSel--;
+        sfx.select();
+      }
+      if (hit.right && game.mapSel < slots - 1) {
+        game.mapSel++;
+        sfx.select();
+      }
+      game.mapX += (game.mapSel * MAP_SLOT - game.mapX) * 0.18;
+      if (hit.back) {
+        game.state = 'title';
+        game.t = 0;
+        sfx.pause();
+      } else if (go) {
+        const i = game.mapSel;
+        const no = msg => {
+          game.mapMsg = msg;
+          game.mapMsgT = 150;
+          sfx.deflect();
+        };
+        if (i >= CONTINENTS.length) no('BENUA BARU SEGERA HADIR');
+        else if (!continentUnlocked(i)) no('KALAHKAN SEMUA BOSS DI ' + CONTINENTS[i - 1].name + ' DULU');
+        else {
+          sfx.confirm();
+          goSelect(i);
+        }
+      }
       break;
     }
     case 'weak':
       game.t++;
-      if (hit.slide || hit.shoot || go) {
+      if (hit.slide || hit.shoot || hit.back || go) {
         game.state = 'select';
         sfx.pause();
       }
       break;
     case 'pause': {
-      // left column: weapons + exit (pick = equip and resume); right column: owned tools (pick = on/off)
-      const cols = pauseColumns();
-      if ((hit.left || hit.right) && cols[1].length) {
-        game.pcol ^= 1;
-        game.sel = Math.min(game.sel, cols[game.pcol].length - 1);
-        sfx.select();
+      // left: weapon grid (one row per continent; pick = equip and resume), right: owned tools (pick = on/off)
+      const grid = pauseGrid(),
+        tools = pauseTools();
+      if (hit.back) {
+        game.state = 'play';
+        sfx.pause();
+        break;
       }
-      const items = cols[game.pcol];
-      if (hit.up) {
-        game.sel = (game.sel + items.length - 1) % items.length;
-        sfx.select();
-      }
-      if (hit.down) {
-        game.sel = (game.sel + 1) % items.length;
-        sfx.select();
-      }
-      if (go || hit.shoot) {
-        const it = items[game.sel];
-        if (game.pcol === 1) {
-          if (partDisabled(it)) sfx.deflect();
+      if (game.pcol === 0) {
+        const move = (dr, dc) => {
+          game.pr = (game.pr + dr + grid.length) % grid.length;
+          game.pc = clamp(game.pc + dc, 0, grid[game.pr].length - 1);
+          sfx.select();
+        };
+        if (hit.up) move(-1, 0);
+        if (hit.down) move(1, 0);
+        if (hit.left && game.pc > 0) move(0, -1);
+        if (hit.right) {
+          if (game.pc < grid[game.pr].length - 1) move(0, 1);
+          else if (tools.length) {
+            game.pcol = 1;
+            sfx.select();
+          }
+        }
+        if (go || hit.shoot) {
+          const it = grid[game.pr][game.pc];
+          if (it === 'exit') {
+            sfx.pause();
+            goSelect(continentOf(game.stage));
+          } else if (!ownedWeapons().includes(it)) sfx.deflect();
           else {
-            save.parts[it] = save.parts[it] === 'on' ? 'off' : 'on';
+            if (it !== player.weapon) {
+              player.weapon = it;
+              pshots = [];
+              player.charge = 0;
+            }
+            game.state = 'play';
+            sfx.pause();
+          }
+        }
+      } else {
+        if (hit.up) {
+          game.tsel = (game.tsel + tools.length - 1) % tools.length;
+          sfx.select();
+        }
+        if (hit.down) {
+          game.tsel = (game.tsel + 1) % tools.length;
+          sfx.select();
+        }
+        if (hit.left) {
+          game.pcol = 0;
+          sfx.select();
+        }
+        if (go || hit.shoot) {
+          const k = tools[game.tsel];
+          if (partDisabled(k)) sfx.deflect();
+          else {
+            save.parts[k] = save.parts[k] === 'on' ? 'off' : 'on';
             writeSave();
             sfx.select();
           }
-        } else if (it === 'exit') {
-          sfx.pause();
-          goSelect();
-        } else {
-          if (it !== player.weapon) {
-            player.weapon = it;
-            pshots = [];
-            player.charge = 0;
-          }
-          game.state = 'play';
-          sfx.pause();
         }
       }
       break;
@@ -534,11 +650,13 @@ function step() {
     case 'weaponget':
       game.t++;
       if (game.t > 60 && go) {
+        const ci = continentOf(game.stage);
         if (allCleared()) {
           game.state = 'ending';
           game.t = 0;
           playMusic('title');
-        } else goSelect();
+        } else if (continentCleared(ci)) goMap('BENUA ' + CONTINENTS[ci].name + ' DITAKLUKKAN!');
+        else goSelect(ci);
       }
       break;
     case 'gameover':
@@ -546,7 +664,7 @@ function step() {
       if (game.t > 40 && go) {
         game.lives = 2;
         game.tough = false;
-        goSelect();
+        goSelect(continentOf(game.stage));
       }
       break;
     case 'ending':
@@ -1582,7 +1700,9 @@ function drawHUD() {
   if (game.bossLocked && boss && boss.hp > 0) drawWeakness();
   text(String(game.score).padStart(7, '0'), VW - 8, 8, '#fcfcfc', 1, 'right');
   text('LIFE ' + Math.max(0, game.lives), VW - 8, 20, '#a8c8f8', 1, 'right');
-  SHOP.filter(it => hasPart(it.key)).forEach((it, i) => drawPartIcon(it.key, VW - 22 - i * 16, 32));
+  SHOP.filter(it => hasPart(it.key))
+    .slice(0, 14)
+    .forEach((it, i) => drawPartIcon(it.key, VW - 22 - i * 16, 32));
   if (game.popup > 0) text(WEAPONS[player.weapon].name, VW / 2, 14, WEAPONS[player.weapon].pal.b, 1, 'center');
 }
 
@@ -1767,6 +1887,119 @@ function drawPortrait(k, x, y, s, pal) {
 }
 
 // stage select grid: [column, row]; three panels per row
+// ================= WORLD MAP =================
+// Each continent is a landmass on an ocean map, MAP_SLOT apart; the slot after the last continent shows the next
+// one as a locked silhouette. Landmasses are rasterised once to fine pixels (crisp, no anti-aliasing).
+const MAP_SLOT = 220;
+const _land = new Map();
+function landBitmap(i, locked) {
+  const k = i + (locked ? 'L' : ''),
+    W = 200,
+    H = 120;
+  if (_land.has(k)) return _land.get(k);
+  const color = locked ? '#3a3e58' : CONTINENTS[i].color,
+    rnd = mulberry(i * 131 + 7),
+    blobs = [];
+  for (let b = 0; b < 11; b++) {
+    const a = rnd() * Math.PI * 2,
+      d = rnd() * 36;
+    blobs.push([W / 2 + Math.cos(a) * d * 1.6, H / 2 + Math.sin(a) * d * 0.7, 20 + rnd() * 16]);
+  }
+  const c = makeCanvas(W * 2, H * 2, g => {
+    g.scale(2, 2);
+    const fill = (grow, col) => {
+      g.fillStyle = col;
+      g.beginPath();
+      for (const [x, y, r] of blobs) {
+        g.moveTo(x + r + grow, y);
+        g.arc(x, y, r + grow, 0, 7);
+      }
+      g.fill();
+    };
+    fill(5, locked ? '#22263a' : 'rgba(168,232,252,0.9)'); // surf
+    fill(3, locked ? '#2c3048' : '#e8d8a0'); // beach
+    fill(0, color);
+    for (const [x, y, r] of blobs.slice(0, 5)) {
+      // hills and forests
+      g.fillStyle = shade(color, -0.22);
+      g.beginPath();
+      g.arc(x + r * 0.2, y - r * 0.2, r * 0.45, 0, 7);
+      g.fill();
+    }
+    const img = g.getImageData(0, 0, W * 2, H * 2),
+      d = img.data;
+    for (let n = 3; n < d.length; n += 4) d[n] = d[n] >= 128 ? 255 : 0;
+    g.putImageData(img, 0, 0);
+  });
+  _land.set(k, c);
+  return c;
+}
+function drawMap() {
+  const sea = ctx.createLinearGradient(0, 0, 0, VH);
+  sea.addColorStop(0, '#0c2c64');
+  sea.addColorStop(1, '#081a3c');
+  ctx.fillStyle = sea;
+  ctx.fillRect(0, 0, VW, VH);
+  for (let y = 40; y < VH; y += 12)
+    for (let x = ((y * 7 + frameCount * 0.3) % 40) - 40; x < VW; x += 40) R(x, y, 6, HP, 'rgba(168,220,252,0.25)');
+  text('PETA DUNIA', VW / 2, 8, '#fcfcfc', 2, 'center');
+  text('POIN ' + save.points, VW - 10, 12, '#f8d800', 1, 'right');
+  const smooth = ctx.imageSmoothingEnabled;
+  for (let i = 0; i <= CONTINENTS.length; i++) {
+    const cx = Math.round(VW / 2 + i * MAP_SLOT - game.mapX);
+    if (cx < -120 || cx > VW + 120) continue;
+    const real = i < CONTINENTS.length,
+      open = real && continentUnlocked(i),
+      sel = game.mapSel === i;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(landBitmap(i, !open), cx - 100, 40, 200, 120);
+    ctx.imageSmoothingEnabled = smooth;
+    if (open) {
+      // the six bosses, placed around the island; beaten ones show a flag
+      CONTINENTS[i].stages.forEach((k, j) => {
+        const a = (j / 6) * Math.PI * 2 - Math.PI / 2,
+          mx = cx + Math.cos(a) * 54,
+          my = 100 + Math.sin(a) * 28;
+        if (save.cleared[k]) {
+          R(mx - 0.5, my - 10, 1, 12, '#3a3a48');
+          R(mx + 0.5, my - 10, 7, 5, '#f8d800');
+          circle(mx, my + 2, 2, '#2a2a38');
+        } else {
+          ctx.save();
+          ctx.translate(mx - 7, my - 12);
+          ctx.scale(0.6, 0.6);
+          drawRobot(0, 0, 1, 'stand', 0, false, BOSSES[k].pal, BOSSES[k].style);
+          ctx.restore();
+        }
+      });
+    } else text('?', cx - 9, 86, '#6a6e88', 3);
+    const name = real ? 'BENUA ' + CONTINENTS[i].name : 'BENUA BARU';
+    text(name, cx, 166, sel ? '#fcfcfc' : '#8888a0', 1, 'center');
+    const info = !real
+      ? 'SEGERA HADIR'
+      : !open
+        ? 'TERKUNCI'
+        : CONTINENTS[i].stages.filter(k => save.cleared[k]).length +
+          '/6 BOSS' +
+          (continentCleared(i) ? '  SELESAI' : '');
+    text(info, cx, 178, real && open ? CONTINENTS[i].color : '#686878', 1, 'center');
+    if (sel && (frameCount >> 3) & 1) {
+      // selection brackets
+      for (const [bx, by, dx, dy] of [
+        [cx - 104, 36, 1, 1],
+        [cx + 104, 36, -1, 1],
+        [cx - 104, 188, 1, -1],
+        [cx + 104, 188, -1, -1],
+      ]) {
+        R(Math.min(bx, bx + dx * 10), by, 10, 1.5, '#f8d800');
+        R(bx - (dx < 0 ? 1.5 : 0), Math.min(by, by + dy * 10), 1.5, 10, '#f8d800');
+      }
+    }
+  }
+  if (game.mapMsgT > 0) text(game.mapMsg, VW / 2, 196, '#f8d800', 1, 'center');
+  text('KIRI/KANAN PILIH BENUA  ENTER MASUK  ESC TITLE', VW / 2, 211, '#a8a8b8', 1, 'center');
+}
+
 const SEL_POS = [
   [0, 0],
   [1, 0],
@@ -1786,9 +2019,10 @@ function drawSelect() {
   ctx.fillRect(0, 0, VW, VH);
   for (let x = -(frameCount % 16); x < VW; x += 16) R(x, 0, 1, VH, 'rgba(80,100,200,0.12)');
   for (let y = -(frameCount % 16); y < VH; y += 16) R(0, y, VW, 1, 'rgba(80,100,200,0.12)');
-  text('STAGE SELECT', VW / 2, 10, '#fcfcfc', 2, 'center');
+  const cont = CONTINENTS[game.continent];
+  text('BENUA ' + cont.name, VW / 2, 10, '#fcfcfc', 2, 'center');
   text('POIN ' + save.points, VW - 10, 14, '#f8d800', 1, 'right');
-  STAGE_ORDER.forEach((k, i) => {
+  cont.stages.forEach((k, i) => {
     const px = SEL_X0 + SEL_POS[i][0] * (PW + 8),
       py = 32 + SEL_POS[i][1] * (PH + 8),
       st = STAGES[k],
@@ -1812,9 +2046,7 @@ function drawSelect() {
       ctx.strokeRect(px - 1, py - 1, PW + 2, PH + 2);
     }
   });
-  const ow = ownedWeapons();
-  ow.forEach((w, i) => drawWeaponIcon(w, 14 + i * 14, 210));
-  text('ENTER START  X SHOP  C KELEMAHAN', VW - 12, 211, '#a8a8b8', 1, 'right');
+  text('ENTER START  X SHOP  C KELEMAHAN  ESC PETA', VW / 2, 211, '#a8a8b8', 1, 'center');
 }
 
 // 14x14 icons for the shop parts
@@ -1977,29 +2209,33 @@ function drawPartIcon(key, x, y) {
 }
 
 // strategy screen: what each boss drops and what hurts it, plus the order that always uses a weakness
-function weakChain() {
-  const beats = {}; // weapon -> the boss it is the weakness of
-  for (const k of STAGE_ORDER) beats[BOSSES[k].weak] = k;
-  const order = [STAGE_ORDER[0]];
-  while (order.length < STAGE_ORDER.length) {
+// the order that always fights a boss with its weakness: each boss's weapon is the next one's weakness
+function weakChain(ci = game.continent || 0) {
+  const stages = CONTINENTS[ci].stages,
+    beats = {}; // weapon -> the boss it is the weakness of
+  for (const k of stages) beats[BOSSES[k].weak] = k;
+  const order = [stages[0]];
+  while (order.length < stages.length) {
     const next = beats[BOSSES[order[order.length - 1]].weapon];
     if (!next || order.includes(next)) break;
     order.push(next);
   }
   return order;
 }
+
 function drawWeakChart() {
   const g = ctx.createLinearGradient(0, 0, 0, VH);
   g.addColorStop(0, '#0a1430');
   g.addColorStop(1, '#2a0a1a');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, VW, VH);
-  text('KELEMAHAN BOSS', VW / 2, 6, '#fcfcfc', 2, 'center');
+  const cont = CONTINENTS[game.continent || 0];
+  text('KELEMAHAN - ' + cont.name, VW / 2, 6, '#fcfcfc', 2, 'center');
   text('BOSS', 40, 26, '#8888a0');
   text('SENJATA DIDAPAT', 142, 26, '#8888a0');
   text('LEMAH TERHADAP', 262, 26, '#8888a0');
   const owned = ownedWeapons();
-  STAGE_ORDER.forEach((k, i) => {
+  cont.stages.forEach((k, i) => {
     const def = BOSSES[k],
       y = 38 + i * 17,
       weak = WEAPONS[def.weak],
@@ -2043,10 +2279,22 @@ function drawShop() {
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, VW, VH);
   for (let x = -(frameCount % 16); x < VW; x += 16) R(x, 0, 1, VH, 'rgba(80,100,200,0.1)');
-  text('SHOP', VW / 2, 8, '#fcfcfc', 2, 'center');
-  text('POIN ' + save.points, VW - 12, 12, '#f8d800', 1, 'right');
-  SHOP.forEach((it, i) => {
-    const y = 24 + i * 18,
+  text('SHOP', VW / 2, 6, '#fcfcfc', 2, 'center');
+  text('POIN ' + save.points, VW - 12, 10, '#f8d800', 1, 'right');
+  let tx = 16; // tabs
+  SHOP_TABS.forEach((t, i) => {
+    const w = textWidth(t.name) + 12,
+      on = game.shopTab === i;
+    R(tx, 25, w, 13, on ? 'rgba(60,188,252,0.35)' : 'rgba(255,255,255,0.06)');
+    if (on) R(tx, 37, w, 1, '#f8d800');
+    text(t.name, tx + 6, 28, on ? '#f8d800' : '#8888a0');
+    tx += w + 4;
+  });
+  const items = shopItems(),
+    first = scrollStart(game.shopSel, items.length, SHOP_ROWS);
+  items.slice(first, first + SHOP_ROWS).forEach((it, n) => {
+    const i = first + n,
+      y = 44 + n * 18,
       sel = game.shopSel === i,
       own = partState(it.key),
       locked = !own && it.needs && !save.parts[it.needs];
@@ -2059,9 +2307,19 @@ function drawShop() {
     const col = own ? STATE_COL[own] : locked ? '#686878' : save.points >= it.price ? '#fcfcfc' : '#f87858';
     text(status, VW - 20, y, col, 1, 'right');
   });
-  if (game.shopMsgT > 0) text(game.shopMsg, VW / 2, 189, game.shopOk ? '#b8f818' : '#f87858', 1, 'center');
-  text('ATAS/BAWAH PILIH  ENTER BELI/ON-OFF  X KEMBALI', VW / 2, 202, '#8888a0', 1, 'center');
+  drawScrollMarks(VW - 16, 44, SHOP_ROWS * 18, first > 0, first + SHOP_ROWS < items.length);
+  if (!items.length) text('BELUM ADA PART DI TAB INI', VW / 2, 90, '#686878', 1, 'center');
+  if (game.shopMsgT > 0) text(game.shopMsg, VW / 2, 182, game.shopOk ? '#b8f818' : '#f87858', 1, 'center');
+  text('KIRI/KANAN TAB  ATAS/BAWAH PILIH  ENTER BELI  X KEMBALI', VW / 2, 200, '#8888a0', 1, 'center');
   drawVersion();
+}
+// little up/down triangles at x, beside a list spanning y..y+h, when it scrolls that way
+function drawScrollMarks(x, y, h, up, down) {
+  const blink = (frameCount >> 4) & 1 ? '#f8d800' : '#a88800';
+  for (let r = 0; r < 3; r++) {
+    if (up) R(x - r, y - 4 + r, 1 + r * 2, 1, blink);
+    if (down) R(x - r, y + h + 2 - r, 1 + r * 2, 1, blink);
+  }
 }
 
 function drawIntro() {
@@ -2130,14 +2388,7 @@ function drawWeaponGet() {
   const save_ = [camX, camY];
   camX = 0;
   camY = 0;
-  const demo = {
-    cut: { kind: 'cutter', t },
-    fire: { kind: 'fireball', vx: 1 },
-    elec: { kind: 'tbeam', w: 24, h: 8, seed: 1 },
-    wind: { kind: 'whirl' },
-    snow: { kind: 'shard' },
-    earth: { kind: 'rock' },
-  }[game.stage];
+  const demo = WEAPONS[game.stage].demo; // the shot shown flying across the screen
   drawPlayerShot(Object.assign({ x: px, y: py - 6, w: 12, h: 10, t, level: 0 }, demo));
   [camX, camY] = save_;
   text('YOU GOT', 150, 64, '#a8c8f8', 1);
@@ -2151,61 +2402,96 @@ function drawWeaponGet() {
 
 function drawEnding() {
   drawBackground('earth', frameCount * 0.4, 0, 60);
-  ctx.fillStyle = 'rgba(5,5,20,0.5)';
+  ctx.fillStyle = 'rgba(5,5,20,0.55)';
   ctx.fillRect(0, 0, VW, VH);
-  text('CONGRATULATIONS!', VW / 2, 18, '#f8d800', 2, 'center');
-  text('SEMUA BOSS TELAH DIKALAHKAN', VW / 2, 40, '#fcfcfc', 1, 'center');
+  text('CONGRATULATIONS!', VW / 2, 10, '#f8d800', 2, 'center');
+  text('SEMUA BENUA TELAH DITAKLUKKAN', VW / 2, 32, '#fcfcfc', 1, 'center');
   ctx.save();
-  ctx.translate(VW / 2 - 36, 64);
+  ctx.translate(24, 58);
   ctx.scale(3, 3);
   drawRobot(0, 0, 1, (frameCount >> 5) & 1 ? 'jump' : 'stand', 0, false, PAL_HERO);
   ctx.restore();
-  STAGE_ORDER.forEach((k, i) => {
-    const x = i < 3 ? 6 + i * 48 : VW - 54 - (5 - i) * 48;
-    drawPortrait(k, x, 90, 2, PAL_WHITE);
-    drawWeaponIcon(k, x + 19, 146);
+  text('THANKS FOR', 60, 140, '#a8c8f8', 1, 'center');
+  text('PLAYING!', 60, 152, '#a8c8f8', 1, 'center');
+  // one row of defeated bosses per continent (as many rows as fit)
+  CONTINENTS.slice(0, 3).forEach((c, ci) => {
+    const y = 50 + ci * 44;
+    text('BENUA ' + c.name, 124, y, c.color);
+    c.stages.forEach((k, j) => drawPortrait(k, 124 + j * 40, y + 16, 1, PAL_WHITE));
   });
-  text('SCORE ' + String(game.score).padStart(7, '0'), VW / 2, 172, '#fcfcfc', 1, 'center');
-  text('THANKS FOR PLAYING!', VW / 2, 188, '#a8c8f8', 1, 'center');
-  if (game.t > 90 && (frameCount >> 4) & 1) text('PRESS ENTER', VW / 2, 206, '#f8d800', 1, 'center');
+  text('SCORE ' + String(game.score).padStart(7, '0'), VW / 2, 192, '#fcfcfc', 1, 'center');
+  if (game.t > 90 && (frameCount >> 4) & 1) text('PRESS ENTER', VW / 2, 208, '#f8d800', 1, 'center');
 }
 
-const pauseColumns = () => [[...ownedWeapons(), 'exit'], SHOP.map(it => it.key).filter(k => save.parts[k])];
+// pause menu contents: the weapon grid (Neo Buster, one row per continent, exit) and the owned tools
+const pauseGrid = () => [['buster'], ...CONTINENTS.map(c => c.stages), ['exit']];
+const pauseTools = () => SHOP.map(it => it.key).filter(k => save.parts[k]);
+const PAUSE_ROWS = 6, // weapon grid rows shown at a time
+  TOOL_ROWS = 8;
 function drawPause() {
-  ctx.fillStyle = 'rgba(5,5,20,0.78)';
+  ctx.fillStyle = 'rgba(5,5,20,0.8)';
   ctx.fillRect(0, 0, VW, VH);
-  text('PAUSE', VW / 2, 10, '#fcfcfc', 2, 'center');
-  const [weps, tools] = pauseColumns();
-  text('SENJATA', 24, 36, '#a8c8f8');
-  text('TOOLS', 206, 36, '#a8c8f8');
-  R(196, 34, 1, 150, 'rgba(168,200,248,0.25)');
-  weps.forEach((it, i) => {
-    const y = 50 + i * 15,
-      sel = game.pcol === 0 && game.sel === i;
-    if (sel) R(18, y - 4, 172, 14, 'rgba(60,188,252,0.25)');
-    if (it === 'exit') text('EXIT STAGE', 42, y, sel ? '#f8d800' : '#a8a8b8');
-    else {
-      drawWeaponIcon(it, 24, y - 2);
-      text(WEAPONS[it].name, 42, y, sel ? '#f8d800' : it === player.weapon ? '#fcfcfc' : '#a8a8b8');
+  text('PAUSE', VW / 2, 8, '#fcfcfc', 2, 'center');
+  text('SENJATA', 20, 30, '#a8c8f8');
+  text('TOOLS', 206, 30, '#a8c8f8');
+  R(196, 30, 1, 154, 'rgba(168,200,248,0.25)');
+  // weapon grid
+  const grid = pauseGrid(),
+    owned = ownedWeapons(),
+    first = scrollStart(game.pr, grid.length, PAUSE_ROWS);
+  grid.slice(first, first + PAUSE_ROWS).forEach((row, n) => {
+    const r = first + n,
+      y = 44 + n * 21;
+    if (row[0] === 'exit') {
+      const sel = game.pcol === 0 && game.pr === r;
+      if (sel) R(52, y - 1, 138, 19, 'rgba(60,188,252,0.3)');
+      text('EXIT STAGE', 58, y + 5, sel ? '#f8d800' : '#a8a8b8');
+      return;
     }
+    text(r === 0 ? 'NEO' : CONTINENTS[r - 1].name.slice(0, 5), 20, y + 5, '#686878');
+    row.forEach((k, c) => {
+      const x = 56 + c * 22,
+        sel = game.pcol === 0 && game.pr === r && game.pc === c;
+      R(x - 1, y - 1, 20, 20, sel ? '#f8d800' : '#2a2a40');
+      R(x, y, 18, 18, '#101020');
+      if (owned.includes(k)) drawWeaponIcon(k, x + 4, y + 4);
+      else text('?', x + 7, y + 6, '#4a4a60');
+      if (k === player.weapon) R(x + 4, y + 15.5, 10, 1.5, '#3cbcfc');
+    });
   });
-  if (!tools.length) {
-    text('BELUM ADA', 206, 52, '#686878');
-    text('BELI DI SHOP', 206, 64, '#686878');
+  drawScrollMarks(186, 44, PAUSE_ROWS * 21 - 4, first > 0, first + PAUSE_ROWS < grid.length);
+  // details of the selected weapon
+  const it = grid[game.pr][game.pc],
+    iy = 44 + Math.min(grid.length, PAUSE_ROWS) * 21 + 4;
+  if (it === 'exit') text('KEMBALI KE STAGE SELECT', 20, iy, '#8888a0');
+  else if (owned.includes(it)) {
+    text(WEAPONS[it].name, 20, iy, '#fcfcfc');
+    text('CHARGE: ' + (WEAPONS[it].charged || 'BUSTER + STORM'), 20, iy + 11, '#8888a0');
+  } else {
+    text('BELUM DIDAPAT', 20, iy, '#a87878');
+    text('KALAHKAN ' + BOSSES[it].name, 20, iy + 11, '#8888a0');
   }
-  tools.forEach((k, i) => {
-    const y = 50 + i * 15,
-      sel = game.pcol === 1 && game.sel === i,
+  // tools
+  const tools = pauseTools(),
+    tfirst = scrollStart(game.tsel, tools.length, TOOL_ROWS);
+  if (!tools.length) {
+    text('BELUM ADA', 206, 46, '#686878');
+    text('BELI DI SHOP', 206, 58, '#686878');
+  }
+  tools.slice(tfirst, tfirst + TOOL_ROWS).forEach((k, n) => {
+    const i = tfirst + n,
+      y = 46 + n * 16,
+      sel = game.pcol === 1 && game.tsel === i,
       st = partState(k),
-      on = st === 'on',
-      it = SHOP.find(s => s.key === k);
-    if (sel) R(200, y - 4, 172, 14, 'rgba(60,188,252,0.25)');
+      on = st === 'on';
+    if (sel) R(200, y - 4, 172, 15, 'rgba(60,188,252,0.25)');
     drawPartIcon(k, 204, y - 4);
-    text(it.name.replace(' ANTI ', ' '), 222, y, sel ? '#f8d800' : on ? '#fcfcfc' : '#686878');
+    text(SHOP.find(s => s.key === k).name.replace(' ANTI ', ' '), 222, y, sel ? '#f8d800' : on ? '#fcfcfc' : '#686878');
     text(STATE_TEXT[st], 366, y, STATE_COL[st], 1, 'right');
   });
+  drawScrollMarks(376, 46, TOOL_ROWS * 16 - 6, tfirst > 0, tfirst + TOOL_ROWS < tools.length);
   text('LIFE ' + game.lives + '   POIN ' + save.points, VW / 2, 192, '#a8c8f8', 1, 'center');
-  text('ARAH PILIH  ENTER PAKAI SENJATA / ON-OFF TOOLS', VW / 2, 206, '#686878', 1, 'center');
+  text('ARAH PILIH  ENTER PAKAI / ON-OFF  ESC LANJUT', VW / 2, 206, '#686878', 1, 'center');
   drawVersion();
 }
 
@@ -2217,6 +2503,8 @@ function render() {
   switch (game.state) {
     case 'title':
       return drawTitle();
+    case 'map':
+      return drawMap();
     case 'select':
       return drawSelect();
     case 'shop':
@@ -2246,6 +2534,46 @@ function render() {
   if (game.state === 'pause') drawPause();
   if (game.state === 'clear' && game.t > 100) text('STAGE CLEAR!', VW / 2, 90, '#f8d800', 2, 'center');
 }
+
+// ================= CONTENT CHECK =================
+// Warns in the console when a continent, stage or shop part is missing a piece, so new content fails loudly.
+function validateContent() {
+  const warn = m => console.warn('[neobuster] ' + m);
+  const keys = new Set();
+  for (const c of CONTINENTS) {
+    if (c.stages.length !== 6) warn(`benua ${c.name} punya ${c.stages.length} stage (harus 6)`);
+    for (const k of c.stages) {
+      if (keys.has(k)) warn(`stage ${k} dipakai dua kali`);
+      keys.add(k);
+      const st = STAGES[k];
+      if (!st) {
+        warn(`stage ${k}: tidak ada di STAGES`);
+        continue;
+      }
+      if (!LAYOUTS[k]) warn(`stage ${k}: tidak ada layout di LAYOUTS`);
+      if (!BOSSES[k]) warn(`stage ${k}: tidak ada boss di BOSSES`);
+      if (!WEAPONS[k]) warn(`stage ${k}: tidak ada senjata di WEAPONS`);
+      for (const [table, name] of [
+        [TILESETS, 'TILESETS'],
+        [BG_PAINTERS, 'BG_PAINTERS'],
+        [ENEMY_COLORS, 'ENEMY_COLORS'],
+        [PLAT_COL, 'PLAT_COL'],
+      ])
+        if (!table[st.theme]) warn(`stage ${k}: tema ${st.theme} tidak ada di ${name}`);
+      if (!SONGS[st.music]) warn(`stage ${k}: lagu ${st.music} tidak ada di SONGS`);
+    }
+    // every weapon of a continent should be the weakness of exactly one of its bosses
+    for (const k of c.stages) {
+      const n = c.stages.filter(b => BOSSES[b] && BOSSES[b].weak === k).length;
+      if (n !== 1) warn(`benua ${c.name}: senjata ${k} jadi kelemahan ${n} boss (harus tepat 1)`);
+    }
+  }
+  for (const it of SHOP) {
+    if (!SHOP_TABS.some(t => t.key === it.cat)) warn(`part ${it.key}: kategori ${it.cat} tidak ada di SHOP_TABS`);
+    if (it.needs && !SHOP.some(o => o.key === it.needs)) warn(`part ${it.key}: butuh ${it.needs} yang tidak ada`);
+  }
+}
+validateContent();
 
 // ================= LOOP =================
 // Logic runs at a fixed 60 steps/s. Rendering interpolates positions between the last two steps so motion

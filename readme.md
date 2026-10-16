@@ -2,7 +2,7 @@
 
 > Game action-platformer 2D bergaya **Mega Man** untuk browser — pixel art dengan kepadatan pixel 2x yang detail, tapi tetap ringan dan optimal untuk web.
 
-**Versi saat ini: `0.14.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
+**Versi saat ini: `0.15.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
 
 ---
 
@@ -13,18 +13,20 @@
 - [Kontrol](#kontrol)
 - [Stage](#stage)
 - [Boss & Senjata](#boss--senjata)
+- [Peta Dunia & Menu Pause](#peta-dunia--menu-pause)
 - [Shop & Part](#shop--part)
 - [Progress & Save](#progress--save)
 - [Cheat Code](#cheat-code)
 - [Format Kode](#format-kode)
 - [Struktur Proyek](#struktur-proyek)
+- [Menambah Konten](#menambah-konten)
 - [Versi](#versi)
 
 ---
 
 ## Konsep
 
-- Pilih salah satu dari **6 stage** boss, dalam urutan bebas.
+- Dunia terbagi menjadi **benua**, masing-masing berisi **6 boss**. Pilih benua di **Peta Dunia**, lalu pilih boss di benua itu dalam urutan bebas. Benua berikutnya terbuka setelah semua boss di benua sebelumnya dikalahkan. Saat ini tersedia **Benua Azura**; benua baru akan menyusul.
 - Setiap stage panjang dan bertingkat: ada bagian **naik** (menara, tebing, lift) dan bagian **bawah tanah** (gua, saluran, tambang), dengan rintangan seperti duri, jurang, lava, lantai es, balok rapuh, tangga, platform bergerak, gergaji, semburan api, sinar listrik, batu jatuh, dan musuh.
 - Ada **2 checkpoint** di setiap stage. Kalau mati, kamu lanjut dari checkpoint terakhir yang sudah dilewati.
 - Di ujung stage ada **pintu boss**. Kalahkan boss untuk mendapatkan **senjatanya**.
@@ -45,21 +47,22 @@ Tidak perlu build atau install apa pun — cukup HTML + JavaScript murni.
 
 ## Kontrol
 
-| Aksi                                   | Keyboard                                                  | Gamepad             |
-| -------------------------------------- | --------------------------------------------------------- | ------------------- |
-| Gerak                                  | `←` `→` / `A` `D`                                         | D-pad / stik kiri   |
-| Naik / turun tangga                    | `↑` `↓` / `W` `S`                                         | D-pad / stik kiri   |
-| Lompat                                 | `Z` / `J` / `Space`                                       | A                   |
-| Tembak                                 | `X` / `K`                                                 | X / B               |
-| Charge shot (semua senjata)            | Tahan `X` lalu lepas                                      | Tahan tombol tembak |
-| Slide                                  | `C` / `L` (atau `↓` + lompat)                             | RT / Y              |
-| Ganti senjata                          | `Q` / `E`                                                 | LB / RB             |
-| Pause: ganti senjata & ON/OFF tools    | `Enter` / `Esc`, lalu panah kiri/kanan untuk pindah kolom | Start               |
-| Mute                                   | `M`                                                       | —                   |
-| Buka Shop (di Stage Select)            | `X`                                                       | X / B               |
-| Layar Kelemahan Boss (di Stage Select) | `C`                                                       | RT / Y              |
-| Reset progress (di title)              | `R`                                                       | —                   |
-| Buka cheat box                         | Tekan `P` + `O` bersamaan                                 | —                   |
+| Aksi                                             | Keyboard                                                                        | Gamepad             |
+| ------------------------------------------------ | ------------------------------------------------------------------------------- | ------------------- |
+| Gerak                                            | `←` `→` / `A` `D`                                                               | D-pad / stik kiri   |
+| Naik / turun tangga                              | `↑` `↓` / `W` `S`                                                               | D-pad / stik kiri   |
+| Lompat                                           | `Z` / `J` / `Space`                                                             | A                   |
+| Tembak                                           | `X` / `K`                                                                       | X / B               |
+| Charge shot (semua senjata)                      | Tahan `X` lalu lepas                                                            | Tahan tombol tembak |
+| Slide                                            | `C` / `L` (atau `↓` + lompat)                                                   | RT / Y              |
+| Ganti senjata                                    | `Q` / `E`                                                                       | LB / RB             |
+| Pause: ganti senjata & ON/OFF tools              | `Enter` / `Esc`; panah untuk bergerak di grid senjata dan pindah ke kolom tools | Start               |
+| Mute                                             | `M`                                                                             | —                   |
+| Kembali ke layar sebelumnya (menu, peta, select) | `Esc` / `Backspace`                                                             | Select              |
+| Buka Shop (di Stage Select)                      | `X`                                                                             | X / B               |
+| Layar Kelemahan Boss (di Stage Select)           | `C`                                                                             | RT / Y              |
+| Reset progress (di title)                        | `R`                                                                             | —                   |
+| Buka cheat box                                   | Tekan `P` + `O` bersamaan                                                       | —                   |
 
 ## Stage
 
@@ -122,11 +125,18 @@ Tekan `X` untuk tembakan biasa. Tahan `X` sampai karakter berkedip dengan warna 
 
 Setelah keenam boss dikalahkan, muncul layar ending.
 
+## Peta Dunia & Menu Pause
+
+- **Peta Dunia** muncul setelah layar title. Setiap benua tampil sebagai pulau dengan 6 boss di sekelilingnya; boss yang sudah dikalahkan berganti bendera. Benua yang belum terbuka tampil gelap bertanda "?".
+- **Menu pause** (`Enter` / `Esc` di dalam stage) punya dua kolom:
+  - **SENJATA**: grid ikon dengan satu baris untuk Neo Buster dan satu baris per benua. Slot yang belum didapat bertanda "?". Nama senjata dan charge shot-nya tampil di bawah grid.
+  - **TOOLS**: part dari Shop yang bisa di-ON/OFF. Daftarnya bisa digulir.
+
 ## Shop & Part
 
 Setiap poin skor yang kamu dapat (musuh, pickup, boss 10.000) juga masuk ke dompet **POIN**. Dompet ini tersimpan permanen dan tidak hilang walau game over. Saldonya terlihat di Stage Select, Shop, dan menu pause.
 
-Tekan `X` di **Stage Select** untuk membuka Shop. Pilih part dengan tombol atas/bawah, tekan `Enter` untuk membeli, dan `X` untuk kembali. Part yang sudah dibeli bisa dinyalakan atau dimatikan dengan `Enter`. Part yang aktif tampil sebagai ikon di pojok kanan atas layar.
+Tekan `X` di **Stage Select** untuk membuka Shop. Part dikelompokkan dalam tab **GERAK**, **PERTAHANAN**, dan **SERANGAN** (pindah tab dengan kiri/kanan). Pilih part dengan atas/bawah, tekan `Enter` untuk membeli, dan `X` atau `Esc` untuk kembali. Part yang sudah dibeli bisa dinyalakan atau dimatikan dengan `Enter`. Part yang aktif tampil sebagai ikon di pojok kanan atas layar.
 
 | Part            | Harga  | Efek                                                                                                                                                                                                                                                                                                                   |
 | --------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -195,15 +205,17 @@ neobuster/
 ├── index.html      # canvas + urutan pemuatan script
 ├── readme.md
 ├── CHANGELOG.md
+├── docs/
+│   └── MENAMBAH-KONTEN.md  # panduan menambah benua, boss, part, musuh
 ├── package.json    # script yarn format / format:check (Prettier)
 ├── .prettierrc.json
 └── js/
     ├── engine.js   # versi, canvas, input, audio & musik, font pixel, sprite & glow
     ├── art.js      # sprite robot (hero + 6 boss), background parallax, tileset, ikon senjata
-    ├── levels.js   # data stage & layout level
+    ├── levels.js   # data benua, stage & layout level
     ├── actors.js   # fisika, player, senjata, musuh, hazard, platform, boss
     ├── cheats.js   # cheat box (P + O) dan daftar cheat code
-    └── main.js     # alur game (title, select, stage, boss, ending), render, save, game loop
+    └── main.js     # alur game (title, peta, select, stage, boss, ending), shop, render, save, validator konten, game loop
 ```
 
 Detail teknis:
@@ -213,6 +225,10 @@ Detail teknis:
 - Level berukuran **300 × 44 tile** (16 px). Kamera mengikuti player ke segala arah, kecuali di ruang boss.
 - Logika berjalan tetap **60 langkah/detik**. Render diinterpolasi agar mulus di layar 120/144 Hz.
 - Semua grafik dan suara dibuat lewat kode (Canvas 2D + Web Audio), tanpa file aset.
+
+## Menambah Konten
+
+Panduan menambah benua, boss, part shop, dan musuh ada di [docs/MENAMBAH-KONTEN.md](docs/MENAMBAH-KONTEN.md). Saat game dimuat, validator konten memberi peringatan di console browser kalau ada data yang belum lengkap.
 
 ## Versi
 

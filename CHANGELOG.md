@@ -2,6 +2,14 @@
 
 Semua perubahan NEOBUSTER, versi terbaru di atas. Versi ditulis di konstanta `VERSION` di `js/engine.js`.
 
+## 0.15.0
+
+- **Peta Dunia**: boss dikelompokkan per benua (6 boss per benua). Keenam boss sekarang berada di **Benua Azura**; benua berikutnya tampil terkunci "SEGERA HADIR" dan akan terbuka setelah semua boss di benua sebelumnya kalah. Ending muncul setelah semua benua selesai.
+- Menu pause: daftar senjata menjadi **grid** (satu baris per benua, slot "?" untuk yang belum didapat, detail charge di bawahnya); kolom tools bisa digulir.
+- Shop dibagi menjadi **tab** GERAK, PERTAHANAN, SERANGAN, dan setiap tab bisa digulir.
+- Tombol **Esc / Backspace** sekarang berarti "kembali" di semua menu (dan tetap membuka pause di dalam stage).
+- Validator konten di console dan panduan `docs/MENAMBAH-KONTEN.md` untuk menambah benua, boss, part, dan musuh.
+
 ## 0.14.0
 
 - Part baru **Anti Angin** (10.000 POIN): kebal terhadap badai, tiupan Fanbot, dan serangan Gust Winderwomen. Pad angin tetap berfungsi.

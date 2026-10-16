@@ -40,7 +40,19 @@ const STAGES = {
     color: '#78f8c8',
   },
 };
-const STAGE_ORDER = ['cut', 'fire', 'elec', 'snow', 'earth', 'wind'];
+// Continents group the stages: each holds six bosses and appears as a landmass on the world map. A continent
+// opens once every boss of the one before it is beaten. Stages, bosses and weapons all share one key (a boss's
+// weapon is weapons[stage key]), so a new continent only needs its six stages registered in every table; see
+// docs/MENAMBAH-KONTEN.md. validateContent() in main.js warns in the console about anything missing.
+const CONTINENTS = [
+  { key: 'azura', name: 'AZURA', color: '#58c878', stages: ['cut', 'fire', 'elec', 'snow', 'earth', 'wind'] },
+];
+const STAGE_ORDER = CONTINENTS.flatMap(c => c.stages);
+const continentOf = key =>
+  Math.max(
+    0,
+    CONTINENTS.findIndex(c => c.stages.includes(key)),
+  );
 
 const ENEMY_COLORS = {
   cut: { a: '#f8b800', c: '#c87800', fly: '#9020c8', fly2: '#e070f8', hop: '#00a800', hop2: '#58d854', tur: '#686878' },

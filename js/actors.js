@@ -195,6 +195,7 @@ const WEAPONS = {
     glow: '#e0e0ec',
     desc: 'BOOMERANG GUNTING - MENEMBUS MUSUH',
     charged: 'GIANT SHURIKEN',
+    demo: { kind: 'cutter' },
   },
   fire: {
     name: 'FIRE STORM',
@@ -203,6 +204,7 @@ const WEAPONS = {
     glow: '#f86000',
     desc: 'BOLA API + PERISAI API',
     charged: 'FIRE WAVE',
+    demo: { kind: 'fireball', vx: 1 },
   },
   wind: {
     name: 'GALE SHOT',
@@ -211,6 +213,7 @@ const WEAPONS = {
     glow: '#78f8c8',
     desc: '3 PUSARAN ANGIN MELAYANG KE ATAS',
     charged: 'CYCLONE',
+    demo: { kind: 'whirl' },
   },
   elec: {
     name: 'THUNDER BEAM',
@@ -219,6 +222,7 @@ const WEAPONS = {
     glow: '#f8f058',
     desc: 'SINAR PETIR - MENEMBUS MUSUH',
     charged: 'GIGA THUNDER',
+    demo: { kind: 'tbeam', w: 24, h: 8, seed: 1 },
   },
   snow: {
     name: 'FROST SHARD',
@@ -227,6 +231,7 @@ const WEAPONS = {
     glow: '#58d8f8',
     desc: '3 KRISTAL ES - MEMBEKUKAN MUSUH',
     charged: 'FROST NOVA',
+    demo: { kind: 'shard' },
   },
   earth: {
     name: 'ROCK BREAKER',
@@ -235,12 +240,12 @@ const WEAPONS = {
     glow: '#e8b868',
     desc: 'BATU PECAH JADI 4 SERPIHAN',
     charged: 'ROCK QUAKE',
+    demo: { kind: 'rock' },
   },
 };
 // palette the player flashes to while a special weapon is fully charged
-for (const k of ['cut', 'fire', 'elec', 'snow', 'earth', 'wind'])
-  WEAPONS[k].full = { B: WEAPONS[k].pal.b, b: '#fcfcfc', S: '#fcfcfc' };
-const WEAPON_ORDER = ['buster', 'cut', 'fire', 'elec', 'snow', 'earth', 'wind'];
+for (const k of STAGE_ORDER) if (WEAPONS[k]) WEAPONS[k].full = { B: WEAPONS[k].pal.b, b: '#fcfcfc', S: '#fcfcfc' };
+const WEAPON_ORDER = ['buster', ...STAGE_ORDER]; // each boss drops the weapon with its stage key
 const ownedWeapons = () => WEAPON_ORDER.filter(w => w === 'buster' || save.cleared[w]);
 
 function addShot(o) {

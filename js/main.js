@@ -38,7 +38,7 @@ function startStage(key, checkpoint = false) {
   game.stage = key;
   level = buildStage(key);
   map = level.map; LW = level.LW; LH = level.LH;
-  levelCanvas = renderLevelCanvas(level);
+  levelArt = makeLevelArt(level);
   game.checkpoint = +checkpoint || 0; game.time = 0; // number of checkpoints reached (old saves stored true/false)
   game.placed = level.ents.filter(e => ['h', 'E', 'L'].includes(e.type)).map(e => ({ kind: e.type, tx: e.x, ty: e.y, taken: false }));
   spawns = level.ents.filter(e => EN[e.type]).map(e => ({ type: e.type, tx: e.x, ty: e.y, armed: true, ent: null }));
@@ -915,9 +915,7 @@ function renderWorld() {
   if (game.shake > 0) ctx.translate((game.shake & 1) ? 1 : -1, (game.shake & 2) ? 2 : -2);
   drawBackground(level.theme, camX, camY, BOSS_CAM_Y); // the backdrop sits as before at surface height and drops as the camera climbs
   if (level.theme === 'elec') drawStormSky();
-  ctx.imageSmoothingEnabled = false; // the tile map is pre-rendered at 1x: keep its texels crisp
-  ctx.drawImage(levelCanvas, camX, camY, VW, VH, 0, 0, VW, VH);
-  ctx.imageSmoothingEnabled = true;
+  drawLevel(levelArt, camX, camY);
   drawDynamicTiles();
   drawRoomFx();
   drawPlatsAndHazards();

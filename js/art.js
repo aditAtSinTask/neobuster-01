@@ -480,11 +480,40 @@ function backdropCells(lv) {
   return back;
 }
 
-function renderLevelCanvas(lv) {
-  const ts = TILESETS[lv.theme], back = backdropCells(lv);
-  return makeCanvas(lv.LW * TILE, lv.LH * TILE, g => {
+// The tile map is painted at fine-pixel density (2x) in vertical chunks of LEVEL_CHUNK columns, rendered when they
+// scroll into view and dropped when far away, so the whole 300x44 map never sits in memory at 2x.
+const LEVEL_CHUNK = 32;
+function makeLevelArt(lv) { return { lv, back: backdropCells(lv), chunks: new Map() }; }
+function levelChunk(art, i) {
+  let c = art.chunks.get(i);
+  if (c) return c;
+  if (art.chunks.size >= 4) art.chunks.delete(art.chunks.keys().next().value); // oldest first
+  const lv = art.lv, x0 = i * LEVEL_CHUNK, x1 = Math.min(lv.LW, x0 + LEVEL_CHUNK);
+  c = makeCanvas((x1 - x0) * TILE * 2, lv.LH * TILE * 2, g => { g.scale(2, 2); g.translate(-x0 * TILE, 0); paintTiles(g, art, x0, x1); });
+  art.chunks.set(i, c);
+  return c;
+}
+function drawLevel(art, cx, cy) {
+  const w = LEVEL_CHUNK * TILE, smooth = ctx.imageSmoothingEnabled;
+  ctx.imageSmoothingEnabled = false;
+  for (let i = Math.floor(cx / w); i <= Math.floor((cx + VW - 1) / w); i++) {
+    const c = levelChunk(art, i);
+    ctx.drawImage(c, i * w - cx, -cy, c.width / 2, c.height / 2);
+  }
+  ctx.imageSmoothingEnabled = smooth;
+}
+// fine-pixel finish on a solid tile: a few light and dark specks for texture and a one-fine-pixel bevel
+function finishTile(F, x, y, v) {
+  F(x + (v % 15) + 0.5, y + ((v >> 4) % 14) + 1, 0.5, 0.5, 'rgba(255,255,255,0.22)');
+  F(x + ((v >> 8) % 15) + 0.5, y + ((v >> 12) % 14) + 1, 0.5, 0.5, 'rgba(0,0,0,0.25)');
+  F(x + ((v >> 16) % 14) + 1, y + ((v >> 20) % 13) + 2, 1, 0.5, 'rgba(0,0,0,0.18)');
+  F(x, y, 16, 0.5, 'rgba(255,255,255,0.12)'); F(x, y + 15.5, 16, 0.5, 'rgba(0,0,0,0.2)');
+}
+function paintTiles(g, art, x0, x1) {
+  const lv = art.lv, ts = TILESETS[lv.theme], back = art.back;
+  {
     const F = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(x, y, w, h); };
-    for (let ty = 0; ty < lv.LH; ty++) for (let tx = 0; tx < lv.LW; tx++) {
+    for (let ty = 0; ty < lv.LH; ty++) for (let tx = x0; tx < x1; tx++) {
       const t = lv.map[ty][tx], x = tx * TILE, y = ty * TILE, v = tileHash(tx, ty);
       const above = ty > 0 ? lv.map[ty - 1][tx] : '.';
       const exp = !SOLIDISH.includes(above);
@@ -499,9 +528,9 @@ function renderLevelCanvas(lv) {
         else for (let r = 0; r < 16; r += 2) F(x, y + r, 16, 2, `rgba(0,0,0,${(0.15 + r / 18).toFixed(2)})`);
         continue;
       }
-      if (t === '#') ts.ground(F, x, y, v, exp, tx);
-      else if (t === '=') ts.block(F, x, y, v);
-      else if (t === 'I') (ts.ice || ts.block)(F, x, y, v);
+      if (t === '#') { ts.ground(F, x, y, v, exp, tx); finishTile(F, x, y, v); }
+      else if (t === '=') { ts.block(F, x, y, v); finishTile(F, x, y, v); }
+      else if (t === 'I') { (ts.ice || ts.block)(F, x, y, v); finishTile(F, x, y, v); }
       else if (t === '^') ts.spike(F, x, y);
       else if (t === 'H') ts.ladder(F, x, y);
       else if (t === 'Q') { // quicksand
@@ -511,9 +540,9 @@ function renderLevelCanvas(lv) {
         if (above !== 'Q') { F(x, y, 16, 2, '#e8d0a0'); F(x + 2 + (v % 4), y + 4, 5, 1, '#b89050'); F(x + 9 - (v % 3), y + 7, 5, 1, '#b89050'); }
       }
     }
-    const paint = ROOM_ART[lv.theme];
-    if (paint) paint(g, (lv.doorCol + 1) * TILE, 13 * TILE, 22 * TILE, 9 * TILE);
-  });
+    const paint = ROOM_ART[lv.theme], rx = lv.doorCol + 1;
+    if (paint && rx < x1 && rx + 22 > x0) paint(g, rx * TILE, 13 * TILE, 22 * TILE, 9 * TILE);
+  }
 }
 
 // ================= BOSS ROOM WALL ART =================

@@ -1,8 +1,8 @@
 # NEOBUSTER
 
-> Game action-platformer 2D bergaya **Mega Man** untuk browser — grafik HD yang tajam, tapi tetap ringan dan optimal untuk web.
+> Game action-platformer 2D bergaya **Mega Man** untuk browser — pixel art dengan kepadatan pixel 2x yang detail, tapi tetap ringan dan optimal untuk web.
 
-**Versi saat ini: `0.11.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
+**Versi saat ini: `0.12.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
 
 ---
 
@@ -193,7 +193,8 @@ neobuster/
 
 Detail teknis:
 
-- Tata letak memakai ruang logis **384 × 224**, tapi digambar di resolusi layar yang sebenarnya (2x–4x). Karakter digambar dengan sudut membulat, gradasi, dan outline tipis; teks memakai font asli; efek dan background halus. Tile level tetap bergaya pixel.
+- Tata letak memakai ruang logis **384 × 224**, tapi pixel art-nya 2x lebih rapat: satu pixel lama dipecah jadi 2×2 pixel kecil yang tetap tajam. Karakter punya outline 1 pixel kecil, sudut terpotong, dan shading berlapis; teks dan tile juga 2x lebih detail. Kanvas digambar di resolusi layar (kelipatan genap) agar setiap pixel kecil tetap pas di pixel layar.
+- Peta level digambar per potongan 32 kolom saat terlihat, supaya hemat memori.
 - Level berukuran **300 × 44 tile** (16 px). Kamera mengikuti player ke segala arah, kecuali di ruang boss.
 - Logika berjalan tetap **60 langkah/detik**. Render diinterpolasi agar mulus di layar 120/144 Hz.
 - Semua grafik dan suara dibuat lewat kode (Canvas 2D + Web Audio), tanpa file aset.
@@ -201,6 +202,9 @@ Detail teknis:
 ## Versi & Changelog
 
 Versi ditulis di konstanta `VERSION` di `js/engine.js`. Setiap ada perubahan, naikkan versinya dan tambahkan catatan di bawah.
+
+### 0.12.0
+- Gaya grafis kembali ke pixel art, tapi dengan kepadatan pixel 2x: sprite (outline tipis, sudut terpotong, shading berlapis), teks pixel yang lebih detail, lingkaran dan petir dari pixel kecil, serta tile level 2x dengan tekstur halus. Menggantikan tampilan halus (anti-aliased) di 0.11.0.
 
 ### 0.11.0
 - Grafik HD: game digambar di resolusi layar (2x–4x), bukan lagi 384×224 yang diperbesar. Semua karakter, boss, musuh, pickup, dan ikon kini punya bentuk membulat dengan gradasi dan kilap; teks tajam; petir, glow, dan background halus.

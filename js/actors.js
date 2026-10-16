@@ -2,7 +2,7 @@
 // World state, physics, player + weapons, enemies, hazards, platforms, bosses, pickups, particles.
 
 let frameCount = 0;
-let level = null, map = null, LW = 0, LH = 0, levelCanvas = null;
+let level = null, map = null, LW = 0, LH = 0, levelArt = null;
 let camX = 0, camY = 0, camYf = 0;
 const game = {
   state: 'title', t: 0, lives: 2, score: 0, time: 0, deadT: 0, stage: null, checkpoint: false,

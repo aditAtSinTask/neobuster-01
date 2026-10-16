@@ -1,26 +1,28 @@
 'use strict';
-// NEOBUSTER — core: canvas, helpers, input, audio, music, pixel font, sprite + glow primitives.
+// NEOBUSTER — core: canvas, helpers, input, audio, music, text, sprite + glow primitives.
 
 // bump on every change (and add a line to the changelog in readme.md)
-const VERSION = '0.10.0';
+const VERSION = '0.11.0';
 document.title = 'Neobuster v' + VERSION;
 
 const TILE = 16, VW = 384, VH = 224;
 const cvs = document.getElementById('game');
 const ctx = cvs.getContext('2d');
-cvs.width = VW; cvs.height = VH;
-ctx.imageSmoothingEnabled = false;
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
+// The game is laid out in a 384x224 logical space but drawn at the screen's real resolution (2x to 4x), so
+// sprites, text and effects are sharp instead of blown-up pixels. render() applies SCALE every frame.
+let SCALE = 2;
 function fit() {
   let s = Math.min(innerWidth / VW, innerHeight / VH);
   s = s >= 1 ? Math.floor(s) : s;
   cvs.style.width = VW * s + 'px';
   cvs.style.height = VH * s + 'px';
+  SCALE = clamp(Math.round(s * (window.devicePixelRatio || 1)), 2, 4);
+  cvs.width = VW * SCALE; cvs.height = VH * SCALE;
 }
 addEventListener('resize', fit);
 fit();
-
-const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const overlap = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 function R(x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), w, h); }
 function circle(x, y, r, c) { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(Math.round(x), Math.round(y), Math.max(0.5, r), 0, 7); ctx.fill(); }
@@ -60,22 +62,37 @@ function shade(hex, amt) {
 const rgba = (hex, a) => { const [r, g, b] = hexToRgb(hex); return `rgba(${r},${g},${b},${a})`; };
 
 // ---------- sprites ----------
-// parts: [x,y,w,h,color] get a dark outline (all outlines first, then fills) plus a top highlight and
-// bottom shadow row; dets are flat details drawn on top. f<0 mirrors the sprite inside a box of width W.
+// parts: [x,y,w,h,color] are drawn as rounded, gradient-shaded blocks with a thin dark outline (all outlines
+// first, then fills) and a soft highlight; dets are small details drawn on top. f<0 mirrors the sprite inside a
+// box of width W. Coordinates are in logical pixels, but everything is drawn at full screen resolution.
+const _partGrad = new Map();
+function partGrad(col, h) { // vertical light-to-shadow gradient from y=0 to h (used after translating to the part)
+  const k = col + h;
+  let gr = _partGrad.get(k);
+  if (!gr) {
+    gr = ctx.createLinearGradient(0, 0, 0, h);
+    gr.addColorStop(0, shade(col, 0.32)); gr.addColorStop(0.4, col); gr.addColorStop(1, shade(col, -0.3));
+    _partGrad.set(k, gr);
+  }
+  return gr;
+}
+const partRadius = (w, h) => Math.min(2, w / 3, h / 3);
+function roundRectPath(x, y, w, h, r) { if (r > 0 && ctx.roundRect) ctx.roundRect(x, y, w, h, r); else ctx.rect(x, y, w, h); }
 function sprite(ox, oy, f, W, parts, dets) {
   ox = Math.round(ox); oy = Math.round(oy);
   const mx = (x, w) => (f > 0 ? ox + x : ox + W - x - w);
-  ctx.fillStyle = '#0a0a16';
-  for (const p of parts) ctx.fillRect(mx(p[0] - 1, p[2] + 2), oy + p[1] - 1, p[2] + 2, p[3] + 2);
+  ctx.fillStyle = '#0a0a16'; ctx.beginPath();
+  for (const p of parts) roundRectPath(mx(p[0], p[2]) - 0.8, oy + p[1] - 0.8, p[2] + 1.6, p[3] + 1.6, partRadius(p[2], p[3]) + 0.8);
+  ctx.fill();
   for (const p of parts) {
-    const X = mx(p[0], p[2]), Y = oy + p[1];
-    ctx.fillStyle = p[4]; ctx.fillRect(X, Y, p[2], p[3]);
-    if (p[3] >= 3 && p[2] >= 2) {
-      ctx.fillStyle = shade(p[4], 0.35); ctx.fillRect(X, Y, p[2], 1);
-      ctx.fillStyle = shade(p[4], -0.3); ctx.fillRect(X, Y + p[3] - 1, p[2], 1);
-    }
+    const X = mx(p[0], p[2]), Y = oy + p[1], r = partRadius(p[2], p[3]);
+    ctx.save(); ctx.translate(X, Y);
+    ctx.fillStyle = p[3] >= 3 ? partGrad(p[4], p[3]) : p[4];
+    ctx.beginPath(); roundRectPath(0, 0, p[2], p[3], r); ctx.fill();
+    if (p[2] >= 3 && p[3] >= 3) { ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.beginPath(); roundRectPath(r * 0.6 + 0.3, 0.4, Math.max(0.5, p[2] - r * 1.2 - 0.6), 0.8, 0.4); ctx.fill(); }
+    ctx.restore();
   }
-  if (dets) for (const p of dets) { ctx.fillStyle = p[4]; ctx.fillRect(mx(p[0], p[2]), oy + p[1], p[2], p[3]); }
+  if (dets) for (const p of dets) { ctx.fillStyle = p[4]; ctx.beginPath(); roundRectPath(mx(p[0], p[2]), oy + p[1], p[2], p[3], Math.min(p[2], p[3]) >= 2 ? 0.6 : 0); ctx.fill(); }
 }
 
 // ---------- additive glow (cached radial gradients) ----------
@@ -84,7 +101,8 @@ function glowSprite(color, r) {
   const k = color + r;
   let c = _glow.get(k);
   if (c) return c;
-  c = makeCanvas(r * 2, r * 2, g => {
+  c = makeCanvas(r * 4, r * 4, g => { // drawn at 2x so it stays smooth when the screen scales it up
+    g.scale(2, 2);
     const gr = g.createRadialGradient(r, r, 0, r, r, r);
     gr.addColorStop(0, rgba(color, 0.85));
     gr.addColorStop(0.35, rgba(color, 0.35));
@@ -101,19 +119,18 @@ function drawBolt(x0, y0, x1, y1, seed, col = '#f8f058', thick = 2, amp = 12) {
   const nx = -(y1 - y0) / len, ny = (x1 - x0) / len, pts = [[x0, y0]];
   for (let i = 1; i < n; i++) { const t = i / n, o = (rnd() - 0.5) * amp; pts.push([x0 + (x1 - x0) * t + nx * o, y0 + (y1 - y0) * t + ny * o]); }
   pts.push([x1, y1]);
-  for (const [w, c] of [[thick + 2, col], [Math.max(1, thick - 1), '#fcfcfc']]) {
-    ctx.fillStyle = c;
-    for (let i = 1; i < pts.length; i++) {
-      const [ax, ay] = pts[i - 1], [bx, by] = pts[i], st = Math.max(1, Math.ceil(Math.max(Math.abs(bx - ax), Math.abs(by - ay))));
-      for (let k = 0; k <= st; k++) ctx.fillRect(Math.round(ax + (bx - ax) * k / st - w / 2), Math.round(ay + (by - ay) * k / st - w / 2), w, w);
-    }
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  for (const [w, c] of [[thick + 1.5, col], [Math.max(0.8, thick - 0.8), '#fcfcfc']]) {
+    ctx.strokeStyle = c; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    ctx.stroke();
   }
 }
 function glow(x, y, r, color, a = 1) {
   r = Math.max(2, Math.round(r / 2) * 2);
   ctx.globalCompositeOperation = 'lighter';
   ctx.globalAlpha = clamp(a, 0, 1);
-  ctx.drawImage(glowSprite(color, r), Math.round(x - r), Math.round(y - r));
+  ctx.drawImage(glowSprite(color, r), Math.round(x - r), Math.round(y - r), r * 2, r * 2);
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
 }
@@ -329,44 +346,17 @@ function updateMusic() {
   musicStep++;
 }
 
-// ---------- 5x7 pixel font ----------
-const FONT_SRC = {
-  A: '0E 11 11 1F 11 11 11', B: '1E 11 11 1E 11 11 1E', C: '0E 11 10 10 10 11 0E', D: '1E 11 11 11 11 11 1E',
-  E: '1F 10 10 1E 10 10 1F', F: '1F 10 10 1E 10 10 10', G: '0E 11 10 17 11 11 0F', H: '11 11 11 1F 11 11 11',
-  I: '0E 04 04 04 04 04 0E', J: '07 02 02 02 02 12 0C', K: '11 12 14 18 14 12 11', L: '10 10 10 10 10 10 1F',
-  M: '11 1B 15 15 11 11 11', N: '11 11 19 15 13 11 11', O: '0E 11 11 11 11 11 0E', P: '1E 11 11 1E 10 10 10',
-  Q: '0E 11 11 11 15 12 0D', R: '1E 11 11 1E 14 12 11', S: '0F 10 10 0E 01 01 1E', T: '1F 04 04 04 04 04 04',
-  U: '11 11 11 11 11 11 0E', V: '11 11 11 11 11 0A 04', W: '11 11 11 15 15 15 0A', X: '11 11 0A 04 0A 11 11',
-  Y: '11 11 0A 04 04 04 04', Z: '1F 01 02 04 08 10 1F',
-  0: '0E 11 13 15 19 11 0E', 1: '04 0C 04 04 04 04 0E', 2: '0E 11 01 02 04 08 1F', 3: '1F 02 04 02 01 11 0E',
-  4: '02 06 0A 12 1F 02 02', 5: '1F 10 1E 01 01 11 0E', 6: '06 08 10 1E 11 11 0E', 7: '1F 01 02 04 08 08 08',
-  8: '0E 11 11 0E 11 11 0E', 9: '0E 11 11 0F 01 02 0C',
-  '!': '04 04 04 04 04 00 04', '.': '00 00 00 00 00 0C 0C', ':': '00 0C 0C 00 0C 0C 00', '-': '00 00 00 1F 00 00 00',
-  '?': '0E 11 01 02 04 00 04', '/': '01 01 02 04 08 10 10', "'": '04 04 08 00 00 00 00', ',': '00 00 00 00 0C 04 08',
-  '(': '02 04 08 08 08 04 02', ')': '08 04 02 02 02 04 08', '+': '00 04 04 1F 04 04 00', '>': '08 04 02 01 02 04 08',
-  '<': '02 04 08 10 08 04 02', '=': '00 00 1F 00 1F 00 00', '&': '0C 12 14 08 15 12 0D',
-};
-const FONT = {};
-for (const k in FONT_SRC) FONT[k] = FONT_SRC[k].split(' ').map(h => parseInt(h, 16));
-
-function drawStr(str, x, y, col, s) {
-  ctx.fillStyle = col;
-  for (let i = 0; i < str.length; i++) {
-    const g = FONT[str[i]];
-    if (!g) continue;
-    for (let r = 0; r < 7; r++) {
-      const row = g[r];
-      if (!row) continue;
-      for (let c = 0; c < 5; c++) if (row & (16 >> c)) ctx.fillRect(x + i * 6 * s + c * s, y + r * s, s, s);
-    }
-  }
-}
+// ---------- text ----------
+// a bold monospace font with a 6 px advance per character at size 1, so layouts measured with textWidth hold
+const FONT_FAMILY = 'Menlo, Monaco, Consolas, "DejaVu Sans Mono", "Courier New", monospace';
 function textWidth(str, s = 1) { return String(str).length * 6 * s - s; }
 function text(str, x, y, col = '#fcfcfc', s = 1, align = 'left') {
   str = String(str).toUpperCase();
   const w = textWidth(str, s);
   if (align === 'center') x = Math.round(x - w / 2);
   else if (align === 'right') x -= w;
-  drawStr(str, x + s, y + s, '#000000', s);
-  drawStr(str, x, y, col, s);
+  ctx.font = `bold ${10 * s}px ${FONT_FAMILY}`; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
+  const yy = y - 1.5 * s; // lines the capitals up with the old 7 px tall glyph box
+  ctx.fillStyle = '#000000'; ctx.fillText(str, x + 0.8 * s, yy + 0.8 * s, w + 2 * s);
+  ctx.fillStyle = col; ctx.fillText(str, x, yy, w + 2 * s);
 }

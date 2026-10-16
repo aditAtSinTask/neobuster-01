@@ -318,7 +318,8 @@ const _bgCache = {};
 function getBackground(theme) {
   if (!_bgCache[theme]) {
     const rnd = mulberry(theme.length * 977 + 13);
-    _bgCache[theme] = BG_PAINTERS[theme].map(L => ({ k: L.k, ky: L.ky, c: makeCanvas(BG_W, BG_H, g => L.paint(g, rnd)) }));
+    // painted at 2x so hills, clouds and gradients stay smooth on the high-resolution screen
+    _bgCache[theme] = BG_PAINTERS[theme].map(L => ({ k: L.k, ky: L.ky, c: makeCanvas(BG_W * 2, BG_H * 2, g => { g.scale(2, 2); L.paint(g, rnd); }) }));
   }
   return _bgCache[theme];
 }
@@ -327,8 +328,8 @@ function drawBackground(theme, cx, cy, maxCy) {
   for (const L of getBackground(theme)) {
     const x = -Math.floor(cx * L.k) % BG_W;
     const y = -Math.round(frac * 60 * L.ky);
-    ctx.drawImage(L.c, x, y);
-    ctx.drawImage(L.c, x + BG_W, y);
+    ctx.drawImage(L.c, x, y, BG_W, BG_H);
+    ctx.drawImage(L.c, x + BG_W, y, BG_W, BG_H);
   }
 }
 

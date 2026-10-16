@@ -915,7 +915,9 @@ function renderWorld() {
   if (game.shake > 0) ctx.translate((game.shake & 1) ? 1 : -1, (game.shake & 2) ? 2 : -2);
   drawBackground(level.theme, camX, camY, BOSS_CAM_Y); // the backdrop sits as before at surface height and drops as the camera climbs
   if (level.theme === 'elec') drawStormSky();
+  ctx.imageSmoothingEnabled = false; // the tile map is pre-rendered at 1x: keep its texels crisp
   ctx.drawImage(levelCanvas, camX, camY, VW, VH, 0, 0, VW, VH);
+  ctx.imageSmoothingEnabled = true;
   drawDynamicTiles();
   drawRoomFx();
   drawPlatsAndHazards();
@@ -1188,6 +1190,8 @@ function drawPause() {
 }
 
 function render() {
+  ctx.setTransform(SCALE, 0, 0, SCALE, 0, 0); // logical 384x224 coordinates, drawn at screen resolution
+  ctx.imageSmoothingEnabled = true;
   ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, VW, VH);
   switch (game.state) {

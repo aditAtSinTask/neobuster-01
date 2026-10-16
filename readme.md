@@ -1,8 +1,8 @@
 # NEOBUSTER
 
-> Game action-platformer 2D bergaya **Mega Man** untuk browser — grafik pixel-art yang lebih kaya, tapi tetap ringan dan optimal untuk web.
+> Game action-platformer 2D bergaya **Mega Man** untuk browser — grafik HD yang tajam, tapi tetap ringan dan optimal untuk web.
 
-**Versi saat ini: `0.10.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
+**Versi saat ini: `0.11.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
 
 ---
 
@@ -193,7 +193,7 @@ neobuster/
 
 Detail teknis:
 
-- Resolusi internal **384 × 224**, di-scale ke layar dengan kelipatan bulat agar pixel tetap tajam.
+- Tata letak memakai ruang logis **384 × 224**, tapi digambar di resolusi layar yang sebenarnya (2x–4x). Karakter digambar dengan sudut membulat, gradasi, dan outline tipis; teks memakai font asli; efek dan background halus. Tile level tetap bergaya pixel.
 - Level berukuran **300 × 44 tile** (16 px). Kamera mengikuti player ke segala arah, kecuali di ruang boss.
 - Logika berjalan tetap **60 langkah/detik**. Render diinterpolasi agar mulus di layar 120/144 Hz.
 - Semua grafik dan suara dibuat lewat kode (Canvas 2D + Web Audio), tanpa file aset.
@@ -201,6 +201,9 @@ Detail teknis:
 ## Versi & Changelog
 
 Versi ditulis di konstanta `VERSION` di `js/engine.js`. Setiap ada perubahan, naikkan versinya dan tambahkan catatan di bawah.
+
+### 0.11.0
+- Grafik HD: game digambar di resolusi layar (2x–4x), bukan lagi 384×224 yang diperbesar. Semua karakter, boss, musuh, pickup, dan ikon kini punya bentuk membulat dengan gradasi dan kilap; teks tajam; petir, glow, dan background halus.
 
 ### 0.10.0
 - Layar **Kelemahan Boss** (tombol `C` di Stage Select) dengan tabel kelemahan dan urutan saran.

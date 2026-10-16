@@ -115,7 +115,10 @@ function addShot(o) {
 }
 // ---- shop parts & points ----
 // a bought part is 'on' or 'off' in save.parts; points are the score you earn, kept to spend in the shop
-const hasPart = k => !!(save.parts && save.parts[k] === 'on');
+// Omega Booster overrides the Super and Ultra Boosters: while it is on they are disabled (their own on/off is kept)
+const partDisabled = k => (k === 'super' || k === 'ultra') && !!save.parts && save.parts.omega === 'on';
+const hasPart = k => !!(save.parts && save.parts[k] === 'on') && !partDisabled(k);
+const SHIELD_DOWN = 600; // frames a shield orb stays gone after it blocks something (10 s)
 function addScore(n) { game.score += n; save.points = (save.points || 0) + n; writeSave(); }
 const ULTRA_CHARGE = 150; // frames of holding for the ultra attack (Ultra Booster)
 
@@ -308,7 +311,9 @@ function chargeTick(p) {
 function handleShoot(p, canFire) {
   const special = p.weapon !== 'buster';
   if (hit.shoot && canFire) {
-    if (hasPart('super')) { if (!special) fireBuster(p, 2, false); else if (!fireCharged(p)) fireSpecial(p); } // Super Booster: every tap is a charged shot
+    // Omega Booster: every tap is an ultra attack (a charged shot while the previous ultra is still going)
+    if (hasPart('omega')) { if (!fireUltra(p)) { if (!special) fireBuster(p, 2, false); else if (!fireCharged(p)) fireSpecial(p); } }
+    else if (hasPart('super')) { if (!special) fireBuster(p, 2, false); else if (!fireCharged(p)) fireSpecial(p); } // Super Booster: every tap is a charged shot
     else if (special) fireSpecial(p);
     else fireBuster(p, 0);
   }
@@ -578,11 +583,38 @@ function applyGravity(p) {
   else { p.onGround = false; if (r === -1) p.vy = 0; }
 }
 
+// Shield (shop part): two orbs circle the player; an orb that touches an enemy or an enemy shot blocks it and is
+// gone for SHIELD_DOWN frames
+const shieldOrb = (p, i) => { const a = p.shieldAng + i * Math.PI; return { x: pcx() + Math.cos(a) * 24 - 5, y: pcy() + Math.sin(a) * 24 - 5, w: 10, h: 10 }; };
+function updateShield(p) {
+  if (!hasPart('shield') || !alive(p)) return;
+  p.shieldAng = (p.shieldAng || 0) + 0.12;
+  p.shieldCd = p.shieldCd || [0, 0];
+  for (let i = 0; i < 2; i++) {
+    if (p.shieldCd[i] > 0) { if (--p.shieldCd[i] === 0) { sfx.tick(); const o = shieldOrb(p, i); spark(o.x + 5, o.y + 5); } continue; }
+    const o = shieldOrb(p, i);
+    let blocked = false;
+    for (const s of eshots) {
+      if (s.dead || s.harmless || s.delay > 0 || !overlap(o, s)) continue;
+      if (!s.big) s.dead = true; // big boss attacks still go through, but the orb is spent
+      blocked = true; break;
+    }
+    if (!blocked) for (const e of enemies) {
+      if (e.dead || e.hidden || !overlap(o, e)) continue;
+      hitEnemy({ kind: 'orb', weapon: 'shield', x: o.x, y: o.y, w: 10, h: 10, dmg: 2 }, e);
+      blocked = true; break;
+    }
+    if (!blocked && boss && boss.inv === 0 && overlap(o, boss)) { hitBoss({ kind: 'orb', weapon: 'shield', x: o.x, y: o.y, w: 10, h: 10, bossDmg: 1 }); blocked = true; }
+    if (blocked) { p.shieldCd[i] = SHIELD_DOWN; spark(o.x + 5, o.y + 5); debris(o.x + 5, o.y + 5, '#78e8f8', 4, 1.5); sfx.deflect(); }
+  }
+}
+
 function updatePlayer() {
   const p = player;
   if (p.inv > 0) p.inv--;
   if (p.shootT > 0) p.shootT--;
   updateStorm(p);
+  updateShield(p);
   const dir = (inp.right ? 1 : 0) - (inp.left ? 1 : 0);
   const onIce = p.onGround && standingOn(p, 'I');
   // jump buffer: a press shortly before landing still counts (as long as the key is held)

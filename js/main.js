@@ -62,7 +62,7 @@ function restartFromCheckpoint() {
   const sx = spot.x * TILE + 1;
   Object.assign(player, {
     x: sx, w: 14, h: 22, vx: 0, vy: 0, facing: 1, onGround: false, state: 'beam', hp: 28, inv: 0,
-    shootT: 0, charge: 0, storm: 0, anim: 0, slideT: 0, hurtT: 0, plat: null, jumpBuf: 0, coyote: 0, jumpT: 99,
+    shootT: 0, charge: 0, storm: 0, shieldCd: [0, 0], shieldAng: 0, anim: 0, slideT: 0, hurtT: 0, plat: null, jumpBuf: 0, coyote: 0, jumpT: 99,
   });
   game.noLerp = true;
   player.targetY = groundBelow(sx + 7, spot.y * TILE) - player.h;
@@ -195,15 +195,21 @@ const SHOP = [
   { key: 'core', name: 'CORE', price: 6000, desc: 'KEBAL 5X LEBIH LAMA SETELAH KENA HIT' },
   { key: 'super', name: 'SUPER BOOSTER', price: 15000, desc: 'TEMBAKAN BIASA LANGSUNG JADI CHARGE SHOT' },
   { key: 'ultra', name: 'ULTRA BOOSTER', price: 25000, needs: 'super', desc: 'TAHAN TEMBAK 2.5 DETIK: ULTRA ATTACK' },
+  { key: 'shield', name: 'SHIELD', price: 12000, desc: '2 PERISAI - YANG KENA HIT HILANG 10 DETIK' },
+  { key: 'omega', name: 'OMEGA BOOSTER', price: 40000, needs: 'ultra', desc: 'ULTRA ATTACK TANPA DELAY, SUPER/ULTRA DISABLED' },
 ];
+// a part's state for menus: undefined (not bought), 'on', 'off' or 'disabled' (overridden by Omega Booster)
+const partState = k => (save.parts[k] && partDisabled(k) ? 'disabled' : save.parts[k]);
+const STATE_TEXT = { on: 'ON', off: 'OFF', disabled: 'DISABLED' }, STATE_COL = { on: '#b8f818', off: '#888898', disabled: '#a87878' };
 function shopMsg(text, ok) { game.shopMsg = text; game.shopOk = ok; game.shopMsgT = 120; }
 // buy the part, or switch an owned part on/off
 function shopAction(it) {
   const own = save.parts[it.key];
-  if (own) {
+  if (own && partDisabled(it.key)) { shopMsg('DISABLED SELAMA OMEGA BOOSTER ON', false); sfx.deflect(); }
+  else if (own) {
     save.parts[it.key] = own === 'on' ? 'off' : 'on'; writeSave(); sfx.select();
     shopMsg(it.name + (own === 'on' ? ' OFF' : ' ON'), own !== 'on');
-  } else if (it.needs && !save.parts[it.needs]) { shopMsg('BELI SUPER BOOSTER DULU', false); sfx.deflect(); }
+  } else if (it.needs && !save.parts[it.needs]) { shopMsg('BELI ' + SHOP.find(s => s.key === it.needs).name + ' DULU', false); sfx.deflect(); }
   else if (save.points < it.price) { shopMsg('POIN TIDAK CUKUP', false); sfx.deflect(); }
   else { save.points -= it.price; save.parts[it.key] = 'on'; writeSave(); sfx.buy(); shopMsg('TERBELI! ' + it.name, true); }
 }
@@ -245,6 +251,7 @@ function step() {
       }
       if (s !== game.sel) { game.sel = s; sfx.select(); }
       if (hit.shoot) { game.state = 'shop'; game.shopSel = 0; game.shopMsg = ''; sfx.pause(); break; }
+      if (hit.slide) { game.state = 'weak'; sfx.pause(); break; }
       if (go) { sfx.confirm(); game.state = 'intro'; game.t = 0; game.introKey = STAGE_ORDER[game.sel]; stopMusic(); }
       break;
     }
@@ -269,6 +276,10 @@ function step() {
       if (go) shopAction(SHOP[game.shopSel]);
       break;
     }
+    case 'weak':
+      game.t++;
+      if (hit.slide || hit.shoot || go) { game.state = 'select'; sfx.pause(); }
+      break;
     case 'pause': { // left column: weapons + exit (pick = equip and resume); right column: owned tools (pick = on/off)
       const cols = pauseColumns();
       if ((hit.left || hit.right) && cols[1].length) { game.pcol ^= 1; game.sel = Math.min(game.sel, cols[game.pcol].length - 1); sfx.select(); }
@@ -277,7 +288,7 @@ function step() {
       if (hit.down) { game.sel = (game.sel + 1) % items.length; sfx.select(); }
       if (go || hit.shoot) {
         const it = items[game.sel];
-        if (game.pcol === 1) { save.parts[it] = save.parts[it] === 'on' ? 'off' : 'on'; writeSave(); sfx.select(); }
+        if (game.pcol === 1) { if (partDisabled(it)) sfx.deflect(); else { save.parts[it] = save.parts[it] === 'on' ? 'off' : 'on'; writeSave(); sfx.select(); } }
         else if (it === 'exit') { sfx.pause(); goSelect(); }
         else { if (it !== player.weapon) { player.weapon = it; pshots = []; player.charge = 0; } game.state = 'play'; sfx.pause(); }
       }
@@ -788,6 +799,11 @@ function drawPlayer() {
     if (!p.onGround && p.vy < 0) { R(bx + 1, sy + 17, 4, 3 + (frameCount & 2), '#f8a800'); R(bx + 2, sy + 17, 2, 2, '#fcf8c0'); glow(bx + 3, sy + 19, 8, '#f86000', 0.6); }
   }
   drawRobot(sx + p.w / 2 - 12, sy + p.h - 24, p.facing, pose, fr, p.shootT > 0 && pose !== 'slide' && pose !== 'hurt', pal);
+  if (hasPart('shield') && p.shieldCd) for (let i = 0; i < 2; i++) {
+    const a = (p.shieldAng || 0) + i * Math.PI, ox = sx + p.w / 2 + Math.cos(a) * 24, oy = sy + p.h / 2 + Math.sin(a) * 24;
+    if (p.shieldCd[i] > 0) { if (p.shieldCd[i] < 90 && (frameCount & 4)) circle(ox, oy, 2, '#78e8f8'); continue; } // about to come back
+    glow(ox, oy, 12, '#3cbcfc', 0.6); circle(ox, oy, 5, '#0a0a16'); circle(ox, oy, 4, '#3cbcfc'); circle(ox - 1, oy - 1, 2, '#fcfcfc');
+  }
   if (ultra) {
     glow(sx + p.w / 2, sy + p.h / 2, 32, '#f8d800', 0.45 + ((frameCount >> 1) & 1) * 0.25);
     for (let i = 0; i < 4; i++) { const a = frameCount * 0.25 + i * Math.PI / 2; R(sx + p.w / 2 + Math.cos(a) * 16 - 1, sy + p.h / 2 + Math.sin(a) * 16 - 1, 3, 3, '#fcfcfc'); }
@@ -995,7 +1011,7 @@ function drawSelect() {
   });
   const ow = ownedWeapons();
   ow.forEach((w, i) => drawWeaponIcon(w, 14 + i * 14, 210));
-  text('ENTER START  X SHOP', VW - 12, 211, '#a8a8b8', 1, 'right');
+  text('ENTER START  X SHOP  C KELEMAHAN', VW - 12, 211, '#a8a8b8', 1, 'right');
 }
 
 // 14x14 icons for the shop parts
@@ -1006,8 +1022,46 @@ function drawPartIcon(key, x, y) {
     case 'jet': sprite(x, y, 1, 14, [[2, 1, 4, 10, '#8a8a9a'], [8, 1, 4, 10, '#8a8a9a']], [[3, 11, 2, 3, '#f8a800'], [9, 11, 2, 3, '#f8a800'], [3, 2, 1, 6, '#c8c8d8'], [9, 2, 1, 6, '#c8c8d8']]); break;
     case 'core': sprite(x, y, 1, 14, [[4, 1, 6, 12, '#2878d8'], [1, 4, 12, 6, '#2878d8']], [[5, 5, 4, 4, '#a8f0fc'], [6, 6, 2, 2, '#fcfcfc']]); break;
     case 'super': sprite(x, y, 1, 14, [[0, 4, 9, 6, '#3cbcfc']], [[2, 5, 4, 3, '#fcfcfc'], [11, 1, 2, 7, '#f8d800'], [9, 3, 6, 2, '#f8d800']]); break;
+    case 'shield': sprite(x, y, 1, 14, [[1, 5, 4, 4, '#3cbcfc'], [9, 5, 4, 4, '#3cbcfc']], [[2, 6, 2, 2, '#fcfcfc'], [10, 6, 2, 2, '#fcfcfc'], [5, 2, 4, 1, '#a8f0fc'], [5, 11, 4, 1, '#a8f0fc'], [6, 6, 2, 2, '#686878']]); break;
+    case 'omega': sprite(x, y, 1, 14, [[2, 1, 10, 9, '#c83cf8'], [1, 9, 4, 4, '#c83cf8'], [9, 9, 4, 4, '#c83cf8']], [[4, 3, 6, 6, '#1a0a2a'], [5, 4, 4, 4, '#f8a8fc'], [6, 5, 2, 2, '#fcfcfc']]); break;
     case 'ultra': sprite(x, y, 1, 14, [[5, 0, 4, 14, '#f8b800'], [0, 5, 14, 4, '#f8b800'], [3, 3, 8, 8, '#f8d800']], [[5, 5, 4, 4, '#fcfcfc']]); break;
   }
+}
+
+// strategy screen: what each boss drops and what hurts it, plus the order that always uses a weakness
+function weakChain() {
+  const beats = {}; // weapon -> the boss it is the weakness of
+  for (const k of STAGE_ORDER) beats[BOSSES[k].weak] = k;
+  const order = [STAGE_ORDER[0]];
+  while (order.length < STAGE_ORDER.length) { const next = beats[BOSSES[order[order.length - 1]].weapon]; if (!next || order.includes(next)) break; order.push(next); }
+  return order;
+}
+function drawWeakChart() {
+  const g = ctx.createLinearGradient(0, 0, 0, VH);
+  g.addColorStop(0, '#0a1430'); g.addColorStop(1, '#2a0a1a');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH);
+  text('KELEMAHAN BOSS', VW / 2, 6, '#fcfcfc', 2, 'center');
+  text('BOSS', 40, 26, '#8888a0'); text('SENJATA DIDAPAT', 142, 26, '#8888a0'); text('LEMAH TERHADAP', 262, 26, '#8888a0');
+  const owned = ownedWeapons();
+  STAGE_ORDER.forEach((k, i) => {
+    const def = BOSSES[k], y = 38 + i * 17, weak = WEAPONS[def.weak], have = owned.includes(def.weak);
+    R(12, y - 3, VW - 24, 15, i & 1 ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.07)');
+    ctx.save(); ctx.translate(16, y - 3); ctx.scale(0.55, 0.55); drawRobot(0, 0, 1, 'stand', 0, false, save.cleared[k] ? PAL_WHITE : def.pal, def.style); ctx.restore();
+    text(def.name, 40, y, save.cleared[k] ? '#888898' : def.pal.b);
+    drawWeaponIcon(k, 142, y - 2); text(WEAPONS[k].short, 156, y, '#a8a8b8');
+    drawWeaponIcon(def.weak, 262, y - 2); text(weak.short, 276, y, have ? weak.pal.b : '#686878');
+    text(have ? 'ADA' : '-', VW - 18, y, have ? '#b8f818' : '#686878', 1, 'right');
+  });
+  // the weakness chain: beating each boss gives the weapon the next one is weak to
+  const order = weakChain(), x0 = (VW - order.length * 52 + 20) / 2;
+  text('URUTAN SARAN: SENJATA TIAP BOSS = KELEMAHAN BERIKUTNYA', VW / 2, 146, '#f8d800', 1, 'center');
+  order.forEach((k, i) => {
+    const x = x0 + i * 52;
+    ctx.save(); ctx.translate(x, 158); drawRobot(0, 0, 1, 'stand', 0, false, save.cleared[k] ? PAL_WHITE : BOSSES[k].pal, BOSSES[k].style); ctx.restore();
+    if (i < order.length - 1) { text('>', x + 32, 168, '#f8d800'); drawWeaponIcon(k, x + 30, 182); }
+  });
+  text('MULAI DARI BOSS MANA SAJA, LALU IKUTI PANAHNYA', VW / 2, 198, '#8888a0', 1, 'center');
+  text('C / X / ENTER KEMBALI', VW / 2, 211, '#686878', 1, 'center');
 }
 
 function drawShop() {
@@ -1018,17 +1072,17 @@ function drawShop() {
   text('SHOP', VW / 2, 8, '#fcfcfc', 2, 'center');
   text('POIN ' + save.points, VW - 12, 12, '#f8d800', 1, 'right');
   SHOP.forEach((it, i) => {
-    const y = 32 + i * 24, sel = game.shopSel === i, own = save.parts[it.key], locked = !own && it.needs && !save.parts[it.needs];
-    R(12, y - 3, VW - 24, 22, sel ? 'rgba(60,188,252,0.22)' : 'rgba(255,255,255,0.04)');
-    if (sel) R(12, y - 3, 2, 22, '#f8d800');
-    drawPartIcon(it.key, 20, y + 1);
+    const y = 28 + i * 19, sel = game.shopSel === i, own = partState(it.key), locked = !own && it.needs && !save.parts[it.needs];
+    R(12, y - 2, VW - 24, 18, sel ? 'rgba(60,188,252,0.22)' : 'rgba(255,255,255,0.04)');
+    if (sel) R(12, y - 2, 2, 18, '#f8d800');
+    drawPartIcon(it.key, 20, y);
     text(it.name, 42, y, locked ? '#686878' : sel ? '#f8d800' : '#fcfcfc');
-    text(it.desc, 42, y + 10, locked ? '#4a4a58' : '#8888a0');
-    const status = own ? (own === 'on' ? 'ON' : 'OFF') : locked ? 'TERKUNCI' : it.price + ' POIN';
-    const col = own ? (own === 'on' ? '#b8f818' : '#888898') : locked ? '#686878' : save.points >= it.price ? '#fcfcfc' : '#f87858';
+    text(it.desc, 42, y + 9, locked ? '#4a4a58' : '#8888a0');
+    const status = own ? STATE_TEXT[own] : locked ? 'TERKUNCI' : it.price + ' POIN';
+    const col = own ? STATE_COL[own] : locked ? '#686878' : save.points >= it.price ? '#fcfcfc' : '#f87858';
     text(status, VW - 20, y, col, 1, 'right');
   });
-  if (game.shopMsgT > 0) text(game.shopMsg, VW / 2, 182, game.shopOk ? '#b8f818' : '#f87858', 1, 'center');
+  if (game.shopMsgT > 0) text(game.shopMsg, VW / 2, 186, game.shopOk ? '#b8f818' : '#f87858', 1, 'center');
   text('ATAS/BAWAH PILIH  ENTER BELI/ON-OFF  X KEMBALI', VW / 2, 200, '#8888a0', 1, 'center');
   drawVersion();
 }
@@ -1122,11 +1176,11 @@ function drawPause() {
   });
   if (!tools.length) { text('BELUM ADA', 206, 52, '#686878'); text('BELI DI SHOP', 206, 64, '#686878'); }
   tools.forEach((k, i) => {
-    const y = 50 + i * 17, sel = game.pcol === 1 && game.sel === i, on = save.parts[k] === 'on', it = SHOP.find(s => s.key === k);
+    const y = 50 + i * 17, sel = game.pcol === 1 && game.sel === i, st = partState(k), on = st === 'on', it = SHOP.find(s => s.key === k);
     if (sel) R(200, y - 4, 172, 15, 'rgba(60,188,252,0.25)');
     drawPartIcon(k, 204, y - 4);
     text(it.name.replace(' ANTI ', ' '), 222, y, sel ? '#f8d800' : on ? '#fcfcfc' : '#686878');
-    text(on ? 'ON' : 'OFF', 366, y, on ? '#b8f818' : '#888898', 1, 'right');
+    text(STATE_TEXT[st], 366, y, STATE_COL[st], 1, 'right');
   });
   text('LIFE ' + game.lives + '   POIN ' + save.points, VW / 2, 192, '#a8c8f8', 1, 'center');
   text('ARAH PILIH  ENTER PAKAI SENJATA / ON-OFF TOOLS', VW / 2, 206, '#686878', 1, 'center');
@@ -1140,6 +1194,7 @@ function render() {
     case 'title': return drawTitle();
     case 'select': return drawSelect();
     case 'shop': return drawShop();
+    case 'weak': return drawWeakChart();
     case 'intro': return drawIntro();
     case 'weaponget': return drawWeaponGet();
     case 'ending': return drawEnding();

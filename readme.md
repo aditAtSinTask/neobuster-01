@@ -2,7 +2,7 @@
 
 > Game action-platformer 2D bergaya **Mega Man** untuk browser — grafik pixel-art yang lebih kaya, tapi tetap ringan dan optimal untuk web.
 
-**Versi saat ini: `0.9.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
+**Versi saat ini: `0.10.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
 
 ---
 
@@ -56,6 +56,7 @@ Tidak perlu build atau install apa pun — cukup HTML + JavaScript murni.
 | Pause: ganti senjata & ON/OFF tools | `Enter` / `Esc`, lalu panah kiri/kanan untuk pindah kolom | Start |
 | Mute | `M` | — |
 | Buka Shop (di Stage Select) | `X` | X / B |
+| Layar Kelemahan Boss (di Stage Select) | `C` | RT / Y |
 | Reset progress (di title) | `R` | — |
 | Buka cheat box | Tekan `P` + `O` bersamaan | — |
 
@@ -93,6 +94,8 @@ Setiap stage juga punya musuh, mekanik, dan ruang boss yang hanya ada di stage i
 | Snow | **GLACIELLE** — wanita es | Frost Shard | Fire Storm |
 | Earth | **TERRALYN** — wanita tanah & batu | Rock Breaker | Thunder Beam |
 | Wind | **WINDERWOMEN** — wanita angin | Gale Shot | Rock Breaker |
+
+Tekan `C` di **Stage Select** untuk membuka layar **Kelemahan Boss**. Layar ini berisi tabel senjata yang didapat dan kelemahan tiap boss, tanda **ADA** kalau senjata kelemahannya sudah kamu punya, dan **urutan saran** berupa rantai boss: senjata dari tiap boss adalah kelemahan boss berikutnya.
 
 Setiap senjata adalah kelemahan tepat satu boss: es membuat gunting rapuh, angin memadamkan api, gunting memotong kabel, api mencairkan es, petir menghancurkan batu, dan batu terlalu berat untuk diterbangkan angin.
 
@@ -132,6 +135,8 @@ Tekan `X` di **Stage Select** untuk membuka Shop. Pilih part dengan tombol atas/
 | Core | 6.000 | Kebal 5x lebih lama setelah terkena hit |
 | Super Booster | 15.000 | Setiap tembakan biasa langsung keluar sebagai charge shot (Neo Buster: peluru besar; senjata spesial: charge shot-nya) |
 | Ultra Booster | 25.000 | Harus punya Super Booster. Tahan tembak sekitar 2,5 detik sampai karakter berkilau emas, lalu lepas untuk **ultra attack** |
+| Shield | 12.000 | 2 orb perisai mengorbit di sekitarmu. Orb yang terkena musuh atau peluru musuh menangkisnya (musuh kena damage, peluru kecil hancur), lalu hilang 10 detik sebelum muncul lagi |
+| Omega Booster | 40.000 | Harus punya Ultra Booster. Setiap tembakan langsung jadi ultra attack tanpa menahan tombol (kalau ultra sebelumnya masih berjalan, keluar charge shot). Selama Omega ON, Super Booster dan Ultra Booster berstatus **DISABLED**: tidak bisa diubah, dan setelan ON/OFF-nya kembali seperti semula saat Omega dimatikan |
 
 Ultra attack setiap senjata:
 
@@ -196,6 +201,11 @@ Detail teknis:
 ## Versi & Changelog
 
 Versi ditulis di konstanta `VERSION` di `js/engine.js`. Setiap ada perubahan, naikkan versinya dan tambahkan catatan di bawah.
+
+### 0.10.0
+- Layar **Kelemahan Boss** (tombol `C` di Stage Select) dengan tabel kelemahan dan urutan saran.
+- Part baru **Shield** (2 orb perisai yang menangkis lalu hilang 10 detik) dan **Omega Booster** (ultra attack tanpa delay; Super/Ultra Booster jadi DISABLED selama aktif).
+- Shop dan menu pause menampilkan status DISABLED.
 
 ### 0.9.0
 - Boss baru **WINDERWOMEN** (wanita angin) dengan stage benteng langit: pulau melayang di atas lautan awan, pad angin, Fanbot, sumur angin, dan ruang boss dengan awan melayang. Serangan boss: Gust (angin kencang + tornado kecil), Cyclone, dan Dive.

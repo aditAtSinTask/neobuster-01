@@ -181,46 +181,48 @@ Object.assign(BOSS_ROOMS, {
 });
 
 // ================= LOOKS =================
-const VW_W = '#fcfcfc';
 Object.assign(ROBOT_STYLES, {
   hydro: {
-    // fin crest and gills
-    back: (p, dy, w) => {
-      p(9, -3 + dy, 5, 5, w ? VW_W : '#a8e8fc');
-      p(12, -6 + dy, 3, 4, w ? VW_W : '#e0f8fc');
+    // a fin crest and gills on the chest
+    angry: true,
+    colors: { X: '#a8e8fc', Y: '#1868b8', G: '#58e8f8' },
+    head(R) {
+      const { hx, hy } = R;
+      R.shape('X', R.poly([hx - 6, hy - 5, hx + 1, hy - 17, hx + 4, hy - 16, hx + 3, hy - 6]));
     },
-    front: (d, dy, w) => {
-      if (!w) {
-        d(8, 12 + dy, 2, 1, '#1868b8');
-        d(8, 14 + dy, 2, 1, '#1868b8');
-      }
+    chest(R) {
+      const [x, y] = R.chest;
+      for (const d of [-2, 1]) R.shape('Y', R.cap(x - 6, y + d, x - 3, y + d, 1.2), false);
     },
   },
   toxic: {
-    // tank on the back and a gas mask
-    back: (p, dy, w) => {
-      p(2, 9 + dy, 5, 8, w ? VW_W : '#5a7a28');
-      p(3, 7 + dy, 3, 2, w ? VW_W : '#98e838');
+    // a tank on the back and a gas mask over the mouth
+    angry: true,
+    colors: { X: '#5a7a28', Y: '#98e838', V: '#2a3a18', G: '#98e838' },
+    back(R) {
+      const y = R.chest[1] - 7;
+      R.shape('X', R.rect(6, y, 8, 14, 3));
+      R.shape('Y', R.disc(10, y - 1, 2));
     },
-    front: (d, dy, w) => {
-      if (!w) {
-        d(12, 7 + dy, 5, 3, '#2a3a18');
-        d(16, 8 + dy, 2, 2, '#98e838');
-      }
+    head(R) {
+      const { hx, hy } = R;
+      if (R.kind === 'back') return;
+      R.shape('V', R.rect(hx, hy + 2, 9, 5, 2));
+      R.shape('Y', R.disc(hx + 8, hy + 5, 2.2));
     },
   },
   shadow: {
-    // horns, a cape and violet eyes
-    back: (p, dy, w) => {
-      p(2, 9 + dy, 5, 13, w ? VW_W : '#22183a');
-      p(7, -3 + dy, 2, 5, w ? VW_W : '#3a2858');
-      p(15, -3 + dy, 2, 5, w ? VW_W : '#3a2858');
+    // horns, a cape and glowing violet eyes
+    angry: true,
+    colors: { X: '#3a2858', Y: '#22183a', E: '#f0d8fc', I: '#a028e8', G: '#a878e8', L: '#7a68a8', A: '#a878e8' },
+    back(R) {
+      const y = R.chest[1] - 5;
+      R.shape('Y', R.poly([15, y, 32, y, 36, y + 26, 24, y + 22, 10, y + 27]));
     },
-    front: (d, dy, w) => {
-      if (!w) {
-        d(13, 5 + dy, 2, 3, '#e8a8fc');
-        d(14, 6 + dy, 1, 2, '#8a28d8');
-      }
+    head(R) {
+      const { hx, hy } = R;
+      R.shape('X', R.poly([hx - 5, hy - 5, hx - 9, hy - 16, hx - 2, hy - 7]));
+      R.shape('X', R.poly([hx + 3, hy - 7, hx + 8, hy - 16, hx + 7, hy - 4]));
     },
   },
   sonic: {
@@ -228,16 +230,15 @@ Object.assign(ROBOT_STYLES, {
     female: true,
     hair: '#e858b8',
     skirt: '#f8a8d8',
-    back: (p, dy, w) => {
-      p(3, 3 + dy, 5, 14, w ? VW_W : '#e858b8');
-      p(0, 7 + dy, 4, 9, w ? VW_W : '#c84898');
+    colors: { X: '#202028', Y: '#f878c8', G: '#f878c8' },
+    back(R) {
+      R.shape('Z', R.ell(R.hx - 8, R.hy + 11, 5.5, 11));
     },
-    front: (d, dy, w) => {
-      if (!w) {
-        d(8, 0 + dy, 8, 1, '#202028');
-        d(6, 4 + dy, 3, 4, '#202028');
-        d(6, 5 + dy, 2, 2, '#f878c8');
-      }
+    head(R) {
+      const { hx, hy } = R;
+      R.shape('X', R.cap(hx - 6, hy - 2, hx - 1, hy - 9, 2));
+      R.shape('X', R.disc(hx - 4.5, hy + 1.5, 3.8));
+      R.shape('Y', R.disc(hx - 4.5, hy + 1.5, 1.8), false);
     },
   },
   light: {
@@ -245,30 +246,35 @@ Object.assign(ROBOT_STYLES, {
     female: true,
     hair: '#f8d878',
     skirt: '#fcfcf0',
-    back: (p, dy, w) => {
-      p(3, 3 + dy, 5, 15, w ? VW_W : '#f8d878');
-      p(1, 9 + dy, 4, 10, w ? VW_W : '#fcf0a8');
-      p(10, -3 + dy, 4, 4, w ? VW_W : '#a8f0fc');
-      p(11, -6 + dy, 2, 3, w ? VW_W : '#e8fcfc');
+    colors: { X: '#a8f0fc', Y: '#e8fcfc', G: '#a8f0fc' },
+    back(R) {
+      R.shape('Z', R.ell(R.hx - 9, R.hy + 11, 6, 12));
+    },
+    head(R) {
+      const { hx, hy } = R;
+      R.shape('X', R.poly([hx + 1, hy - 18, hx + 4, hy - 11, hx + 1, hy - 6, hx - 2, hy - 11]));
+      R.shape('Y', R.poly([hx + 1, hy - 15, hx + 2.5, hy - 11, hx + 1, hy - 9, hx - 0.5, hy - 11]), false);
     },
   },
   time: {
-    // hair bun, clock-hand crest and a clock on the chest
+    // a hair bun, a clock-hand crest and a clock on the chest
     female: true,
     hair: '#8a5a38',
     skirt: '#c89858',
-    back: (p, dy, w) => {
-      p(4, 0 + dy, 5, 5, w ? VW_W : '#8a5a38');
-      p(2, 4 + dy, 5, 10, w ? VW_W : '#8a5a38');
-      p(12, -6 + dy, 2, 6, w ? VW_W : '#c8a048');
-      p(13, -3 + dy, 4, 2, w ? VW_W : '#c8a048');
+    colors: { X: '#c8a048', Y: '#fcf0d0', G: '#c8a048' },
+    back(R) {
+      R.shape('Z', R.disc(R.hx - 8, R.hy - 5, 4.5));
     },
-    front: (d, dy, w) => {
-      if (!w) {
-        d(10, 12 + dy, 4, 4, '#fcf0d0');
-        d(12, 12 + dy, 1, 2, '#202028');
-        d(12, 13 + dy, 2, 1, '#202028');
-      }
+    head(R) {
+      const { hx, hy } = R;
+      R.shape('X', R.cap(hx + 1, hy - 7, hx + 1, hy - 16, 2.4));
+      R.shape('X', R.cap(hx + 1, hy - 7, hx + 6, hy - 11, 2.4));
+    },
+    chest(R) {
+      const [x, y] = R.chest;
+      R.shape('Y', R.disc(x, y, 3.4));
+      R.shape('V', R.cap(x, y, x, y - 2.2, 0.9), false);
+      R.shape('V', R.cap(x, y, x + 1.8, y, 0.9), false);
     },
   },
 });

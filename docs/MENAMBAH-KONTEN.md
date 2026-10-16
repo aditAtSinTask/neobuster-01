@@ -47,19 +47,19 @@ File benua cukup mengisi tabel dan **registry** yang sudah ada dengan `Object.as
 
 ### Gambar (`js/art.js`)
 
-| Tabel / registry  | Isi                                                                                                 |
-| ----------------- | --------------------------------------------------------------------------------------------------- |
-| `TILESETS[k]`     | `ground`, `block`, `spike`, `ladder`, opsional `ice`                                                |
-| `BG_PAINTERS[k]`  | 2 lapis background parallax                                                                         |
-| `ROOM_ART[k]`     | opsional: hiasan dinding ruang boss                                                                 |
-| `ROBOT_STYLES[k]` | tampilan boss: `female`, `hair`, `skirt`, `back(p, dy, white)`, `front(d, dy, white)`               |
-| `WEAPON_ICONS[k]` | ikon senjata                                                                                        |
-| `PLAT_COL[k]`     | warna platform bergerak                                                                             |
-| `AMBIENTS[name]`  | opsional: efek ambient baru `{ n, update(q), draw(q, x, y) }` (nama dipakai di `STAGES[k].ambient`) |
-| `ROOM_FX[k]`      | opsional: animasi di ruang boss `(rx, ry) => { ... }`                                               |
-| `POST_FX[k]`      | opsional: efek layar penuh setelah semua digambar (contoh: kegelapan stage `shadow`)                |
-| `PAD_DRAW[k]`     | opsional: gambar pad lontar `U` `(sx, sy) => { ... }`                                               |
-| `LIQUID[k]`       | opsional: warna cairan `~` `[dasar, puncak, buih]` (contoh: lumpur racun stage `toxic`)             |
+| Tabel / registry  | Isi                                                                                                                                                                                                                                                                                                                           |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TILESETS[k]`     | `ground`, `block`, `spike`, `ladder`, opsional `ice`                                                                                                                                                                                                                                                                          |
+| `BG_PAINTERS[k]`  | 2 lapis background parallax                                                                                                                                                                                                                                                                                                   |
+| `ROOM_ART[k]`     | opsional: hiasan dinding ruang boss                                                                                                                                                                                                                                                                                           |
+| `ROBOT_STYLES[k]` | tampilan boss di rig karakter: `female`, `angry`, `hair`, `skirt`, `colors` (`X`, `Y`, `V`, `E`, `U`), opsional `anim(opt)`, dan hook `back(R)`, `chest(R)`, `head(R)`, `front(R)` yang menambah bentuk (`R.shape(huruf, R.disc/ell/cap/poly/rect(...))`). Lihat komentar di atas `drawRobot()` dan contoh di `js/vespera.js` |
+| `WEAPON_ICONS[k]` | ikon senjata                                                                                                                                                                                                                                                                                                                  |
+| `PLAT_COL[k]`     | warna platform bergerak                                                                                                                                                                                                                                                                                                       |
+| `AMBIENTS[name]`  | opsional: efek ambient baru `{ n, update(q), draw(q, x, y) }` (nama dipakai di `STAGES[k].ambient`)                                                                                                                                                                                                                           |
+| `ROOM_FX[k]`      | opsional: animasi di ruang boss `(rx, ry) => { ... }`                                                                                                                                                                                                                                                                         |
+| `POST_FX[k]`      | opsional: efek layar penuh setelah semua digambar (contoh: kegelapan stage `shadow`)                                                                                                                                                                                                                                          |
+| `PAD_DRAW[k]`     | opsional: gambar pad lontar `U` `(sx, sy) => { ... }`                                                                                                                                                                                                                                                                         |
+| `LIQUID[k]`       | opsional: warna cairan `~` `[dasar, puncak, buih]` (contoh: lumpur racun stage `toxic`)                                                                                                                                                                                                                                       |
 
 ### Senjata, boss, musuh (`js/actors.js`)
 

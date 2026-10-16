@@ -2,7 +2,7 @@
 
 > Game action-platformer 2D bergaya **Mega Man** untuk browser — pixel art dengan kepadatan pixel 2x yang detail, tapi tetap ringan dan optimal untuk web.
 
-**Versi saat ini: `1.0.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
+**Versi saat ini: `1.1.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
 
 ---
 
@@ -26,6 +26,7 @@
 
 ## Konsep
 
+- Kamu bermain sebagai **Nexo**, remaja berambut jabrik dengan armor biru beraksen emas dan arm cannon (buster).
 - Dunia terbagi menjadi **benua**, masing-masing berisi **6 boss**. Pilih benua di **Peta Dunia**, lalu pilih boss di benua itu dalam urutan bebas. Benua berikutnya terbuka setelah semua boss di benua sebelumnya dikalahkan. Saat ini tersedia **Benua Azura** dan **Benua Vespera** (12 boss); benua baru akan menyusul.
 - Setiap stage panjang dan bertingkat: ada bagian **naik** (menara, tebing, lift) dan bagian **bawah tanah** (gua, saluran, tambang), dengan rintangan seperti duri, jurang, lava, lantai es, balok rapuh, tangga, platform bergerak, gergaji, semburan api, sinar listrik, batu jatuh, air, gas racun, kegelapan, laser, bandul, dan musuh.
 - Ada **2 checkpoint** di setiap stage. Kalau mati, kamu lanjut dari checkpoint terakhir yang sudah dilewati.
@@ -267,12 +268,15 @@ neobuster/
 ├── readme.md
 ├── CHANGELOG.md
 ├── docs/
-│   └── MENAMBAH-KONTEN.md  # panduan menambah benua, boss, part, musuh
+│   ├── MENAMBAH-KONTEN.md  # panduan menambah benua, boss, part, musuh
+│   └── ART-STYLE.md        # panduan gaya karakter anime
 ├── package.json    # script yarn format / format:check (Prettier)
 ├── .prettierrc.json
 └── js/
     ├── engine.js   # versi, canvas, input, audio & musik, font pixel, sprite & glow
     ├── art.js      # sprite robot, background parallax, tileset, ikon senjata (+ registry untuk file benua)
+    ├── hero-sprites.js  # sprite Nexo (hero) hasil konversi lembar karakternya
+    ├── hero-sprites-hd.js  # sprite Nexo versi HD (3 pixel per pixel game) untuk layar resolusi tinggi
     ├── levels.js   # data benua, stage & layout level Benua Azura
     ├── actors.js   # fisika (termasuk air), player, senjata, musuh, hazard, platform, boss Benua Azura
     ├── cheats.js   # cheat box (P + O) dan daftar cheat code
@@ -282,6 +286,7 @@ neobuster/
 
 Detail teknis:
 
+- Hero (Nexo) memakai sprite hasil konversi dari lembar karakternya (`js/hero-sprites.js`, dan `js/hero-sprites-hd.js` yang 1,5x lebih rapat untuk layar dengan 6 pixel layar per pixel game): pixel map per frame dengan palet tetap; rambut, sarung tangan, dan sepatu diwarnai ulang sesuai senjata. Boss dibuat dengan rig: bagian tubuh berupa bentuk sederhana (lingkaran, elips, kapsul, poligon) yang digerakkan lewat sudut sendi, lalu dirasterisasi tanpa anti-alias ke grid pixel kecil 48 × 48 dengan outline per bagian, dan disimpan sebagai bitmap. Logo dibuat dari huruf poligon yang dirasterisasi ke pixel kecil dengan efek krom, api, outline, dan ekstrusi.
 - Tata letak memakai ruang logis **384 × 224**, tapi pixel art-nya 2x lebih rapat: satu pixel lama dipecah jadi 2×2 pixel kecil yang tetap tajam. Karakter punya outline 1 pixel kecil, sudut terpotong, dan shading berlapis; teks dan tile juga 2x lebih detail. Kanvas digambar di resolusi layar (kelipatan genap) agar setiap pixel kecil tetap pas di pixel layar.
 - Peta level digambar per potongan 32 kolom saat terlihat, supaya hemat memori.
 - Level berukuran **300 × 44 tile** (16 px). Kamera mengikuti player ke segala arah, kecuali di ruang boss.
@@ -290,7 +295,7 @@ Detail teknis:
 
 ## Menambah Konten
 
-Panduan menambah benua, boss, part shop, dan musuh ada di [docs/MENAMBAH-KONTEN.md](docs/MENAMBAH-KONTEN.md). Saat game dimuat, validator konten memberi peringatan di console browser kalau ada data yang belum lengkap.
+Panduan menambah benua, boss, part shop, dan musuh ada di [docs/MENAMBAH-KONTEN.md](docs/MENAMBAH-KONTEN.md). Patokan gaya karakter anime (proporsi wajah, mata, rambut, outline, palet) ada di [docs/ART-STYLE.md](docs/ART-STYLE.md). Saat game dimuat, validator konten memberi peringatan di console browser kalau ada data yang belum lengkap.
 
 ## Versi
 

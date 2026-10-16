@@ -1493,18 +1493,19 @@ function drawPickup(k) {
     );
     glow(x + 7, y + 6, 12, '#f8d800', 0.5);
   } else {
-    const pal = WEAPONS[player.weapon].pal;
+    // Nexo's head, with the hair in the weapon's colour like the sprite
+    const hair = heroColors(WEAPONS[player.weapon].pal);
     sprite(
       x,
       y,
       1,
       14,
-      [[2, 1, 10, 10, pal.B]],
+      [[2, 1, 10, 10, hair.H]],
       [
         [5, 4, 6, 7, SKIN],
         [7, 5, 2, 3, '#fcfcfc'],
         [8, 6, 1, 2, '#000000'],
-        [3, 2, 4, 2, pal.b],
+        [3, 2, 4, 2, hair.L],
       ],
     );
   }
@@ -1542,12 +1543,14 @@ function drawPlayer() {
   if (p.state === 'slide' || p.h < 22) pose = 'slide';
   else if (p.state === 'climb') {
     pose = 'climb';
-    fr = (p.anim >> 3) & 1;
+    fr = (p.anim >> 3) & 3; // four climbing frames
   } else if (p.state === 'hurt') pose = 'hurt';
-  else if (!p.onGround) pose = 'jump';
-  else if (Math.abs(p.vx) > 0.1) {
+  else if (!p.onGround) {
+    pose = 'jump';
+    fr = p.vy < 0 ? 0 : 1; // rising or falling
+  } else if (Math.abs(p.vx) > 0.1) {
     pose = 'run';
-    fr = [0, 1, 2, 1][(p.anim >> 3) & 3];
+    fr = p.anim; // the running tick count: the hero's running cycle picks its frame from it
   }
 
   // special weapons charge in their own colour; the buster keeps the classic green -> blue
@@ -1794,11 +1797,261 @@ function renderWorld() {
 }
 
 // ================= SCREENS =================
+// ---------- logo ----------
+// Letters are angular polygons in a 10 x 14 unit box (1 unit = 2.5 px), rasterised at fine-pixel size and slanted.
+// Each word is then built pixel by pixel: a chrome or fire gradient with bevelled edges, a 3D extrusion, a thick
+// dark outline and a bright rim. NEO is chrome, BUSTER is molten metal with glowing cracks.
+const LOGO_GLYPHS = {
+  N: [[0, 0, 3, 0, 7, 7.5, 7, 0, 10, 0, 10, 14, 7, 14, 3, 6.5, 3, 14, 0, 14]],
+  E: [[2, 0, 10, 0, 10, 3, 3, 3, 3, 5.5, 8.5, 5.5, 8.5, 8.5, 3, 8.5, 3, 11, 10, 11, 10, 14, 0, 14, 0, 2]],
+  O: [
+    [2, 0, 10, 0, 10, 12, 8, 14, 0, 14, 0, 2],
+    [3, 3, 7, 3, 7, 11, 3, 11],
+  ],
+  B: [
+    [0, 0, 8, 0, 10, 2, 10, 5.5, 9, 7, 10, 8.5, 10, 12, 8, 14, 0, 14],
+    [3, 3, 7, 3, 7, 5.5, 3, 5.5],
+    [3, 8.5, 7, 8.5, 7, 11, 3, 11],
+  ],
+  U: [[0, 0, 3, 0, 3, 11, 7, 11, 7, 0, 10, 0, 10, 12, 8, 14, 2, 14, 0, 12]],
+  S: [
+    [
+      2, 0, 10, 0, 10, 3, 3, 3, 3, 5.5, 8, 5.5, 10, 7.5, 10, 12, 8, 14, 0, 14, 0, 11, 7, 11, 7, 8.5, 2, 8.5, 0, 6.5, 0,
+      2,
+    ],
+  ],
+  T: [[0, 0, 10, 0, 10, 3, 6.5, 3, 6.5, 14, 3.5, 14, 3.5, 3, 0, 3]],
+  R: [
+    [0, 0, 8, 0, 10, 2, 10, 6.5, 8.5, 8, 10, 14, 6.8, 14, 5.2, 8.5, 3, 8.5, 3, 14, 0, 14],
+    [3, 3, 7, 3, 7, 5.5, 3, 5.5],
+  ],
+};
+const LOGO_STYLE = {
+  chrome: {
+    grad: [
+      [0, '#ffffff'],
+      [0.3, '#c8f4ff'],
+      [0.48, '#70b8e0'],
+      [0.5, '#1c4a80'],
+      [0.56, '#3a90d0'],
+      [0.8, '#a8ecff'],
+      [1, '#e8fcff'],
+    ],
+    ext: ['#1c3c78', '#0a1638'],
+    rim: '#58e8ff',
+  },
+  fire: {
+    grad: [
+      [0, '#fff8b0'],
+      [0.25, '#ffd840'],
+      [0.55, '#ff8a10'],
+      [0.8, '#e83808'],
+      [1, '#a01804'],
+    ],
+    ext: ['#7a1a06', '#380a02'],
+    rim: '#ff9a28',
+    cracks: true,
+  },
+};
+const LOGO_U = 5, // fine pixels per glyph unit
+  LOGO_SLANT = 0.28,
+  LOGO_PAD = 10;
+// returns { cv, mask, w, h } in fine pixels (draw at half size)
+function logoWord(word, style) {
+  const st = LOGO_STYLE[style],
+    gw = 10 * LOGO_U,
+    gh = 14 * LOGO_U,
+    gap = 3 * LOGO_U,
+    slant = Math.ceil(gh * LOGO_SLANT);
+  const w = word.length * gw + (word.length - 1) * gap + slant + LOGO_PAD * 2,
+    h = gh + LOGO_PAD * 2;
+  // 1) the letter mask
+  const mk = makeCanvas(w, h, g => {
+    g.fillStyle = '#fff';
+    [...word].forEach((ch, i) => {
+      const x0 = LOGO_PAD + i * (gw + gap);
+      g.beginPath();
+      for (const poly of LOGO_GLYPHS[ch]) {
+        for (let k = 0; k < poly.length; k += 2) {
+          const y = poly[k + 1] * LOGO_U,
+            x = x0 + poly[k] * LOGO_U + (gh - y) * LOGO_SLANT;
+          if (k) g.lineTo(x, LOGO_PAD + y);
+          else g.moveTo(x, LOGO_PAD + y);
+        }
+        g.closePath();
+      }
+      g.fill('evenodd');
+    });
+  });
+  const md = mk.getContext('2d').getImageData(0, 0, w, h).data;
+  const M = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i++) M[i] = md[i * 4 + 3] > 127 ? 1 : 0;
+  const m = (x, y) => (x >= 0 && y >= 0 && x < w && y < h ? M[y * w + x] : 0);
+  // 2) extrusion straight down, then the dark outline and the rim around letters + extrusion
+  const DEPTH = 5,
+    E = new Uint8Array(w * h),
+    body = (x, y) => m(x, y) || (x >= 0 && y >= 0 && x < w && y < h && E[y * w + x]);
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) if (!M[y * w + x]) for (let k = 1; k <= DEPTH; k++) if (m(x, y - k)) E[y * w + x] = k;
+  const near = (x, y, r) => {
+    for (let dy = -r; dy <= r; dy++)
+      for (let dx = -r; dx <= r; dx++) if (Math.abs(dx) + Math.abs(dy) <= r + 1 && body(x + dx, y + dy)) return true;
+    return false;
+  };
+  // gradient colours per row of the letters
+  const cols = [];
+  const gr = makeCanvas(1, gh, g => {
+    const lg = g.createLinearGradient(0, 0, 0, gh);
+    for (const [t, c] of st.grad) lg.addColorStop(t, c);
+    g.fillStyle = lg;
+    g.fillRect(0, 0, 1, gh);
+  })
+    .getContext('2d')
+    .getImageData(0, 0, 1, gh).data;
+  for (let y = 0; y < gh; y++) cols.push([gr[y * 4], gr[y * 4 + 1], gr[y * 4 + 2]]);
+  const hex = c => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
+  const [e0, e1, outline, rim] = [hex(st.ext[0]), hex(st.ext[1]), hex('#06061a'), hex(st.rim)];
+  const mixc = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
+  const lit = (c, t) => (t > 0 ? mixc(c, [255, 255, 255], t) : mixc(c, [0, 0, 0], -t));
+  // glowing cracks across the molten letters (a fixed pseudo-random zigzag per word)
+  const crack = new Uint8Array(w * h);
+  if (st.cracks) {
+    const rnd = mulberry(word.length * 31 + 7);
+    for (let n = 0; n < word.length * 1.5; n++) {
+      let x = (LOGO_PAD + rnd() * (w - LOGO_PAD * 2)) | 0,
+        y = (LOGO_PAD + gh * (0.4 + rnd() * 0.45)) | 0;
+      const dir = rnd() < 0.5 ? -1 : 1,
+        len = 10 + rnd() * 10;
+      for (let k = 0; k < len; k++) {
+        if (m(x, y)) crack[y * w + x] = 1;
+        if (rnd() < 0.35) y += rnd() < 0.5 ? -1 : 1;
+        else x += dir;
+      }
+    }
+  }
+  const out = makeCanvas(w, h);
+  const og = out.getContext('2d'),
+    img = og.createImageData(w, h),
+    d = img.data;
+  const put = (i, c, a = 255) => {
+    d[i * 4] = c[0];
+    d[i * 4 + 1] = c[1];
+    d[i * 4 + 2] = c[2];
+    d[i * 4 + 3] = a;
+  };
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      if (M[i]) {
+        let c = cols[clamp(y - LOGO_PAD, 0, gh - 1)];
+        if (!m(x, y - 1) || !m(x - 1, y))
+          c = lit(c, !m(x, y - 1) ? 0.75 : 0.35); // bevel light
+        else if (!m(x, y + 1) || !m(x + 1, y)) c = lit(c, -0.35); // bevel shade
+        if (crack[i]) c = st.cracks ? [255, 244, 160] : c;
+        else if (crack[i - 1] || crack[i + w]) c = lit(c, -0.45);
+        put(i, c);
+      } else if (E[i]) put(i, mixc(e0, e1, (E[i] - 1) / (DEPTH - 1)));
+      else if (near(x, y, 1)) put(i, outline);
+      else if (near(x, y, 2)) put(i, rim);
+    }
+  og.putImageData(img, 0, 0);
+  return { cv: out, mask: mk, w, h };
+}
+let _logo = null;
+const _logoShine = makeCanvas(1, 1);
+function drawLogoWord(L, x, y, t) {
+  const smooth = ctx.imageSmoothingEnabled;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(L.cv, x, y, L.w / 2, L.h / 2);
+  ctx.imageSmoothingEnabled = smooth;
+  // a shine sweeping across the letters every few seconds
+  const p = (t % 240) / 60;
+  if (p > 1.4) return;
+  const c = _logoShine,
+    g = c.getContext('2d');
+  if (c.width !== L.w || c.height !== L.h) {
+    c.width = L.w;
+    c.height = L.h;
+  }
+  g.globalCompositeOperation = 'source-over';
+  g.clearRect(0, 0, L.w, L.h);
+  g.drawImage(L.mask, 0, 0);
+  g.globalCompositeOperation = 'source-in';
+  g.fillStyle = 'rgba(255,255,255,0.75)';
+  const bx = -40 + p * (L.w + 80);
+  g.beginPath();
+  g.moveTo(bx, 0);
+  g.lineTo(bx + 14, 0);
+  g.lineTo(bx - 6, L.h);
+  g.lineTo(bx - 20, L.h);
+  g.fill();
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(c, x, y, L.w / 2, L.h / 2);
+  ctx.imageSmoothingEnabled = smooth;
+}
+// framed emblems at both ends of BUSTER: an energy orb (left) and a circuit star (right)
+function drawLogoEmblem(x, y, kind, t) {
+  R(x - 1, y - 1, 26, 26, '#06061a');
+  R(x, y, 24, 24, '#0c1838');
+  R(x + 1, y + 1, 22, 22, '#14285a');
+  R(x + 1, y + 1, 22, HP, '#58e8ff');
+  R(x + 1, y + 1, HP, 22, '#58e8ff');
+  R(x + 2, y + 2, 20, 20, '#081028');
+  for (const [cx, cy] of [
+    [x + 3, y + 3],
+    [x + 20, y + 3],
+    [x + 3, y + 20],
+    [x + 20, y + 20],
+  ])
+    R(cx, cy, 1, 1, '#3a6a9a');
+  const cx = x + 12,
+    cy = y + 12;
+  if (kind === 'orb') {
+    const pulse = Math.sin(t * 0.08) * 0.8;
+    glow(cx, cy, 14, '#ff8a20', 0.8);
+    circle(cx, cy, 6.5 + pulse, '#c83008');
+    circle(cx, cy, 5 + pulse, '#ff8a10');
+    circle(cx - 0.5, cy - 0.5, 3, '#ffd840');
+    circle(cx - 1, cy - 1, 1.5, '#fffce0');
+    for (let i = 0; i < 4; i++) {
+      const a = t * 0.05 + (i * Math.PI) / 2;
+      R(cx + Math.cos(a) * 9 - 0.5, cy + Math.sin(a) * 9 - 0.5, 1, 1, '#ffd840');
+    }
+  } else {
+    for (const [dx, dy] of [
+      [-8, 0],
+      [8, 0],
+      [0, -8],
+      [0, 8],
+    ]) {
+      R(cx + Math.min(0, dx), cy - 0.5, Math.abs(dx), 1, '#2a6aa8');
+      R(cx - 0.5, cy + Math.min(0, dy), 1, Math.abs(dy), '#2a6aa8');
+      R(cx + dx - 1, cy + dy - 1, 2, 2, '#58e8ff');
+    }
+    const tw = 1 + Math.abs(Math.sin(t * 0.06)) * 1.5;
+    glow(cx, cy, 12, '#fcf8c0', 0.7);
+    for (let i = 0; i < 8; i++) {
+      const a = (i * Math.PI) / 4,
+        len = (i & 1 ? 3 : 6) + tw;
+      for (let r = 0; r < len; r += HP) R(cx + Math.cos(a) * r - 0.5, cy + Math.sin(a) * r - 0.5, 1, 1, '#fcf8c0');
+    }
+    circle(cx, cy, 2.5, '#fcfcfc');
+  }
+}
 function drawLogo(y) {
-  const x = Math.round(VW / 2 - textWidth('NEOBUSTER', 4) / 2);
-  glow(VW / 2, y + 14, 90, '#3cbcfc', 0.25);
-  text('NEO', x, y, '#3cbcfc', 4);
-  text('BUSTER', x + textWidth('NEO', 4) + 4, y, '#fcfcfc', 4);
+  if (!_logo) _logo = { neo: logoWord('NEO', 'chrome'), buster: logoWord('BUSTER', 'fire') };
+  const { neo, buster } = _logo,
+    t = frameCount,
+    bw = buster.w / 2,
+    bx = Math.round(VW / 2 - bw / 2),
+    by = y + 29,
+    nx = bx + 12;
+  glow(VW / 2, by + 10, 110, '#ff6a10', 0.22);
+  glow(nx + neo.w / 4, y + 12, 70, '#3cbcfc', 0.3);
+  drawLogoEmblem(bx - 20, by + 10, 'orb', t);
+  drawLogoEmblem(bx + bw - 4, by + 10, 'star', t);
+  drawLogoWord(buster, bx, by, t);
+  drawLogoWord(neo, nx, y - 4, t + 20);
 }
 // title art: a night sky with a big moon over a city skyline, and the hero on a rooftop in front of a spinning ring
 // of energy with the buster charging
@@ -1910,7 +2163,7 @@ function drawTitleArt() {
 }
 function drawTitle() {
   drawTitleArt();
-  drawLogo(26);
+  drawLogo(14);
   if (save.snap) {
     ['CONTINUE', 'NEW GAME'].forEach((o, i) => {
       const sel = game.menu === i;

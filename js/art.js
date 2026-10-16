@@ -1,5 +1,5 @@
 'use strict';
-// Art: robot sprites (hero + 5 bosses), themed parallax backgrounds and tilesets, weapon icons.
+// Art: robot sprites (hero + 6 bosses), themed parallax backgrounds and tilesets, weapon icons.
 
 const SKIN = '#fcd8a8';
 const PAL_HERO = { B: '#0058f8', b: '#3cbcfc', S: SKIN };
@@ -7,15 +7,15 @@ const PAL_MID = { B: '#00a800', b: '#b8f818', S: SKIN };
 const PAL_FULL = { B: '#3cbcfc', b: '#fcfcfc', S: '#fcfcfc' };
 const PAL_WHITE = { B: '#fcfcfc', b: '#fcfcfc', S: '#fcfcfc' };
 
-// 24x24 robot. ox,oy = top-left of the box (feet at oy+24). style: hero | cut | fire | elec | snow | earth
+// 24x24 robot. ox,oy = top-left of the box (feet at oy+24). style: hero | cut | fire | elec | snow | earth | wind
 function drawRobot(ox, oy, f, pose, fr, arm, pal, style = 'hero', opt = {}) {
   const { B, b, S } = pal, W = '#fcfcfc', K = '#000000';
   const P = [], D = [];
   const p = (x, y, w, h, c) => P.push([x, y, w, h, c]);
   const d = (x, y, w, h, c) => D.push([x, y, w, h, c]);
-  const female = style === 'snow' || style === 'earth';
+  const female = style === 'snow' || style === 'earth' || style === 'wind';
   const white = pal === PAL_WHITE;
-  const hair = white ? W : style === 'snow' ? '#d8f0fc' : '#6a3818';
+  const hair = white ? W : style === 'snow' ? '#d8f0fc' : style === 'wind' ? '#58c8a8' : '#6a3818';
 
   if (pose === 'slide') {
     if (female) p(0, 9, 5, 9, hair);
@@ -30,6 +30,7 @@ function drawRobot(ox, oy, f, pose, fr, arm, pal, style = 'hero', opt = {}) {
   const dy = pose === 'run' && fr === 1 ? -1 : 0;
   // things behind / on top of the head go first so the head fill covers the overlap
   if (style === 'snow') { p(3, 3 + dy, 5, 15, hair); p(1, 9 + dy, 4, 10, white ? W : '#b8e0f8'); }
+  if (style === 'wind') { p(3, 3 + dy, 5, 12, hair); p(0, 5 + dy, 4, 5, hair); p(1, 10 + dy, 3, 7, white ? W : '#a8f0d8'); } // hair streaming back
   if (style === 'earth') { p(3, 2 + dy, 5, 5, hair); p(1, 5 + dy, 4, 11, hair); }
   if (style === 'cut' && opt.blade !== false) {
     const o = (frameCount >> 3) & 1;
@@ -40,6 +41,7 @@ function drawRobot(ox, oy, f, pose, fr, arm, pal, style = 'hero', opt = {}) {
     p(9, -3 + dy, 7, 5, white ? W : '#f87800'); p(10 + (fl === 1 ? 1 : 0), -6 - fl + dy, 4, 5, white ? W : '#f8d800');
   }
   if (style === 'snow') { p(10, -2 + dy, 5, 3, white ? W : '#58e8f8'); p(11, -4 + dy, 3, 2, white ? W : '#c8fcfc'); }
+  if (style === 'wind') { p(9, -2 + dy, 6, 3, white ? W : '#78e8c8'); p(13, -5 + dy, 4, 3, white ? W : '#e8fcf4'); p(7, -4 + dy, 3, 3, white ? W : '#e8fcf4'); } // wind crest
   if (style === 'elec') { // tall lightning-fin helmet
     p(9, -3 + dy, 6, 5, white ? W : '#f8d800'); p(10, -7 + dy, 3, 5, white ? W : '#fcf8a0'); p(12, -9 + dy, 2, 3, white ? W : '#fcfcfc');
   }
@@ -74,7 +76,7 @@ function drawRobot(ox, oy, f, pose, fr, arm, pal, style = 'hero', opt = {}) {
       p(4, 3, 3, 8, b); p(17, 3, 3, 8, b);
       break;
   }
-  if (female) p(6, 15 + dy, 12, 3, white ? W : style === 'snow' ? '#e8f8fc' : '#4a8a30');
+  if (female) p(6, 15 + dy, 12, 3, white ? W : style === 'snow' ? '#e8f8fc' : style === 'wind' ? '#e8fcf4' : '#4a8a30');
   if (style === 'earth') { const pad = white ? W : '#8a8070'; p(3, 10 + dy, 5, 4, pad); p(16, 10 + dy, 5, 4, pad); }
   if (arm) { p(17, 12, 7, 4, b); d(21, 12, 3, 4, B); d(23, 13, 1, 2, K); }
 
@@ -112,6 +114,7 @@ function drawWeaponIcon(kind, x, y, s = 1) {
     case 'fire': sprite(0, 0, 1, 10, [[2, 3, 6, 7, '#f87800'], [3, 0, 3, 5, '#f8d800']], [[4, 6, 2, 3, '#fcfcfc']]); break;
     case 'snow': sprite(0, 0, 1, 10, [[4, 0, 2, 10, '#a8e8fc'], [0, 4, 10, 2, '#a8e8fc']], [[4, 4, 2, 2, '#fcfcfc'], [1, 1, 2, 2, '#d8f8fc'], [7, 7, 2, 2, '#d8f8fc']]); break;
     case 'earth': sprite(0, 0, 1, 10, [[1, 2, 8, 7, '#9a7a5a'], [3, 0, 4, 4, '#b89878']], [[3, 4, 2, 2, '#6a4a2a'], [6, 6, 2, 1, '#6a4a2a']]); break;
+    case 'wind': sprite(0, 0, 1, 10, [[0, 0, 10, 2, '#78f8c8'], [1, 3, 8, 2, '#78f8c8'], [3, 6, 5, 2, '#78f8c8'], [4, 8, 3, 2, '#78f8c8']], [[1, 0, 6, 1, '#e8fcf4'], [3, 3, 4, 1, '#e8fcf4'], [4, 6, 2, 1, '#e8fcf4']]); break; // tornado
     case 'elec': sprite(0, 0, 1, 10, [[5, 0, 4, 3, '#f8d800'], [3, 2, 4, 3, '#f8d800'], [1, 4, 8, 2, '#f8d800'], [4, 6, 3, 2, '#f8d800'], [2, 7, 3, 3, '#f8d800']], [[6, 1, 2, 1, '#fcfcfc'], [2, 5, 5, 1, '#fcf8a0']]); break;
   }
   ctx.restore();
@@ -221,6 +224,27 @@ const BG_PAINTERS = {
         for (let y = top + 16; y < BG_H - 8; y += 22) { const w = 4 + (y - top) * 0.1; g.beginPath(); g.moveTo(x - w, y); g.lineTo(x + w, y + 22); g.moveTo(x + w, y); g.lineTo(x - w, y + 22); g.stroke(); }
         g.fillStyle = '#f83800'; g.fillRect(x - 1, top - 4, 2, 4);
       }
+    } },
+  ],
+  wind: [
+    { k: 0.1, ky: 0.4, paint(g, rnd) {
+      skyGrad(g, [[0, '#3a8ad8'], [0.55, '#8ac8f0'], [0.85, '#d8f0fc'], [1, '#f4fcff']]);
+      g.fillStyle = 'rgba(255,255,220,0.45)'; g.beginPath(); g.arc(610, 52, 34, 0, 7); g.fill();
+      g.fillStyle = '#fffbe0'; g.beginPath(); g.arc(610, 52, 18, 0, 7); g.fill();
+      for (let i = 0; i < 5; i++) { // hazy floating islands far away
+        const cx = 60 + i * 150 + rnd() * 50, cy = 70 + rnd() * 70, w = 50 + rnd() * 50;
+        poly(g, [cx - w / 2, cy, cx + w / 2, cy, cx + w * 0.15, cy + w * 0.7, cx - w * 0.1, cy + w * 0.55], '#9ab4d4');
+        g.fillStyle = '#a8c8b0'; g.fillRect(cx - w / 2, cy - 3, w, 4);
+      }
+      for (let i = 0; i < 26; i++) { g.fillStyle = 'rgba(255,255,255,0.85)'; g.beginPath(); g.arc(rnd() * BG_W, BG_H - 30 - rnd() * 40, 16 + rnd() * 20, 0, 7); g.fill(); }
+    } },
+    { k: 0.35, ky: 1, paint(g, rnd) {
+      for (let i = 0; i < 3; i++) { // nearer floating rocks
+        const cx = 120 + i * 250 + rnd() * 60, cy = 110 + rnd() * 40, w = 40 + rnd() * 30;
+        poly(g, [cx - w / 2, cy, cx + w / 2, cy, cx + w * 0.1, cy + w * 0.9], '#7a84a4');
+        g.fillStyle = '#6ab050'; g.fillRect(cx - w / 2, cy - 4, w, 5);
+      }
+      for (let i = 0; i < 40; i++) { g.fillStyle = i & 1 ? '#ffffff' : '#e8f4fc'; g.beginPath(); g.arc(rnd() * BG_W, BG_H - 6 - rnd() * 26, 14 + rnd() * 16, 0, 7); g.fill(); }
     } },
   ],
   snow: [
@@ -404,6 +428,20 @@ const TILESETS = {
     spike: (F, x, y) => drawSpikes(F, x, y, '#c8d0e0', '#6a7490', '#2a3044', '#f8d800'),
     ladder: (F, x, y) => drawLadder(F, x, y, '#8a96b8', '#c8a800', '#3a4258'),
   },
+  wind: {
+    ground(F, x, y, v, exp) { // floating cloudstone with grass on top
+      F(x, y, 16, 16, v & 1 ? '#8a8aa8' : '#8686a2');
+      F(x + (v % 12) + 1, y + (v >> 4) % 10 + 4, 3, 2, '#9c9cba'); F(x + (v >> 7) % 12, y + (v >> 11) % 10 + 3, 2, 2, '#6e6e8c');
+      F(x + 15, y, 1, 16, '#5a5a78'); F(x, y + 15, 16, 1, '#5a5a78');
+      if (exp) { F(x, y, 16, 4, '#78c858'); F(x, y, 16, 1, '#a8e878'); F(x, y + 4, 16, 1, '#4a8a3a'); F(x + (v % 10) + 2, y + 4, 3, 2, '#78c858'); }
+    },
+    block(F, x, y) { // sky-castle marble with gold trim
+      F(x, y, 16, 16, '#9898b0'); F(x + 1, y + 1, 14, 14, '#e8e8f4'); F(x + 1, y + 1, 14, 2, '#d8b858'); F(x + 1, y + 13, 14, 1, '#c8c8dc');
+      F(x + 4, y + 5, 1, 6, '#c8c8dc'); F(x + 11, y + 5, 1, 6, '#c8c8dc');
+    },
+    spike: (F, x, y) => drawSpikes(F, x, y, '#e8f0f8', '#8898b8', '#5a6a8a', '#78f8c8'),
+    ladder: (F, x, y) => drawLadder(F, x, y, '#d8b858', '#f0d878', '#8a7030'),
+  },
   earth: {
     ground(F, x, y, v, exp) {
       F(x, y, 16, 16, v & 1 ? '#7a4c2a' : '#744828');
@@ -424,7 +462,7 @@ const TILESETS = {
     ladder: (F, x, y) => drawLadder(F, x, y, '#a87038', '#c89058', '#5a3818'),
   },
 };
-const SOLIDISH = '#=I^CDX<>QY'; // tiles that hide the exposed top (grass, snow, rails) of the ground under them
+const SOLIDISH = '#=I^CDX<>QYU'; // tiles that hide the exposed top (grass, snow, rails) of the ground under them
 
 // cells drawn over a dark cave wall: every 'b', plus ladders, spikes and crumbling blocks touching one (so a
 // ladder down a shaft or spikes on a cave floor do not show the sky behind them)
@@ -450,6 +488,11 @@ function renderLevelCanvas(lv) {
       const above = ty > 0 ? lv.map[ty - 1][tx] : '.';
       const exp = !SOLIDISH.includes(above);
       if (back.has(ty * lv.LW + tx)) { ts.ground(F, x, y, v, false, tx); F(x, y, 16, 16, 'rgba(4,4,14,0.62)'); }
+      if (t === 'X' && lv.theme === 'wind') { // sky stage: the abyss is a sea of clouds far below
+        if (above !== 'X') { F(x, y + 6, 16, 10, 'rgba(244,248,255,0.85)'); g.fillStyle = 'rgba(255,255,255,0.9)'; g.beginPath(); g.arc(x + (v % 8) + 4, y + 8, 7, 0, 7); g.fill(); }
+        else F(x, y, 16, 16, 'rgba(226,238,252,0.55)');
+        continue;
+      }
       if (t === 'X') { // abyss: fades to black from its top row
         if (above === 'X') F(x, y, 16, 16, '#000000');
         else for (let r = 0; r < 16; r += 2) F(x, y + r, 16, 2, `rgba(0,0,0,${(0.15 + r / 18).toFixed(2)})`);
@@ -532,6 +575,17 @@ const ROOM_ART = {
         g.beginPath(); g.moveTo(bx, by); g.lineTo(bx + Math.cos(b) * 10, by + Math.sin(b) * 10); g.stroke();
       }
     }
+  },
+  wind(g, x, y, w, h) { // arched windows onto the sky, marble pillars and a swirl emblem
+    for (const wx of [x + 44, x + w - 104]) {
+      g.fillStyle = '#8ac8f0'; g.fillRect(wx, y + 34, 60, 70); g.beginPath(); g.arc(wx + 30, y + 34, 30, Math.PI, 0); g.fill();
+      g.fillStyle = '#ffffff'; for (const [cx, cy, r] of [[14, 80, 10], [26, 84, 12], [42, 82, 9], [50, 60, 6]]) { g.beginPath(); g.arc(wx + cx, y + cy, r, 0, 7); g.fill(); }
+      g.fillStyle = '#d8b858'; g.fillRect(wx - 3, y + 102, 66, 4);
+    }
+    for (const px of [x + 14, x + w - 26]) { g.fillStyle = '#b8b8cc'; g.fillRect(px, y + 8, 12, h - 8); g.fillStyle = '#d8b858'; g.fillRect(px - 2, y + 6, 16, 4); g.fillRect(px - 2, y + h - 4, 16, 4); }
+    g.strokeStyle = 'rgba(120,232,200,0.55)'; g.lineWidth = 3;
+    const cx = x + w / 2, cy = y + 64;
+    g.beginPath(); for (let a = 0; a < 12; a += 0.2) { const r = 3 + a * 2.4; g.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r * 0.8); } g.stroke();
   },
   earth(g, x, y, w, h) { // rock strata, timber mine supports and embedded gems
     for (let k = 0; k < 5; k++) { g.fillStyle = k & 1 ? 'rgba(90,52,24,0.55)' : 'rgba(140,90,50,0.35)'; g.fillRect(x, y + 14 + k * 26 + (k % 2) * 4, w, 8); }

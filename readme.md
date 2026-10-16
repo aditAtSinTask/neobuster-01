@@ -2,7 +2,7 @@
 
 > Game action-platformer 2D bergaya **Mega Man** untuk browser — grafik pixel-art yang lebih kaya, tapi tetap ringan dan optimal untuk web.
 
-**Versi saat ini: `0.8.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
+**Versi saat ini: `0.9.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
 
 ---
 
@@ -23,7 +23,7 @@
 
 ## Konsep
 
-- Pilih salah satu dari **5 stage** boss, dalam urutan bebas.
+- Pilih salah satu dari **6 stage** boss, dalam urutan bebas.
 - Setiap stage panjang dan bertingkat: ada bagian **naik** (menara, tebing, lift) dan bagian **bawah tanah** (gua, saluran, tambang), dengan rintangan seperti duri, jurang, lava, lantai es, balok rapuh, tangga, platform bergerak, gergaji, semburan api, sinar listrik, batu jatuh, dan musuh.
 - Ada **2 checkpoint** di setiap stage. Kalau mati, kamu lanjut dari checkpoint terakhir yang sudah dilewati.
 - Di ujung stage ada **pintu boss**. Kalahkan boss untuk mendapatkan **senjatanya**.
@@ -53,7 +53,7 @@ Tidak perlu build atau install apa pun — cukup HTML + JavaScript murni.
 | Charge shot (semua senjata) | Tahan `X` lalu lepas | Tahan tombol tembak |
 | Slide | `C` / `L` (atau `↓` + lompat) | RT / Y |
 | Ganti senjata | `Q` / `E` | LB / RB |
-| Pause & menu senjata | `Enter` / `Esc` | Start |
+| Pause: ganti senjata & ON/OFF tools | `Enter` / `Esc`, lalu panah kiri/kanan untuk pindah kolom | Start |
 | Mute | `M` | — |
 | Buka Shop (di Stage Select) | `X` | X / B |
 | Reset progress (di title) | `R` | — |
@@ -70,6 +70,7 @@ Setiap stage berukuran 300 × 44 tile. Jalur utama ada di permukaan, dengan bagi
 | Elec | Menara trafo dengan sinar listrik di atap | Terowongan kabel di bawah kabel listrik terbuka, lubang generator dengan lift | Sinar listrik yang menyala-mati |
 | Snow | Tangga es ke puncak gunung | Gua es lewat celah gunung | Lantai licin, es gantung, jurang beku dengan lift |
 | Earth | Undakan batu di tebing, dua lift ke atas mesa | Tambang dengan lantai rapuh di atas jurang | Batu jatuh, jembatan rapuh |
+| Wind | Pad angin ke atap benteng langit, jembatan langit | Sumur angin di dalam batu melayang, keluar lewat pad bertingkat | Pulau melayang di atas lautan awan, platform awan |
 
 Setiap stage juga punya musuh, mekanik, dan ruang boss yang hanya ada di stage itu:
 
@@ -80,16 +81,20 @@ Setiap stage juga punya musuh, mekanik, dan ruang boss yang hanya ada di stage i
 | Elec | **Watcher**: mata listrik yang menyesuaikan tinggi lalu menembak ke dua arah saat sejajar denganmu | **Blok energi**: menyala bergantian di atas jurang, berkedip sebelum hilang | Tesla coil dengan busur listrik, sinar listrik dari langit-langit |
 | Snow | **Snowman**: melempar bola salju melengkung | **Badai angin**: setelah tenang dan peringatan, angin mendorong kamu (saat naik gunung, di jurang beku, dan di lantai es) | Kepingan salju raksasa dan kristal es, lantai es licin |
 | Earth | **Mole**: menggali di bawah tanah mengikuti kamu, lalu menyembul tepat di bawahmu | **Pasir hisap**: kamu tenggelam pelan dan berjalan lambat; lompat keluar sebelum kepala tenggelam | Penyangga tambang dan permata di dinding batu |
+| Wind | **Fanbot**: kipas melayang yang meniupmu mundur saat kamu di depannya | **Pad angin**: menginjaknya melontarkanmu sekitar 8 tile ke atas | Jendela langit, pilar marmer, dan awan melayang yang bisa dipijak |
 
 ## Boss & Senjata
 
 | Stage | Boss | Senjata yang didapat | Lemah terhadap |
 | --- | --- | --- | --- |
-| Cut | **CUTMAN** — manusia gunting | Rolling Cutter | Rock Breaker |
-| Fire | **FIREMAN** — manusia api | Fire Storm | Frost Shard |
-| Elec | **ELECMAN** — manusia listrik & petir | Thunder Beam | Rolling Cutter |
-| Snow | **SNOWWOMAN** — wanita es | Frost Shard | Fire Storm |
-| Earth | **EARTHWOMAN** — wanita tanah & batu | Rock Breaker | Thunder Beam |
+| Cut | **SNIPTOR** — manusia gunting | Rolling Cutter | Frost Shard |
+| Fire | **MAGMARON** — manusia api | Fire Storm | Gale Shot |
+| Elec | **VOLTRAX** — manusia listrik & petir | Thunder Beam | Rolling Cutter |
+| Snow | **GLACIELLE** — wanita es | Frost Shard | Fire Storm |
+| Earth | **TERRALYN** — wanita tanah & batu | Rock Breaker | Thunder Beam |
+| Wind | **WINDERWOMEN** — wanita angin | Gale Shot | Rock Breaker |
+
+Setiap senjata adalah kelemahan tepat satu boss: es membuat gunting rapuh, angin memadamkan api, gunting memotong kabel, api mencairkan es, petir menghancurkan batu, dan batu terlalu berat untuk diterbangkan angin.
 
 ### Tembakan biasa & charge shot
 
@@ -102,6 +107,7 @@ Tekan `X` untuk tembakan biasa. Tahan `X` sampai karakter berkedip dengan warna 
 | Fire Storm | Bola api + perisai api yang berputar | **Fire Wave** — pilar api yang bergulir di tanah, menembus musuh dan membakar peluru musuh |
 | Thunder Beam | Sinar petir cepat yang menembus musuh | **Giga Thunder** — petir menyambar dari langit ke setiap musuh di layar, termasuk boss |
 | Frost Shard | 3 kristal es yang membekukan musuh | **Frost Nova** — cincin rapat 24 kristal es besar ke segala arah, menembus dan membekukan musuh |
+| Gale Shot | 3 pusaran angin yang melayang naik dengan sudut berbeda | **Cyclone** — tornado besar yang bergulir di tanah, terus menggerus musuh yang dilewati dan menyedot peluru kecil |
 | Rock Breaker | Batu yang pecah jadi 4 serpihan | **Rock Quake** — batu besar yang pecah jadi 8 serpihan, mengguncang layar dan melukai semua musuh yang menapak tanah |
 
 ### Melawan boss
@@ -110,7 +116,7 @@ Tekan `X` untuk tembakan biasa. Tahan `X` sampai karakter berkedip dengan warna 
 - Serangan ke kelemahan boss memunculkan tulisan **WEAK!** dan memberi 4 damage. Kalau pakai charge shot, damage-nya 6.
 - Boss kebal terhadap senjatanya sendiri.
 
-Setelah kelima boss dikalahkan, muncul layar ending.
+Setelah keenam boss dikalahkan, muncul layar ending.
 
 ## Shop & Part
 
@@ -136,6 +142,7 @@ Ultra attack setiap senjata:
 | Fire Storm | **Inferno**: pilar api meletus di sepanjang lantai, menjalar ke dua arah |
 | Thunder Beam | **Thunder God**: petir terus menyambar musuh dan boss hampir 2 detik |
 | Frost Shard | **Absolute Zero**: semua musuh di layar membeku dan terluka, peluru musuh pecah, boss membeku, dan duri es muncul dari lantai |
+| Gale Shot | **Hurricane**: 3 tornado setinggi layar menyapu dari belakangmu ke depan, terus menggerus musuh dan meniup peluru musuh |
 | Rock Breaker | **Meteor**: meteor jatuh di depanmu lalu meledak menjadi gelombang kejut dan hujan batu |
 
 Ultra attack ke senjata kelemahan boss memberi 8 damage.
@@ -172,7 +179,7 @@ neobuster/
 ├── readme.md
 └── js/
     ├── engine.js   # versi, canvas, input, audio & musik, font pixel, sprite & glow
-    ├── art.js      # sprite robot (hero + 5 boss), background parallax, tileset, ikon senjata
+    ├── art.js      # sprite robot (hero + 6 boss), background parallax, tileset, ikon senjata
     ├── levels.js   # data stage & layout level
     ├── actors.js   # fisika, player, senjata, musuh, hazard, platform, boss
     ├── cheats.js   # cheat box (P + O) dan daftar cheat code
@@ -189,6 +196,14 @@ Detail teknis:
 ## Versi & Changelog
 
 Versi ditulis di konstanta `VERSION` di `js/engine.js`. Setiap ada perubahan, naikkan versinya dan tambahkan catatan di bawah.
+
+### 0.9.0
+- Boss baru **WINDERWOMEN** (wanita angin) dengan stage benteng langit: pulau melayang di atas lautan awan, pad angin, Fanbot, sumur angin, dan ruang boss dengan awan melayang. Serangan boss: Gust (angin kencang + tornado kecil), Cyclone, dan Dive.
+- Senjata baru **Gale Shot**, charge **Cyclone**, ultra **Hurricane**.
+- Nama boss baru: Sniptor, Magmaron, Voltrax, Glacielle, Terralyn.
+- Rantai kelemahan disusun ulang untuk 6 boss (setiap senjata jadi kelemahan tepat satu boss).
+- Menu pause dua kolom: SENJATA dan TOOLS. Tools (part dari Shop) bisa di-ON/OFF langsung di tengah stage.
+- Stage select 3 × 2.
 
 ### 0.8.0
 - Dompet **POIN** permanen dari skor yang didapat, dan **Shop** di Stage Select (tombol `X`).

@@ -3,24 +3,27 @@
 // above it and caves below it; the boss room is the last 24 columns.
 // Tiles: # ground, = block, I ice (slippery), C crumbling block, ^ spikes, ~ lava, H ladder, D boss door,
 //        b cave/backdrop wall (not solid, drawn dark), X abyss (falling into it is death),
-//        < > conveyor belt, Q quicksand (you sink; jump out before your head goes under).
+//        < > conveyor belt, Q quicksand (you sink; jump out before your head goes under),
+//        U updraft pad (launches you about 8 tiles up).
 // Hazards: saw, jet (fire), icicle, rockfall, zap (electric beam from a ceiling emitter down to row y1),
 //          bubble (magma leaping out of lava at row y), eblock (energy block idx of n, solid in turn),
 //          wind (blizzard gusts over columns x..x1 pushing toward dir).
 // Each stage has its own enemy on top of the common ones: blader (cut), totem (fire), watcher (elec),
-// snowman (snow), mole (earth).
-// Rules of thumb for layouts: a jump clears 3 empty tiles and rises at most 2 tiles; ladders are 1 tile wide.
+// snowman (snow), mole (earth), fanbot (wind).
+// Rules of thumb for layouts: a jump clears 3 empty tiles (but only 2 tiles of spikes, which kill on any touch)
+// and rises at most 2 tiles; an updraft pad rises about 8; ladders are 1 tile wide.
 
 const LEVEL_H = 44, FLOOR = 22, LEVEL_W = 300, DOOR_COL = 276;
 
 const STAGES = {
-  cut: { name: 'CUTMAN', title: 'MANUSIA GUNTING', theme: 'cut', music: 'cut', ambient: 'dust', color: '#f87858' },
-  fire: { name: 'FIREMAN', title: 'MANUSIA API', theme: 'fire', music: 'fire', ambient: 'embers', color: '#f8a800' },
-  elec: { name: 'ELECMAN', title: 'MANUSIA LISTRIK', theme: 'elec', music: 'elec', ambient: 'rain', color: '#f8e030' },
-  snow: { name: 'SNOWWOMAN', title: 'WANITA ES', theme: 'snow', music: 'snow', ambient: 'snow', color: '#a8e8fc' },
-  earth: { name: 'EARTHWOMAN', title: 'WANITA TANAH & BATU', theme: 'earth', music: 'earth', ambient: 'dust', color: '#c8a060' },
+  cut: { name: 'SNIPTOR', title: 'MANUSIA GUNTING', theme: 'cut', music: 'cut', ambient: 'dust', color: '#f87858' },
+  fire: { name: 'MAGMARON', title: 'MANUSIA API', theme: 'fire', music: 'fire', ambient: 'embers', color: '#f8a800' },
+  elec: { name: 'VOLTRAX', title: 'MANUSIA LISTRIK', theme: 'elec', music: 'elec', ambient: 'rain', color: '#f8e030' },
+  snow: { name: 'GLACIELLE', title: 'WANITA ES', theme: 'snow', music: 'snow', ambient: 'snow', color: '#a8e8fc' },
+  earth: { name: 'TERRALYN', title: 'WANITA TANAH & BATU', theme: 'earth', music: 'earth', ambient: 'dust', color: '#c8a060' },
+  wind: { name: 'WINDERWOMEN', title: 'WANITA ANGIN', theme: 'wind', music: 'wind', ambient: 'breeze', color: '#78f8c8' },
 };
-const STAGE_ORDER = ['cut', 'fire', 'elec', 'snow', 'earth'];
+const STAGE_ORDER = ['cut', 'fire', 'elec', 'snow', 'earth', 'wind'];
 
 const ENEMY_COLORS = {
   cut: { a: '#f8b800', c: '#c87800', fly: '#9020c8', fly2: '#e070f8', hop: '#00a800', hop2: '#58d854', tur: '#686878' },
@@ -28,6 +31,7 @@ const ENEMY_COLORS = {
   snow: { a: '#e8f4fc', c: '#88b0d8', fly: '#3878d8', fly2: '#a8d8fc', hop: '#384868', hop2: '#d8e8fc', tur: '#58789a' },
   earth: { a: '#8ab838', c: '#4a7a20', fly: '#a8682a', fly2: '#e8b868', hop: '#7a5a3a', hop2: '#b89870', tur: '#6a6458' },
   elec: { a: '#f8d800', c: '#a88800', fly: '#2838a8', fly2: '#f8f058', hop: '#303848', hop2: '#f8d800', tur: '#4a4a58' },
+  wind: { a: '#78e8c8', c: '#3a9a7a', fly: '#e87898', fly2: '#fcd8e8', hop: '#5a7aa8', hop2: '#c8e0f8', tur: '#8888a8' },
 };
 
 function makeBuilder() {
@@ -71,6 +75,7 @@ function bossRoom(B, dc, theme) {
     case 'fire': B.add('jet', dc + 5, FLOOR, { phase: 0 }); B.add('jet', dc + 19, FLOOR, { phase: 75 }); break; // fire jets
     case 'elec': B.add('zap', dc + 7, 13, { y1: 21, phase: 0 }); B.add('zap', dc + 16, 13, { y1: 21, phase: 75 }); break; // beams
     case 'snow': B.rect(dc + 1, FLOOR, dc + 22, FLOOR, 'I'); break;                                    // ice floor
+    case 'wind': B.add('plat', dc + 4, 18, { x1: dc + 8, y1: 18, speed: 0.6 }); B.add('plat', dc + 14, 17, { x1: dc + 18, y1: 17, speed: 0.6 }); break; // drifting clouds
   }
 }
 
@@ -243,6 +248,44 @@ const LAYOUTS = {
     B.pit(250, 252);
     B.add('E', 260); B.add('met', 266); B.add('h', 270);
     bossRoom(B, DOOR_COL, 'snow');
+  },
+
+  wind(B) {
+    // floating islands over a sea of clouds (falling into the clouds is death)
+    const isle = (x0, x1, top = F, th = 3) => B.rect(x0, top, x1, top + th, '#');
+    isle(0, 18); B.add('start', 3); B.add('met', 12);
+    // gap 19-21
+    isle(22, 40); B.add('fanbot', 33, 18); B.add('h', 27); B.add('flyer', 38, 14);
+    // gap 41-43
+    // --- updraft pads up to the sky castle
+    isle(44, 52); B.rect(50, F, 51, F, 'U');
+    isle(53, 59, 16, 1); B.add('met', 55, 15); B.rect(58, 16, 59, 16, 'U');
+    isle(62, 67, 10, 1); B.add('flyer', 66, 5);
+    // sky castle: the tower blocks the roof, so go down the ladder and through the hall
+    B.rect(69, 8, 95, F + 3, '='); B.rect(86, 0, 95, 7, '=');
+    B.add('fanbot', 76, 5); B.add('met', 79, 7);
+    B.ladder(82, 8, 21); B.cave(71, 12, 93, 21); B.add('L', 72, 21);
+    B.rect(84, F, 85, F, 'U'); B.spikes(86, 88); B.add('fanbot', 91, 17); // ride the updraft over the spikes
+    B.cave(94, 18, 95, 21); // castle gate
+    isle(96, 112); B.add('cp', 100); B.add('flyer', 108, 14);
+    // gap 113-115
+    // --- wind well: drop into the floating rock (a spire blocks its top), ride the updrafts back out
+    isle(116, 153, F, 16); B.rect(124, 0, 128, F - 1, '=');
+    B.cave(119, F, 121, 29); B.cave(117, 30, 139, 36);
+    B.add('met', 123, 36); B.spikes(128, 129, 37); B.add('fanbot', 134, 33);
+    B.cave(140, F, 148, 36);
+    B.rect(146, 37, 147, 37, 'U');
+    B.rect(141, 31, 143, 31, '#'); B.rect(141, 31, 141, 31, 'U');
+    B.rect(144, 26, 147, 26, '#'); B.rect(147, 26, 147, 26, 'U');
+    isle(154, 170); B.add('cp', 158); B.add('fanbot', 166, 18);
+    // --- cloud platform, updraft and a sky bridge
+    B.add('plat', 172, 20, { x1: 180, y1: 20, speed: 0.9 }); B.add('flyer', 176, 13);
+    isle(184, 190, 20, 1); B.rect(189, 20, 190, 20, 'U');
+    isle(193, 222, 13, 1); B.add('fanbot', 200, 9); B.add('met', 206, 12); B.add('flyer', 212, 7); B.add('h', 216, 12);
+    isle(226, 240); B.add('met', 232); B.add('fanbot', 238, 18);
+    // gap 241-243
+    isle(244, 275); B.add('fanbot', 254, 18); B.add('E', 262); B.add('flyer', 268, 14);
+    bossRoom(B, DOOR_COL, 'wind');
   },
 
   earth(B) {

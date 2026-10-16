@@ -23,8 +23,9 @@ const EC = () => ENEMY_COLORS[level.theme];
 
 // ================= TILES & PHYSICS =================
 const tileAt = (tx, ty) => (ty < 0 || ty >= LH ? '.' : tx < 0 || tx >= LW ? '#' : map[ty][tx]);
-// < > conveyor belts, Y energy block (switched on and off by its hazard), Q quicksand (not solid: you sink into it)
-const isSolidTile = t => '#=^IC<>Y'.includes(t) || (t === 'D' && door.solid);
+// < > conveyor belts, Y energy block (switched on and off by its hazard), Q quicksand (not solid: you sink into it),
+// U updraft pad (landing on it launches you high into the air)
+const isSolidTile = t => '#=^IC<>YU'.includes(t) || (t === 'D' && door.solid);
 const solidPx = (x, y) => isSolidTile(tileAt(Math.floor(x / TILE), Math.floor(y / TILE)));
 const isLadder = (tx, ty) => tileAt(tx, ty) === 'H';
 const ladderTop = (tx, ty) => isLadder(tx, ty) && !isLadder(tx, ty - 1);
@@ -96,13 +97,14 @@ const WEAPONS = {
   buster: { name: 'NEO BUSTER', short: 'BUSTER', pal: PAL_HERO },
   cut: { name: 'ROLLING CUTTER', short: 'R.CUTTER', pal: { B: '#5a5a6a', b: '#e0e0ec', S: SKIN }, glow: '#e0e0ec', desc: 'BOOMERANG GUNTING - MENEMBUS MUSUH', charged: 'GIANT SCISSORS' },
   fire: { name: 'FIRE STORM', short: 'F.STORM', pal: { B: '#d83000', b: '#f8b830', S: SKIN }, glow: '#f86000', desc: 'BOLA API + PERISAI API', charged: 'FIRE WAVE' },
+  wind: { name: 'GALE SHOT', short: 'G.SHOT', pal: { B: '#20a878', b: '#b8fce0', S: SKIN }, glow: '#78f8c8', desc: '3 PUSARAN ANGIN MELAYANG KE ATAS', charged: 'CYCLONE' },
   elec: { name: 'THUNDER BEAM', short: 'T.BEAM', pal: { B: '#c88800', b: '#f8f080', S: SKIN }, glow: '#f8f058', desc: 'SINAR PETIR - MENEMBUS MUSUH', charged: 'GIGA THUNDER' },
   snow: { name: 'FROST SHARD', short: 'F.SHARD', pal: { B: '#1888d8', b: '#d0f4fc', S: SKIN }, glow: '#58d8f8', desc: '3 KRISTAL ES - MEMBEKUKAN MUSUH', charged: 'FROST NOVA' },
   earth: { name: 'ROCK BREAKER', short: 'R.BREAKER', pal: { B: '#7a4a20', b: '#e8b868', S: SKIN }, glow: '#e8b868', desc: 'BATU PECAH JADI 4 SERPIHAN', charged: 'ROCK QUAKE' },
 };
 // palette the player flashes to while a special weapon is fully charged
-for (const k of ['cut', 'fire', 'elec', 'snow', 'earth']) WEAPONS[k].full = { B: WEAPONS[k].pal.b, b: '#fcfcfc', S: '#fcfcfc' };
-const WEAPON_ORDER = ['buster', 'cut', 'fire', 'elec', 'snow', 'earth'];
+for (const k of ['cut', 'fire', 'elec', 'snow', 'earth', 'wind']) WEAPONS[k].full = { B: WEAPONS[k].pal.b, b: '#fcfcfc', S: '#fcfcfc' };
+const WEAPON_ORDER = ['buster', 'cut', 'fire', 'elec', 'snow', 'earth', 'wind'];
 const ownedWeapons = () => WEAPON_ORDER.filter(w => w === 'buster' || save.cleared[w]);
 
 function addShot(o) {
@@ -160,6 +162,11 @@ function fireSpecial(p) {
       addShot({ kind: 'tbeam', weapon: 'elec', x: p.facing > 0 ? p.x + p.w : p.x - 24, y: my - 4, w: 24, h: 8, vx: p.facing * 6, dmg: 2, pierce: true, seed: Math.random() * 1e4 | 0 });
       sfx.zap();
       break;
+    case 'wind': // gale shot: three whirlwinds rising at different angles
+      if (countShots('whirl') > 0) return;
+      for (const vy of [-0.6, -1.5, -2.4]) addShot({ kind: 'whirl', weapon: 'wind', x: mx - 6, y: my - 8, w: 12, h: 14, vx: p.facing * 3.2, vy, dmg: 1 });
+      sfx.gale();
+      break;
     case 'snow':
       if (countShots('shard') > 0) return;
       for (const a of [-0.22, 0, 0.22]) addShot({ kind: 'shard', weapon: 'snow', x: mx - 4, y: my - 3, w: 8, h: 6, vx: Math.cos(a) * 4.5 * p.facing, vy: Math.sin(a) * 4.5, dmg: 1 });
@@ -200,6 +207,11 @@ function fireCharged(p) {
       game.flash = 6; game.shake = 8; sfx.thunder();
       break;
     }
+    case 'wind': // cyclone: a big tornado that rolls along the ground, grinding everything it passes over
+      if (countShots('pcyclone')) return false;
+      addShot({ kind: 'pcyclone', weapon: 'wind', x: f > 0 ? p.x + p.w : p.x - 24, y: p.y + p.h - 40, w: 24, h: 40, vx: f * 1.8, life: 150, dmg: 2, bossDmg: 3, pierce: true, charged: true });
+      sfx.whoosh();
+      break;
     case 'snow': { // frost nova: a dense ring of 24 big piercing ice crystals (one points straight ahead)
       if (countShots('bigshard')) return false;
       const n = 24;
@@ -242,6 +254,9 @@ function fireUltra(p) {
       addShot({ kind: 'tgod', weapon: 'elec', x: pcx(), y: pcy(), w: 0, h: 0, life: 110, n: 0, ultra: true });
       break;
     case 'snow': absoluteZero(p); break;
+    case 'wind': // hurricane: three screen-high tornadoes sweep the screen from behind the player
+      for (let i = 0; i < 3; i++) addShot({ kind: 'hurricane', weapon: 'wind', x: f > 0 ? camX - 56 : camX + VW, y: camY, w: 56, h: VH, vx: f * 3.2, delay: i * 22, life: 170, dmg: 3, bossDmg: 3, pierce: true, charged: true, ultra: true });
+      break;
     case 'earth': // meteor: falls ahead of the player and explodes into shockwaves and rocks
       addShot({ kind: 'meteor', weapon: 'earth', x: pcx() + f * 96 - 20, y: camY - 48, w: 40, h: 40, vy: 4, dmg: 8, bossDmg: 6, pierce: true, charged: true, ultra: true });
       break;
@@ -397,6 +412,25 @@ function updateShot(s) {
       if (s.y > camY && solidPx(s.x + s.w / 2, s.y + s.h)) meteorImpact(s);
       if (s.y > camY + VH + 64) s.dead = true;
       return;
+    case 'whirl':
+      s.x += s.vx; s.y += s.vy; s.vy *= 0.985;
+      break;
+    case 'pcyclone':
+      s.vy = Math.min((s.vy || 0) + 0.4, 7); s.y += s.vy;
+      if (solidPx(s.x + s.w / 2, s.y + s.h)) { s.y = Math.floor((s.y + s.h) / TILE) * TILE - s.h; s.vy = 0; }
+      s.x += s.vx;
+      if (s.t % 15 === 0) for (const e of [...s.hits]) if (e !== boss) s.hits.delete(e);
+      burnShots(s);
+      if (solidPx(s.vx > 0 ? s.x + s.w : s.x, s.y + s.h - 8) || --s.life <= 0) { s.dead = true; debris(s.x + 12, s.y + 20, '#d8f8ec', 6); return; }
+      if (s.t % 4 === 0) part({ kind: 'dust', x: s.x + 12, y: s.y + s.h, vx: (Math.random() - 0.5) * 2, vy: -0.6, life: 14 });
+      break;
+    case 'hurricane':
+      if (s.delay > 0) { s.delay--; if (!s.delay) sfx.whoosh(); return; }
+      s.x += s.vx; s.y = camY;
+      if (s.t % 12 === 0) s.hits.clear();
+      burnShots(s);
+      if (--s.life <= 0 || s.x > camX + VW + 64 || s.x + s.w < camX - 64) s.dead = true;
+      return;
     case 'pquake':
       s.x += s.vx;
       if (frameCount % 3 === 0) dust(s.x + 8, s.y + s.h, 1);
@@ -507,6 +541,11 @@ function startSlide(p) {
   if (p.h === 22) { p.y += 10; p.h = 12; }
   dust(p.x + p.w / 2 - p.facing * 6, p.y + p.h, 3);
 }
+// standing on an updraft pad
+function padUnder(e) {
+  const ty = Math.floor((e.y + e.h) / TILE);
+  return samples(e.x, e.x + e.w - 1).some(x => tileAt(Math.floor(x / TILE), ty) === 'U');
+}
 // feet inside quicksand
 const inSand = e => tileAt(Math.floor((e.x + e.w / 2) / TILE), Math.floor((e.y + e.h - 1) / TILE)) === 'Q';
 // conveyor direction under the feet (-1, 0, 1)
@@ -530,9 +569,11 @@ function applyGravity(p) {
       }
     }
   }
-  if (landed) {
+  if (landed && padUnder(p)) { // updraft pad: launched high, the jump button does not cut this one short
+    p.vy = -8; p.onGround = false; p.launched = true; sfx.whoosh(); dust(p.x + p.w / 2, p.y + p.h, 4);
+  } else if (landed) {
     if (!wasGround && p.vy > 2) { sfx.land(); dust(p.x + p.w / 2, p.y + p.h, 2); }
-    p.vy = 0; p.onGround = true;
+    p.vy = 0; p.onGround = true; p.launched = false;
   } else if (sand && p.vy >= 0) p.onGround = true; // can still jump (weaker) out of the sand
   else { p.onGround = false; if (r === -1) p.vy = 0; }
 }
@@ -621,7 +662,8 @@ function updatePlayer() {
   if (p.onGround && !sand && (hit.slide || (p.jumpBuf > 0 && inp.down))) { p.jumpBuf = 0; startSlide(p); return; }
   if (p.jumpBuf > 0 && (p.onGround || p.coyote > 0) && p.vy >= 0) doJump();
   // releasing jump cuts the jump short, but only after a minimum hop so quick taps still jump
-  if (!inp.jump && p.vy < 0 && p.jumpT > 6) p.vy = 0;
+  if (p.vy >= 0) p.launched = false;
+  if (!inp.jump && p.vy < 0 && p.jumpT > 6 && !p.launched) p.vy = 0;
   if (moveX(p, p.vx) && onIce) p.vx = 0;
   applyGravity(p);
   if (p.onGround && Math.abs(p.vx) > 0.1) p.anim++; else if (!dir) p.anim = 0;
@@ -829,6 +871,24 @@ const EN = {
       const S = '#f0f8ff', st = '#6a4a2a';
       sprite(x, y, e.facing, 16, [[1, 12, 14, 12, S], [3, 3, 10, 10, S], [4, -1, 8, 4, '#202028'], [2, 2, 12, 1, '#202028'], e.arm ? [13, 6, 4, 2, st] : [13, 11, 4, 2, st], [-1, 12, 3, 2, st]],
         [[7, 6, 1, 2, '#000000'], [10, 6, 1, 2, '#000000'], [11, 8, 4, 1, '#f87800'], [7, 15, 2, 2, '#384868'], [7, 19, 2, 2, '#384868'], [4, 1, 8, 1, '#c83010']]);
+    },
+  },
+  fanbot: { // wind: hovering fan that blows the player away when they are in front of it
+    w: 16, h: 16, hp: 3, dmg: 3, score: 250,
+    init(e) { e.baseY = e.y; },
+    update(e) {
+      e.t++;
+      e.y = e.baseY + Math.sin(e.t * 0.05) * 3;
+      const dx = pcx() - (e.x + 8);
+      e.facing = dx < 0 ? -1 : 1;
+      e.blowing = Math.abs(dx) < 130 && Math.abs(pcy() - (e.y + 8)) < 56 && alive(player) && player.state !== 'climb';
+      if (e.blowing) moveX(player, e.facing * 0.75);
+    },
+    draw(e, x, y) {
+      const spin = (e.t >> 1) & 1;
+      sprite(x, y, e.facing, 16, [[1, 2, 10, 12, '#5a6a8a'], [10, 0, 4, 16, '#8898b8']],
+        [[3, 4, 6, 4, '#a8b8d8'], [4, 9, 2, 2, '#f83800'], spin ? [14, 2, 2, 5, '#e8f0f8'] : [14, 9, 2, 5, '#e8f0f8'], spin ? [14, 9, 2, 5, '#a8b8d8'] : [14, 2, 2, 5, '#a8b8d8']]);
+      if (e.blowing) for (let i = 0; i < 4; i++) { const k = (frameCount * 4 + i * 23) % 70; R(e.facing > 0 ? x + 18 + k : x - 18 - k - 8, y + 2 + i * 4, 8, 1, 'rgba(232,248,255,0.8)'); }
     },
   },
   mole: { // earth: digs under the ground toward the player, then bursts out right under them
@@ -1058,7 +1118,7 @@ function updateCrumbles() {
 }
 
 // ================= ENEMY / BOSS PROJECTILES =================
-const PIERCING = new Set(['bcutter', 'wave', 'pillar', 'quake', 'lbolt', 'gspark']);
+const PIERCING = new Set(['bcutter', 'wave', 'pillar', 'quake', 'lbolt', 'gspark', 'ecyclone']);
 function updateEnemyShots() {
   const R_ = ROOM();
   for (const s of eshots) {
@@ -1082,9 +1142,9 @@ function updateEnemyShots() {
       case 'pillar': case 'pwarn': case 'lbolt': case 'bwarn':
         if (--s.life <= 0) s.dead = true;
         break;
-      case 'wave': case 'quake': case 'gspark':
+      case 'wave': case 'quake': case 'gspark': case 'ecyclone':
         s.x += s.vx;
-        if (solidPx(s.vx > 0 ? s.x + s.w : s.x, s.y + s.h / 2)) { s.dead = true; debris(s.x + s.w / 2, s.y + s.h / 2, { wave: '#f8a800', quake: '#8a6a4a', gspark: '#f8f058' }[s.kind], 4); }
+        if (solidPx(s.vx > 0 ? s.x + s.w : s.x, s.y + s.h / 2)) { s.dead = true; debris(s.x + s.w / 2, s.y + s.h / 2, { wave: '#f8a800', quake: '#8a6a4a', gspark: '#f8f058', ecyclone: '#d8f8ec' }[s.kind], 4); }
         if (s.kind === 'quake' && frameCount % 4 === 0) dust(s.x + s.w / 2, s.y + s.h, 1);
         break;
       case 'boulder':
@@ -1128,7 +1188,7 @@ function airborne(b) { if (moveX(b, b.vx)) b.vx = 0; physics(b); }
 
 const BOSSES = {
   cut: {
-    name: 'CUTMAN', style: 'cut', pal: { B: '#c83010', b: '#f8a878', S: SKIN }, weapon: 'cut', weak: 'earth',
+    name: 'SNIPTOR', style: 'cut', pal: { B: '#c83010', b: '#f8a878', S: SKIN }, weapon: 'cut', weak: 'snow',
     update(b, enr) {
       switch (b.state) {
         case 'idle':
@@ -1166,7 +1226,7 @@ const BOSSES = {
     },
   },
   fire: {
-    name: 'FIREMAN', style: 'fire', pal: { B: '#c82800', b: '#f8f0e0', S: SKIN }, weapon: 'fire', weak: 'snow',
+    name: 'MAGMARON', style: 'fire', pal: { B: '#c82800', b: '#f8f0e0', S: SKIN }, weapon: 'fire', weak: 'wind',
     update(b, enr) {
       const F = ROOM().floor;
       physics(b);
@@ -1206,7 +1266,7 @@ const BOSSES = {
     },
   },
   elec: {
-    name: 'ELECMAN', style: 'elec', pal: { B: '#e89800', b: '#f8e070', S: SKIN }, weapon: 'elec', weak: 'cut',
+    name: 'VOLTRAX', style: 'elec', pal: { B: '#e89800', b: '#f8e070', S: SKIN }, weapon: 'elec', weak: 'cut',
     update(b, enr) {
       const Rm = ROOM();
       switch (b.state) {
@@ -1260,7 +1320,7 @@ const BOSSES = {
     },
   },
   snow: {
-    name: 'SNOWWOMAN', style: 'snow', pal: { B: '#2868d8', b: '#c8ecfc', S: SKIN }, weapon: 'snow', weak: 'fire',
+    name: 'GLACIELLE', style: 'snow', pal: { B: '#2868d8', b: '#c8ecfc', S: SKIN }, weapon: 'snow', weak: 'fire',
     update(b, enr) {
       const Rm = ROOM();
       switch (b.state) {
@@ -1304,8 +1364,52 @@ const BOSSES = {
       }
     },
   },
+  wind: {
+    name: 'WINDERWOMEN', style: 'wind', pal: { B: '#20a878', b: '#e8fcf4', S: SKIN }, weapon: 'wind', weak: 'earth',
+    update(b, enr) {
+      const Rm = ROOM();
+      switch (b.state) {
+        case 'idle':
+          faceP(b); physics(b);
+          if (b.t > (enr ? 16 : 30)) pick(b, ['gust', 'cyclone', 'dive']);
+          break;
+        case 'gust': { // spins up a gale that shoves the player toward the far wall, with small whirlwinds riding it
+          physics(b);
+          if (b.t === 1) { faceP(b); sfx.whoosh(); }
+          b.arm = 4;
+          const push = b.facing;
+          if (alive(player) && player.state !== 'climb') moveX(player, push * (enr ? 1.05 : 0.8));
+          if (b.t % 26 === 13) eshots.push({ kind: 'etornado', x: bcx(b) + push * 10 - 6, y: Rm.floor - 16 - (b.t % 3) * 22, w: 12, h: 14, vx: push * 2.4, vy: 0, dmg: 3, t: 0, delay: 0 });
+          if (b.t >= (enr ? 120 : 96)) bossToIdle(b);
+          break;
+        }
+        case 'cyclone': // a big tornado that rolls across the floor
+          physics(b);
+          if (b.t === 1) faceP(b);
+          if (b.t === 14 || (enr && b.t === 44)) {
+            b.arm = 14; sfx.whoosh();
+            eshots.push({ kind: 'ecyclone', x: b.facing > 0 ? b.x + b.w : b.x - 24, y: Rm.floor - 40, w: 24, h: 40, vx: b.facing * 1.9, vy: 0, dmg: 4, t: 0, delay: 0, big: true });
+          }
+          if (b.t >= (enr ? 70 : 42)) bossToIdle(b);
+          break;
+        case 'dive': // rises on the wind, hangs for a moment, then swoops at the player
+          if (b.t === 1) { b.vy = -7; b.vx = 0; b.onGround = false; b.mode = 'up'; }
+          if (b.mode === 'up') { physics(b); if (b.vy >= 0) { b.mode = 'hang'; b.hang = enr ? 14 : 22; } }
+          else if (b.mode === 'hang') {
+            faceP(b);
+            if (--b.hang <= 0) { const dx = pcx() - bcx(b), dy = pcy() - (b.y + 12), d = Math.hypot(dx, dy) || 1; b.vx = dx / d * 4.4; b.vy = Math.max(1.5, dy / d * 4.4); b.mode = 'swoop'; sfx.gale(); }
+          } else {
+            if (moveX(b, b.vx)) b.vx = 0;
+            const r = moveY(b, b.vy, false);
+            if (frameCount % 3 === 0) part({ kind: 'dust', x: bcx(b), y: b.y + 12, vx: -b.vx * 0.2, vy: 0, life: 12 });
+            if (r === 1) { b.onGround = true; game.shake = 6; sfx.land(); dust(bcx(b), b.y + b.h, 4); bossToIdle(b); }
+          }
+          break;
+      }
+    },
+  },
   earth: {
-    name: 'EARTHWOMAN', style: 'earth', pal: { B: '#7a4a20', b: '#d8b070', S: SKIN }, weapon: 'earth', weak: 'elec',
+    name: 'TERRALYN', style: 'earth', pal: { B: '#7a4a20', b: '#d8b070', S: SKIN }, weapon: 'earth', weak: 'elec',
     update(b, enr) {
       const Rm = ROOM();
       switch (b.state) {

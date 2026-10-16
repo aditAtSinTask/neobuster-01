@@ -2,7 +2,7 @@
 // NEOBUSTER — core: canvas, helpers, input, audio, music, pixel font, sprite + glow primitives.
 
 // bump on every change (and add a line to the changelog in readme.md)
-const VERSION = '0.8.0';
+const VERSION = '0.9.0';
 document.title = 'Neobuster v' + VERSION;
 
 const TILE = 16, VW = 384, VH = 224;
@@ -250,6 +250,8 @@ const sfx = {
   ultra: () => { tone(120, 2400, 0.5, 'sawtooth', 0.18); tone(2400, 300, 0.6, 'square', 0.08, 0.1); noise(0.7, 0.25, 0, 2500); },
   ultraReady: () => notes([[84, 0], [88, 0.05], [91, 0.1], [96, 0.15]], 'triangle', 0.1, 0.08),
   jet: () => noise(0.18, 0.1, 0, 3500),
+  whoosh: () => { noise(0.35, 0.16, 0, 1800); tone(300, 900, 0.3, 'triangle', 0.06); },
+  gale: () => { noise(0.12, 0.1, 0, 4000); tone(900, 1500, 0.08, 'triangle', 0.07); },
   buy: () => notes([[76, 0], [83, 0.08], [88, 0.16]], 'square', 0.1, 0.12),
   storm: () => { tone(220, 1800, 0.35, 'sawtooth', 0.14); noise(0.5, 0.18, 0, 3500); },
   bigBoom: () => { noise(0.8, 0.35, 0, 900); tone(120, 40, 0.8, 'sawtooth', 0.2); },
@@ -297,6 +299,12 @@ const SONGS = {
     lead: [69, 0, 72, 76, 0, 72, 69, 0, 71, 0, 74, 77, 0, 74, 71, 0, 72, 0, 76, 79, 0, 76, 72, 0, 76, 0, 74, 0, 72, 0, 71, 0,
       69, 0, 72, 76, 0, 72, 69, 0, 71, 0, 74, 77, 0, 74, 71, 0, 79, 0, 77, 0, 76, 0, 74, 0, 76, 0, 0, 0, 81, 0, 0, 0],
     bass: [...bar(45), ...bar(43), ...bar(41), ...bar(40)],
+  },
+  wind: {
+    step: 7,
+    lead: [74, 0, 78, 81, 0, 78, 83, 0, 81, 0, 78, 0, 76, 0, 78, 0, 74, 0, 78, 81, 0, 86, 85, 0, 83, 0, 81, 0, 78, 0, 0, 0,
+      79, 0, 83, 86, 0, 83, 88, 0, 86, 0, 83, 0, 81, 0, 79, 0, 78, 0, 81, 0, 83, 0, 85, 0, 86, 0, 0, 0, 0, 0, 0, 0],
+    bass: [...bar(50), ...bar(47), ...bar(43), ...bar(45)],
   },
   boss: {
     step: 7,

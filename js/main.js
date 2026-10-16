@@ -102,7 +102,7 @@ function cycleWeapon(d) {
 
 function updatePlay() {
   if (hit.start && alive(player)) {
-    game.state = 'pause';
+    game.state = 'pause'; game.pcol = 0;
     game.sel = Math.max(0, ownedWeapons().indexOf(player.weapon));
     sfx.pause();
     return;
@@ -269,13 +269,16 @@ function step() {
       if (go) shopAction(SHOP[game.shopSel]);
       break;
     }
-    case 'pause': {
-      const items = [...ownedWeapons(), 'exit'];
+    case 'pause': { // left column: weapons + exit (pick = equip and resume); right column: owned tools (pick = on/off)
+      const cols = pauseColumns();
+      if ((hit.left || hit.right) && cols[1].length) { game.pcol ^= 1; game.sel = Math.min(game.sel, cols[game.pcol].length - 1); sfx.select(); }
+      const items = cols[game.pcol];
       if (hit.up) { game.sel = (game.sel + items.length - 1) % items.length; sfx.select(); }
       if (hit.down) { game.sel = (game.sel + 1) % items.length; sfx.select(); }
       if (go || hit.shoot) {
         const it = items[game.sel];
-        if (it === 'exit') { sfx.pause(); goSelect(); }
+        if (game.pcol === 1) { save.parts[it] = save.parts[it] === 'on' ? 'off' : 'on'; writeSave(); sfx.select(); }
+        else if (it === 'exit') { sfx.pause(); goSelect(); }
         else { if (it !== player.weapon) { player.weapon = it; pshots = []; player.charge = 0; } game.state = 'play'; sfx.pause(); }
       }
       break;
@@ -317,7 +320,7 @@ function step() {
 let ambient = { type: '', ps: [] };
 function makeAmbient(type) {
   const rnd = Math.random, ps = [];
-  const n = type === 'snow' ? 70 : type === 'rain' ? 90 : type === 'embers' ? 40 : 30;
+  const n = type === 'snow' ? 70 : type === 'rain' ? 90 : type === 'breeze' ? 34 : type === 'embers' ? 40 : 30;
   for (let i = 0; i < n; i++) ps.push({ x: rnd() * VW, y: rnd() * VH, s: 1 + (rnd() * 2 | 0), ph: rnd() * 6.28, sp: 0.3 + rnd() * 0.6 });
   return { type, ps };
 }
@@ -329,6 +332,7 @@ function updateAmbient() {
   for (const q of ambient.ps) {
     if (ambient.type === 'snow') { q.y += q.sp; q.x += Math.sin(frameCount * 0.02 + q.ph) * 0.3; }
     else if (ambient.type === 'rain') { q.y += 5 + q.sp * 3; q.x -= 1.2; }
+    else if (ambient.type === 'breeze') { q.x += 1.2 + q.sp * 1.5; q.y += Math.sin(frameCount * 0.05 + q.ph) * 0.6; }
     else if (ambient.type === 'embers') { q.y -= q.sp; q.x += Math.sin(frameCount * 0.03 + q.ph) * 0.4; }
     else { q.x += Math.sin(frameCount * 0.01 + q.ph) * 0.2 + 0.1; q.y += Math.cos(frameCount * 0.013 + q.ph) * 0.15; }
   }
@@ -339,6 +343,7 @@ function drawAmbient() {
     const x = wrap(q.x - camX * 0.6, VW), y = wrap(q.y - camY * 0.6, VH);
     if (ambient.type === 'snow') R(x, y, q.s, q.s, q.s > 1 ? '#fcfcfc' : '#c8d8f0');
     else if (ambient.type === 'rain') R(x, y, 1, 4 + q.s * 2, q.s > 1 ? '#a8b8e8' : '#6070a0');
+    else if (ambient.type === 'breeze') { if (q.s > 1) { R(x, y, 3, 2, '#78c858'); R(x + 1, y - 1, 1, 1, '#a8e878'); } else R(x, y, 6, 1, 'rgba(255,255,255,0.7)'); }
     else if (ambient.type === 'embers') { R(x, y, q.s, q.s, q.s > 1 ? '#f8d800' : '#f87800'); if (q.s > 1) glow(x, y, 6, '#f86000', 0.5); }
     else R(x, y, 1, 1, game.stage === 'earth' ? '#f0d8b0' : '#b8a8a0');
   }
@@ -365,7 +370,7 @@ function drawDynamicTiles() {
   const lavaGlows = [];
   for (let ty = r0; ty <= r0 + 14; ty++) for (let tx = t0; tx <= t0 + 24; tx++) {
     const t = tileAt(tx, ty);
-    if (t !== '~' && t !== 'C' && t !== 'D' && t !== '<' && t !== '>') continue;
+    if (t !== '~' && t !== 'C' && t !== 'D' && t !== '<' && t !== '>' && t !== 'U') continue;
     const sx = tx * TILE - camX, sy = ty * TILE - camY;
     if (t === '~') {
       R(sx, sy, 16, 16, '#c82800');
@@ -375,6 +380,11 @@ function drawDynamicTiles() {
       }
       if ((tx * 7 + (frameCount >> 4)) % 5 === 0) R(sx + 6, sy + 9, 3, 3, '#f8a800');
       if (tx % 2 === 0) lavaGlows.push([sx + 16, sy + 2]);
+    } else if (t === 'U') { // updraft pad: a grille with air streaming up from it
+      R(sx, sy, 16, 16, '#5a6a8a'); R(sx, sy, 16, 4, '#2a3248'); R(sx + 1, sy + 4, 14, 11, '#7a8aaa');
+      for (let k = 2; k < 16; k += 4) R(sx + k, sy, 2, 4, '#78f8c8');
+      for (let k = 0; k < 3; k++) { const h = (frameCount * 2 + k * 11 + tx * 7) % 34; R(sx + 3 + k * 5, sy - h - 4, 1, 4, 'rgba(184,252,224,0.8)'); }
+      glow(sx + 8, sy - 2, 10, '#78f8c8', 0.35);
     } else if (t === '<' || t === '>') { // conveyor: the stripes on the belt run in its direction
       const dir = t === '>' ? 1 : -1, off = (((frameCount * 0.8 * dir) % 6) + 6) % 6;
       R(sx, sy, 16, 16, '#3a3a46'); R(sx, sy, 16, 5, '#202028'); R(sx, sy + 5, 16, 1, '#0a0a16');
@@ -426,7 +436,7 @@ function drawRoomFx() {
 }
 
 const PAL_GOLD = { B: '#f8b800', b: '#fcf0a0', S: '#fcfcfc' };
-const PLAT_COL = { cut: '#d8a020', fire: '#7a7a88', elec: '#5868a0', snow: '#a8e0f8', earth: '#9a7a50' };
+const PLAT_COL = { cut: '#d8a020', fire: '#7a7a88', elec: '#5868a0', snow: '#a8e0f8', earth: '#9a7a50', wind: '#e8f0f8' };
 function drawPlatsAndHazards() {
   for (const pl of plats) {
     const x = Math.round(pl.x) - camX, y = Math.round(pl.y) - camY, c = PLAT_COL[level.theme];
@@ -549,6 +559,15 @@ function drawScissors(cx, cy, open) {
   ctx.restore();
 }
 
+// a tornado: stacked swirling bands that widen toward the top, base at (cx, by)
+function drawWhirl(cx, by, w, h, t, col = '#b8fce0') {
+  const n = Math.max(3, h / 4 | 0);
+  for (let i = 0; i < n; i++) {
+    const k = i / (n - 1), bw = Math.max(3, w * (0.3 + 0.7 * k)), off = Math.sin(t * 0.4 + i * 0.9) * w * 0.12;
+    R(cx - bw / 2 + off, by - (i + 1) * (h / n), bw, Math.max(2, h / n - 1), i & 1 ? col : '#fcfcfc');
+  }
+}
+
 function drawPlayerShot(s) {
   const x = Math.round(s.x) - camX, y = Math.round(s.y) - camY;
   switch (s.kind) {
@@ -623,6 +642,12 @@ function drawPlayerShot(s) {
       return;
     }
     case 'tgod': return;
+    case 'whirl': drawWhirl(x + 6, y + 14, 12, 14, s.t); return;
+    case 'pcyclone': drawWhirl(x + 12, y + s.h, 24, s.h, s.t); glow(x + 12, y + s.h / 2, 20, '#78f8c8', 0.35); return;
+    case 'hurricane':
+      if (s.delay > 0) return;
+      drawWhirl(x + 28, y + s.h, 56, s.h, s.t); ctx.globalAlpha = 0.18; R(x, y, s.w, s.h, '#e8fcf4'); ctx.globalAlpha = 1;
+      return;
     case 'meteor':
       for (let k = 4; k >= 1; k--) circle(x + 20, y + 20 - k * 11, 14 - k * 2.5, k & 1 ? '#f8a800' : '#f83800');
       glow(x + 20, y + 20, 40, '#f86000', 0.8);
@@ -672,6 +697,8 @@ function drawEnemyShot(s) {
       glow(cx, cy, 12, '#f8e030', 0.6);
       return;
     }
+    case 'etornado': drawWhirl(x + 6, y + 14, 12, 14, s.t, '#a8c8b8'); return;
+    case 'ecyclone': drawWhirl(x + 12, y + s.h, 24, s.h, s.t, '#a8c8b8'); return;
     case 'snowball':
       circle(x + 5, y + 5, 5, '#0a0a16'); circle(x + 5, y + 5, 4, '#f0f8ff'); R(x + 3, y + 3, 2, 2, '#ffffff'); R(x + 6, y + 7, 2, 1, '#a8c0d8');
       return;
@@ -780,7 +807,7 @@ function drawBoss() {
   if (b.state === 'slide' && b.h < 24) pose = 'slide';
   else if (!b.onGround) pose = 'jump';
   else if (b.state === 'run' || (b.state === 'walk' && b.t < 30)) { pose = 'run'; fr = [0, 1, 2, 1][(b.anim >> 3) & 3]; }
-  else if ((b.state === 'pillar' && b.t < 45) || (b.state === 'strike' && b.t < 42) || (b.state === 'rockrain' && b.t > 6 && b.t < 30)) pose = 'raise';
+  else if ((b.state === 'pillar' && b.t < 45) || (b.state === 'strike' && b.t < 42) || b.state === 'gust' || (b.state === 'rockrain' && b.t > 6 && b.t < 30)) pose = 'raise';
   let pal = def.pal;
   if (b.state === 'stagger' && (frameCount & 2)) pal = PAL_WHITE;
   else if (b.state === 'slide' && b.t < 14 && (frameCount & 2)) pal = PAL_WHITE;
@@ -788,6 +815,9 @@ function drawBoss() {
   if (b.frozenT > 0) { ctx.globalAlpha = 0.55; R(sx - 3, sy - 3, b.w + 6, b.h + 6, '#a8e8fc'); ctx.globalAlpha = 1; R(sx + 1, sy + 2, 5, 1, '#fcfcfc'); R(sx + 1, sy + 3, 1, 4, '#fcfcfc'); }
   if (b.type === 'fire') glow(sx + b.w / 2, sy - 2, 16, '#f86000', 0.7);
   if (b.type === 'snow') glow(sx + b.w / 2, sy - 2, 8, '#58e8f8', 0.5);
+  if (b.type === 'wind' && b.state === 'gust') { // the gale she whips up, blowing across the room
+    for (let i = 0; i < 26; i++) { const k = ((frameCount * 7 + i * 61) % (VW + 40)) - 20; R(b.facing > 0 ? k : VW - k, 30 + (i * 37) % 150, 10 + (i % 3) * 6, 1, 'rgba(232,252,244,0.75)'); }
+  }
   if (b.type === 'elec') glow(sx + b.w / 2, sy - 6, 12, '#f8f058', 0.5 + ((frameCount >> 2) & 1) * 0.2);
   if (game.time - b.weakAt < 40) text('WEAK!', sx + b.w / 2, sy - 16 - ((game.time - b.weakAt) >> 2), '#f8d800', 1, 'center');
 }
@@ -910,7 +940,7 @@ function drawTitle() {
   ctx.restore();
   glow(VW / 2, 120, 50, '#3cbcfc', 0.25);
   STAGE_ORDER.forEach((k, i) => {
-    const def = BOSSES[k], left = i < 3, x = left ? 14 + i * 38 : VW - 108 + (i - 3) * 44;
+    const def = BOSSES[k], left = i < 3, x = left ? 14 + i * 38 : VW - 50 - (5 - i) * 38;
     ctx.save(); ctx.translate(x, 116); ctx.scale(1.5, 1.5);
     drawRobot(0, 0, left ? 1 : -1, 'stand', 0, false, save.cleared[k] ? PAL_WHITE : def.pal, def.style);
     ctx.restore();
@@ -935,8 +965,8 @@ function drawPortrait(k, x, y, s, pal) {
   ctx.restore();
 }
 
-// stage select grid: [column, row]; three panels on top, two centred below
-const SEL_POS = [[0, 0], [1, 0], [2, 0], [0.5, 1], [1.5, 1]];
+// stage select grid: [column, row]; three panels per row
+const SEL_POS = [[0, 0], [1, 0], [2, 0], [0, 1], [1, 1], [2, 1]];
 const PW = 116, PH = 70, SEL_X0 = (VW - (3 * PW + 16)) / 2;
 function drawSelect() {
   const g = ctx.createLinearGradient(0, 0, 0, VH);
@@ -1047,7 +1077,7 @@ function drawWeaponGet() {
   const px = 110 + (t * 3) % 260, py = 110;
   const save_ = [camX, camY];
   camX = 0; camY = 0;
-  const demo = { cut: { kind: 'cutter', t }, fire: { kind: 'fireball', vx: 1 }, elec: { kind: 'tbeam', w: 24, h: 8, seed: 1 }, snow: { kind: 'shard' }, earth: { kind: 'rock' } }[game.stage];
+  const demo = { cut: { kind: 'cutter', t }, fire: { kind: 'fireball', vx: 1 }, elec: { kind: 'tbeam', w: 24, h: 8, seed: 1 }, wind: { kind: 'whirl' }, snow: { kind: 'shard' }, earth: { kind: 'rock' } }[game.stage];
   drawPlayerShot(Object.assign({ x: px, y: py - 6, w: 12, h: 10, t, level: 0 }, demo));
   [camX, camY] = save_;
   text('YOU GOT', 150, 64, '#a8c8f8', 1);
@@ -1068,7 +1098,7 @@ function drawEnding() {
   drawRobot(0, 0, 1, (frameCount >> 5) & 1 ? 'jump' : 'stand', 0, false, PAL_HERO);
   ctx.restore();
   STAGE_ORDER.forEach((k, i) => {
-    const x = i < 3 ? 6 + i * 48 : VW - 106 + (i - 3) * 52;
+    const x = i < 3 ? 6 + i * 48 : VW - 54 - (5 - i) * 48;
     drawPortrait(k, x, 90, 2, PAL_WHITE);
     drawWeaponIcon(k, x + 19, 146);
   });
@@ -1077,21 +1107,29 @@ function drawEnding() {
   if (game.t > 90 && (frameCount >> 4) & 1) text('PRESS ENTER', VW / 2, 206, '#f8d800', 1, 'center');
 }
 
+const pauseColumns = () => [[...ownedWeapons(), 'exit'], SHOP.map(it => it.key).filter(k => save.parts[k])];
 function drawPause() {
-  ctx.fillStyle = 'rgba(5,5,20,0.75)'; ctx.fillRect(0, 0, VW, VH);
-  text('PAUSE', VW / 2, 22, '#fcfcfc', 2, 'center');
-  const items = [...ownedWeapons(), 'exit'];
-  items.forEach((it, i) => {
-    const y = 56 + i * 20, sel = game.sel === i;
-    if (sel) R(110, y - 4, 164, 16, 'rgba(60,188,252,0.25)');
-    if (it === 'exit') text('EXIT STAGE', 134, y, sel ? '#f8d800' : '#a8a8b8');
-    else {
-      drawWeaponIcon(it, 116, y - 2);
-      text(WEAPONS[it].name, 134, y, sel ? '#f8d800' : it === player.weapon ? '#fcfcfc' : '#a8a8b8');
-    }
+  ctx.fillStyle = 'rgba(5,5,20,0.78)'; ctx.fillRect(0, 0, VW, VH);
+  text('PAUSE', VW / 2, 10, '#fcfcfc', 2, 'center');
+  const [weps, tools] = pauseColumns();
+  text('SENJATA', 24, 36, '#a8c8f8'); text('TOOLS', 206, 36, '#a8c8f8');
+  R(196, 34, 1, 150, 'rgba(168,200,248,0.25)');
+  weps.forEach((it, i) => {
+    const y = 50 + i * 17, sel = game.pcol === 0 && game.sel === i;
+    if (sel) R(18, y - 4, 172, 15, 'rgba(60,188,252,0.25)');
+    if (it === 'exit') text('EXIT STAGE', 42, y, sel ? '#f8d800' : '#a8a8b8');
+    else { drawWeaponIcon(it, 24, y - 2); text(WEAPONS[it].name, 42, y, sel ? '#f8d800' : it === player.weapon ? '#fcfcfc' : '#a8a8b8'); }
   });
-  text('LIFE ' + game.lives + '   POIN ' + save.points, VW / 2, 196, '#a8c8f8', 1, 'center');
-  text('UP/DOWN PILIH  ENTER OK', VW / 2, 208, '#686878', 1, 'center');
+  if (!tools.length) { text('BELUM ADA', 206, 52, '#686878'); text('BELI DI SHOP', 206, 64, '#686878'); }
+  tools.forEach((k, i) => {
+    const y = 50 + i * 17, sel = game.pcol === 1 && game.sel === i, on = save.parts[k] === 'on', it = SHOP.find(s => s.key === k);
+    if (sel) R(200, y - 4, 172, 15, 'rgba(60,188,252,0.25)');
+    drawPartIcon(k, 204, y - 4);
+    text(it.name.replace(' ANTI ', ' '), 222, y, sel ? '#f8d800' : on ? '#fcfcfc' : '#686878');
+    text(on ? 'ON' : 'OFF', 366, y, on ? '#b8f818' : '#888898', 1, 'right');
+  });
+  text('LIFE ' + game.lives + '   POIN ' + save.points, VW / 2, 192, '#a8c8f8', 1, 'center');
+  text('ARAH PILIH  ENTER PAKAI SENJATA / ON-OFF TOOLS', VW / 2, 206, '#686878', 1, 'center');
   drawVersion();
 }
 

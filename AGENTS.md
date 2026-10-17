@@ -16,6 +16,7 @@ File ini untuk siapa pun yang melanjutkan NEOBUSTER, manusia maupun AI coding ag
 - Semua script berbagi satu scope global dan dimuat berurutan di `index.html`. Urutan itu penting, dan nama `const` / `function` di level atas setiap file harus unik.
 - Konten disimpan di tabel yang dikunci dengan key yang sama: stage, boss, dan senjata satu boss memakai satu key.
 - `validateContent()` di `js/core/main.js` mencetak peringatan `[neobuster] ...` di console untuk data yang belum lengkap.
+- Progress pemain ada di objek `save` (localStorage `neobuster-save-v1`) dan, kalau pemain masuk Cloud Save, ikut diunggah ke cloud (`js/core/cloud.js`). Setiap field baru di `save` harus diberi nilai bawaan di `normalizeSave()` (`js/core/main.js`), supaya save lama dan save dari cloud tetap bisa dimuat. Simpan perubahan lewat `writeSave()`, jangan menulis localStorage langsung: fungsi ini juga mencatat waktu perubahan dan memicu unggahan cloud. Request ke API cloud ditandatangani TOTP (`x-external-uid` + `x-external-totp`); jangan mengirim token API mentah di header.
 
 ## Aturan kerja
 
@@ -42,3 +43,4 @@ Setiap benua (pulau), stage, dan boss baru harus memenuhi checklist di [docs/MEN
 2. **Tes jangkauan** dengan [tools/reach.js](tools/reach.js): buka game, tempel isi file itu di console browser, jalankan `reachAll()`, lalu muat ulang halaman. Semua kolom harus `OK`: pintu boss dan setiap checkpoint terjangkau dari awal, armor tidak terjangkau selama segelnya utuh, dan terjangkau setelah segelnya hancur.
 3. Mainkan langsung bagian yang bergantung waktu (press, laser, blok energi, cairan naik), karena tes jangkauan tidak mensimulasikan waktu.
 4. Pastikan ruang rahasia bisa dibuka dengan senjata segelnya, dan tembakan senjata lain memantul.
+5. Kalau mengubah save atau Cloud Save: uji masuk akun baru (password diminta dua kali), masuk dari perangkat kosong (progress cloud termuat), perangkat dengan progress berbeda (diminta memilih), dan sinkron otomatis setelah ada perubahan. Pakai akun uji, bukan akun pemain.

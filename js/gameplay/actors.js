@@ -30,6 +30,7 @@ const game = {
   popup: 0,
   tough: false, // cheat ILMUKEBAL
   infLives: false, // cheat AKUABADI
+  resetArm: 0, // title screen: frames left to press R again and wipe the progress
 };
 const door = { open: 0, solid: true, phase: '' };
 const player = { weapon: 'buster' };

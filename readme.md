@@ -2,7 +2,7 @@
 
 > Game action-platformer 2D bergaya **Mega Man** untuk browser — pixel art dengan kepadatan pixel 2x yang detail, tapi tetap ringan dan optimal untuk web.
 
-**Versi saat ini: `1.8.3`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
+**Versi saat ini: `1.9.1`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
 
 ---
 
@@ -18,6 +18,7 @@
 - [Peta Dunia & Menu Pause](#peta-dunia--menu-pause)
 - [Shop & Part](#shop--part)
 - [Progress & Save](#progress--save)
+- [Cloud Save](#cloud-save)
 - [Cheat Code](#cheat-code)
 - [Format Kode](#format-kode)
 - [Struktur Proyek](#struktur-proyek)
@@ -64,7 +65,7 @@ Tidak perlu build atau install apa pun — cukup HTML + JavaScript murni.
 | Kembali ke layar sebelumnya (menu, peta, select) | `Esc` / `Backspace`                                                             | Select              |
 | Buka Shop (di Stage Select)                      | `X`                                                                             | X / B               |
 | Layar Kelemahan Boss (di Stage Select)           | `C`                                                                             | RT / Y              |
-| Reset progress (di title)                        | `R`                                                                             | —                   |
+| Reset progress (di title)                        | `R` dua kali                                                                    | —                   |
 | Buka cheat box                                   | Tekan `P` + `O` bersamaan                                                       | —                   |
 
 ## Stage
@@ -272,11 +273,25 @@ Data disimpan di `localStorage` browser (key `neobuster-save-v1`).
 
 - **Boss yang sudah dikalahkan** tersimpan otomatis.
 - **Save point manual** dibuat dengan cheat `INGATANKUAT`. Yang disimpan: jumlah life, skor, senjata aktif, dan — jika sedang di dalam stage — stage tersebut beserta checkpoint-nya.
-- Jika ada save point, layar title menampilkan pilihan **CONTINUE** / **NEW GAME** (pilih dengan tombol panah).
+- Layar title punya menu **START** (atau **CONTINUE** / **NEW GAME** jika ada save point) dan **CLOUD SAVE**; pilih dengan tombol panah.
   - **CONTINUE** melanjutkan dari save point. Kalau disimpan di dalam stage, game langsung masuk ke stage itu (dari checkpoint jika sudah melewatinya).
   - **NEW GAME** mulai dengan 2 life dan skor 0. Boss yang sudah dikalahkan tetap tersimpan.
 - **Armor** dari ruang rahasia dan **rekor wave** Training Ground tersimpan otomatis.
-- Tekan `R` di title untuk menghapus semua progress, termasuk POIN, part yang sudah dibeli, armor, dan rekor Training Ground.
+- Tekan `R` **dua kali** di title (dalam 3 detik) untuk menghapus semua progress, termasuk POIN, part yang sudah dibeli, armor, dan rekor Training Ground. Saat masuk Cloud Save, progress di cloud ikut terhapus.
+
+## Cloud Save
+
+Progress bisa disimpan di cloud supaya bisa dilanjutkan di perangkat mana pun. Pilih **CLOUD SAVE** di layar title.
+
+- **Masuk tanpa daftar**: ketik username dan password. Username dan password yang sama selalu membuka save yang sama (huruf besar/kecil pada username tidak berpengaruh). Password tidak disimpan dan tidak dikirim; yang dipakai hanya hash SHA-256 dari username dan password sebagai ID save.
+- **Akun baru**: kalau belum ada save untuk username dan password itu, password diminta sekali lagi sebelum save baru dibuat, supaya salah ketik tidak membuat akun kosong. Progress perangkat itu menjadi save pertamanya.
+- **Masuk di perangkat lain**: kalau perangkat itu belum punya progress, progress dari cloud langsung dimuat. Kalau keduanya berbeda, kamu memilih mana yang dipakai (ringkasan boss, POIN, armor, part, rekor training, dan waktu simpan tampil berdampingan); yang lain akan ditimpa.
+- **Simpan otomatis**: setelah masuk, setiap perubahan progress diunggah beberapa detik kemudian. Statusnya tampil di pojok layar title dan peta (TERSIMPAN, MENYIMPAN..., atau GAGAL beserta alasannya; kalau gagal, dicoba lagi otomatis).
+- **Saat game dibuka lagi**, save di cloud dicek dulu. Kalau cloud lebih baru (misalnya kamu bermain di perangkat lain) dan perangkat ini tidak berubah, progress langsung diperbarui. Kalau keduanya berubah, kamu diminta memilih.
+- Di layar Cloud Save juga ada **SIMPAN SEKARANG**, **MUAT DARI CLOUD** (ditanya sekali lagi karena menimpa progress perangkat ini), dan **KELUAR AKUN** (progress perangkat ini tetap ada, hanya tidak disinkronkan lagi).
+- Data disimpan lewat API save-json Skuling (`https://openapi.skuling.id/external/save-json/`). Setiap request ditandatangani dengan **TOTP**: header `x-external-uid` dan `x-external-totp` (32 digit pertama HMAC-SHA512 dari token dengan langkah waktu 30 detik), jadi token API sendiri tidak pernah dikirim. Detailnya ada di `js/core/cloud.js`.
+- TOTP berbasis waktu, jadi jam perangkat perlu tepat (server menerima selisih sekitar 30 detik). Kalau jam perangkat meleset, game mengoreksinya sendiri: waktu diambil dari header `Date` di jawaban server, lalu request diulang sekali, dan request berikutnya memakai waktu yang sudah dikoreksi. Kalau tetap gagal, Cloud Save menampilkan "JAM PERANGKAT TIDAK TEPAT".
+- Hash dan tanda tangan dihitung dengan JavaScript biasa (tanpa `crypto.subtle`), jadi Cloud Save juga berjalan saat game dibuka langsung dari file atau lewat HTTP biasa.
 
 ## Cheat Code
 
@@ -321,6 +336,7 @@ neobuster/
 └── js/                 # dikelompokkan per fungsi; urutan pemuatannya ada di index.html
     ├── core/
     │   ├── engine.js       # versi, canvas, input, audio & musik, font pixel, sprite & glow
+    │   ├── cloud.js        # cloud save: login tanpa daftar (hash), sinkron otomatis, pilihan saat cloud dan perangkat berbeda
     │   └── main.js         # alur game (title, peta, select, stage, boss, ending), shop, render, save, validator konten, game loop
     ├── art/
     │   └── art.js          # palet, drawRobot, background parallax, tileset, ikon senjata (+ registry untuk file benua)

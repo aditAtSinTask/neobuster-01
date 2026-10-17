@@ -2,6 +2,23 @@
 
 Semua perubahan NEOBUSTER, versi terbaru di atas. Versi ditulis di konstanta `VERSION` di `js/engine.js`.
 
+## 1.9.1
+
+- **Cloud Save memakai TOTP**: token API tidak lagi dikirim di header. Setiap request membawa `x-external-uid` dan `x-external-totp`, yaitu 32 digit pertama HMAC-SHA512 dari token dengan langkah waktu 30 detik. Server menerima langkah waktu saat ini dan sebelumnya.
+- HMAC-SHA512 dihitung dengan JavaScript biasa, jadi Cloud Save tetap berjalan tanpa HTTPS (dibuka dari file, atau lewat HTTP di jaringan lokal).
+- **Koreksi jam otomatis**: kalau jam perangkat meleset dan server menolak TOTP-nya, game mengambil waktu dari header `Date` di jawaban server (server mengizinkannya lewat `Access-Control-Expose-Headers: Date`), mengulang request sekali, dan memakai selisihnya untuk request berikutnya. Kalau tetap gagal, Cloud Save menampilkan "JAM PERANGKAT TIDAK TEPAT".
+
+## 1.9.0
+
+- **Cloud Save**: progress bisa disimpan di cloud dan dilanjutkan di perangkat mana pun. Pilih **CLOUD SAVE** di menu title.
+  - Masuk tanpa daftar: ID save adalah hash SHA-256 dari username dan password, jadi username dan password yang sama selalu membuka save yang sama. Password tidak disimpan dan tidak dikirim.
+  - Untuk akun baru, password diminta sekali lagi sebelum save dibuat, supaya salah ketik tidak membuat akun kosong.
+  - Setelah masuk, progress diunggah otomatis beberapa detik setelah setiap perubahan, dan statusnya tampil di pojok layar title dan peta.
+  - Saat masuk atau saat game dibuka, save di cloud dan di perangkat ini dibandingkan. Cloud yang lebih baru dimuat otomatis kalau perangkat ini tidak berubah; kalau keduanya berubah, pemain memilih mana yang dipakai.
+  - Layar Cloud Save juga punya SIMPAN SEKARANG, MUAT DARI CLOUD, dan KELUAR AKUN.
+- Menu title sekarang **START** (atau **CONTINUE** / **NEW GAME**) dan **CLOUD SAVE**.
+- **Reset progress di title** sekarang perlu menekan `R` dua kali, karena saat masuk Cloud Save reset juga menghapus progress di cloud.
+
 ## 1.8.3
 
 - **Aturan wajib konten baru dicatat** di [docs/MENAMBAH-KONTEN.md](docs/MENAMBAH-KONTEN.md), dalam satu daftar: stage yang unik dan menantang, ruang rahasia dengan armor di setiap stage, boss native dengan wajah bersama dan ciri khas, teks tanpa gender, HP boss yang naik setiap benua, senjata lengkap, pulau di peta, musuh baru di Training Ground, dan pengujian.

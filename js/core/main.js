@@ -3,13 +3,8 @@
 
 // ================= SAVE =================
 const SAVE_KEY = 'neobuster-save-v1';
-function loadSave() {
-  let s = null;
-  try {
-    s = JSON.parse(localStorage.getItem(SAVE_KEY));
-  } catch (e) {
-    /* storage unavailable */
-  }
+// a save with every field it needs (old saves and cloud copies lack the newer ones)
+function normalizeSave(s) {
   if (!s || !s.cleared) s = { cleared: {} };
   s.points = s.points || 0;
   s.parts = s.parts || {}; // shop wallet and bought parts ('on' / 'off')
@@ -17,12 +12,25 @@ function loadSave() {
   s.train = s.train || { wave: 0, kills: 0 }; // best training ground run
   return s;
 }
-function writeSave() {
+function loadSave() {
+  let s = null;
+  try {
+    s = JSON.parse(localStorage.getItem(SAVE_KEY));
+  } catch (e) {
+    /* storage unavailable */
+  }
+  return normalizeSave(s);
+}
+// keeps the save on this device and, when logged in, uploads it to the cloud a few seconds later (js/core/cloud.js);
+// fromCloud: the save was just replaced by the cloud copy, so it keeps that copy's time and does not go back up
+function writeSave(fromCloud = false) {
+  if (!fromCloud) save.updatedAt = Date.now();
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify(save));
   } catch (e) {
     /* storage unavailable */
   }
+  if (!fromCloud) cloudSaveChanged();
 }
 const save = loadSave();
 const allCleared = () => STAGE_ORDER.every(k => save.cleared[k]);
@@ -465,9 +473,20 @@ function step() {
   updateAmbient();
   const go = hit.start || hit.jump;
   switch (game.state) {
-    case 'title':
+    case 'title': {
       game.t++;
-      if (
+      if (cloud.conflict) {
+        // the cloud and this device both changed: pick one before playing
+        openCloud();
+        break;
+      }
+      if (game.resetArm > 0) game.resetArm--;
+      const items = titleItems();
+      game.menu = Math.min(game.menu, items.length - 1);
+      if (hit.reset && !game.resetArm && cloudHasProgress(save)) {
+        game.resetArm = 180; // R once more within 3 seconds wipes everything
+        sfx.select();
+      } else if (
         hit.reset &&
         (Object.keys(save.cleared).length ||
           save.snap ||
@@ -484,22 +503,31 @@ function step() {
         save.train = { wave: 0, kills: 0 };
         writeSave();
         player.weapon = 'buster';
+        game.resetArm = 0;
         sfx.deflect();
       }
-      if (save.snap && (hit.left || hit.right || hit.up || hit.down)) {
-        game.menu ^= 1;
+      if (hit.left || hit.right || hit.up || hit.down) {
+        game.menu = (game.menu + (hit.right || hit.down ? 1 : items.length - 1)) % items.length;
         sfx.select();
       }
       if (go) {
+        const it = items[game.menu];
         sfx.confirm();
-        game.tough = game.infLives = false;
-        if (save.snap && game.menu === 0) continueGame();
+        if (it === 'CLOUD SAVE') openCloud();
         else {
-          game.lives = 2;
-          game.score = 0;
-          goMap();
+          game.tough = game.infLives = false;
+          if (it === 'CONTINUE') continueGame();
+          else {
+            game.lives = 2;
+            game.score = 0;
+            goMap();
+          }
         }
       }
+      break;
+    }
+    case 'cloud':
+      updateCloudScreen(go);
       break;
     case 'select': {
       game.t++;
@@ -2394,19 +2422,38 @@ function drawTitleArt() {
   ctx.fillStyle = 'rgba(5,5,15,0.55)';
   ctx.fillRect(0, 164, VW, VH - 164); // calm band behind the text
 }
+// the title menu: CONTINUE only when there is a save point
+const titleItems = () => (save.snap ? ['CONTINUE', 'NEW GAME', 'CLOUD SAVE'] : ['START', 'CLOUD SAVE']);
 function drawTitle() {
   drawTitleArt();
   drawLogo(14);
-  if (save.snap) {
-    ['CONTINUE', 'NEW GAME'].forEach((o, i) => {
-      const sel = game.menu === i;
-      text((sel ? '>' : ' ') + o, VW / 2 + (i ? 50 : -50), 168, sel ? '#f8d800' : '#686878', 1, 'center');
-    });
-  } else if ((frameCount >> 4) & 1) text('PRESS ENTER', VW / 2, 168, '#f8d800', 1, 'center');
+  const items = titleItems(),
+    gap = 26,
+    widths = items.map(o => textWidth(o) + 8);
+  let x = VW / 2 - (widths.reduce((a, b) => a + b, 0) + gap * (items.length - 1)) / 2;
+  items.forEach((o, i) => {
+    const sel = Math.min(game.menu, items.length - 1) === i;
+    text((sel ? '>' : ' ') + o, x, 168, sel ? '#f8d800' : '#686878');
+    x += widths[i] + gap;
+  });
   text('ARROWS MOVE  Z JUMP  X SHOOT  C SLIDE', VW / 2, 186, '#a8a8b8', 1, 'center');
   text('HOLD X CHARGE  Q/E WEAPON  ENTER PAUSE  M MUTE', VW / 2, 198, '#a8a8b8', 1, 'center');
-  if (Object.keys(save.cleared).length || save.snap) text('R: RESET PROGRESS', VW / 2, 212, '#686878', 1, 'center');
+  if (game.resetArm > 0)
+    text('R LAGI: HAPUS SEMUA PROGRESS' + (cloud.id ? ' (JUGA DI CLOUD)' : ''), VW / 2, 212, '#f87858', 1, 'center');
+  else if (cloudHasProgress(save)) text('R: RESET PROGRESS', VW / 2, 212, '#686878', 1, 'center');
+  drawCloudStatus(4, 3);
   drawVersion();
+}
+// the cloud save's state in a corner of the title screen and the map (and a note after an update from the cloud)
+function drawCloudStatus(x, y) {
+  const st = cloudStatusLine();
+  if (st) text(st[0], x, y, st[1]);
+  const n = cloudUI.note;
+  if (n && performance.now() < n.until) {
+    const w = textWidth(n.text);
+    R(VW / 2 - w / 2 - 6, 140, w + 12, 15, 'rgba(5,5,20,0.8)');
+    text(n.text, VW / 2, 144, '#b8f818', 1, 'center');
+  }
 }
 function drawVersion() {
   text('V' + VERSION, VW - 4, VH - 10, '#7a7a90', 1, 'right');
@@ -2436,6 +2483,7 @@ function drawMap() {
     for (let x = ((y * 7 + frameCount * 0.3) % 40) - 40; x < VW; x += 40) R(x, y, 6, HP, 'rgba(168,220,252,0.25)');
   text('PETA DUNIA', VW / 2, 8, '#fcfcfc', 2, 'center');
   text('POIN ' + save.points, VW - 10, 12, '#f8d800', 1, 'right');
+  drawCloudStatus(6, 28);
   for (let i = 0; i <= CONTINENTS.length + 1; i++) {
     const cx = Math.round(VW / 2 + i * MAP_SLOT - game.mapX);
     if (cx < -120 || cx > VW + 120) continue;
@@ -3103,6 +3151,8 @@ function render() {
   switch (game.state) {
     case 'title':
       return drawTitle();
+    case 'cloud':
+      return drawCloudScreen();
     case 'map':
       return drawMap();
     case 'select':
@@ -3194,6 +3244,7 @@ function validateContent() {
 }
 finishContent();
 validateContent();
+cloudBoot();
 
 // ================= LOOP =================
 // Logic runs at a fixed 60 steps/s. Rendering interpolates positions between the last two steps so motion

@@ -73,6 +73,17 @@ function startStage(key, checkpoint = false) {
 }
 
 const HAZARD_TYPES = ['saw', 'jet', 'icicle', 'rockfall', 'zap', 'bubble', 'eblock', 'wind'];
+// energy blocks per stage [dark, base, light], for even and odd blocks
+const EBLOCK_COLS = {
+  elec: [
+    ['#c8a800', '#f8e030', '#fcf8a0'],
+    ['#c8a800', '#f8e030', '#fcf8a0'],
+  ],
+  sonic: [
+    ['#a8287a', '#f868c0', '#ffd0ee'],
+    ['#1a88a8', '#48d8f8', '#d0f8ff'],
+  ],
+};
 function restartFromCheckpoint() {
   for (let y = 0; y < LH; y++) map[y] = level.orig[y].slice();
   crumbling.clear();
@@ -270,7 +281,7 @@ function updateDoor() {
     if (p.x < tx) {
       p.x += 0.8;
       p.vx = 0.8;
-      p.anim++;
+      p.anim += 0.8 / 1.4; // walking in slower than running: the running cycle follows the distance
     } else p.vx = 0;
     if (camX >= bossRoomX() && p.x >= tx) {
       door.phase = 'close';
@@ -986,19 +997,22 @@ function drawPlatsAndHazards() {
         const x = h.x - camX,
           y = h.y - camY,
           per = (h.n + 2) * h.step;
+        const [dark, base, light] = EBLOCK_COLS[level.theme]
+          ? EBLOCK_COLS[level.theme][h.idx % 2]
+          : EBLOCK_COLS.elec[0];
         if (h.on) {
           if (h.t > h.step * 3 - 24 && frameCount & 2) break; // about to vanish
           R(x, y, h.w, 16, '#0a0a16');
-          R(x + 1, y + 1, h.w - 2, 14, '#c8a800');
-          R(x + 2, y + 2, h.w - 4, 11, '#f8e030');
+          R(x + 1, y + 1, h.w - 2, 14, dark);
+          R(x + 2, y + 2, h.w - 4, 11, base);
           for (let k = 4; k < h.w - 4; k += 8) {
             R(x + k, y + 4, 4, 2, '#fcfcfc');
-            R(x + k + 2, y + 6, 2, 4, '#fcf8a0');
+            R(x + k + 2, y + 6, 2, 4, light);
           }
-          glow(x + h.w / 2, y + 8, 16, '#f8e030', 0.35);
+          glow(x + h.w / 2, y + 8, 16, base, 0.35);
         } else if (h.t > per - 24) {
           ctx.globalAlpha = 0.35;
-          R(x + 1, y + 1, h.w - 2, 14, '#f8e030');
+          R(x + 1, y + 1, h.w - 2, 14, base);
           ctx.globalAlpha = 1;
         } // about to appear
         break;
@@ -1076,24 +1090,89 @@ function drawRock(x, y, s) {
     ],
   );
 }
-function drawCutter(x, y, rot, handle) {
-  ctx.save();
-  ctx.translate(Math.round(x + 7), Math.round(y + 7));
-  ctx.rotate(rot);
-  for (const a of [0, Math.PI / 2]) {
-    ctx.save();
-    ctx.rotate(a);
-    ctx.fillStyle = '#0a0a16';
-    ctx.fillRect(-8, -2, 16, 4);
-    ctx.fillStyle = '#e8e8f0';
-    ctx.fillRect(-7, -1, 9, 2);
-    ctx.fillStyle = handle;
-    ctx.fillRect(2, -1, 5, 2);
-    ctx.restore();
-  }
-  ctx.fillStyle = '#505060';
-  ctx.fillRect(-1, -1, 2, 2);
-  ctx.restore();
+// the R. Cutter (Sniptor's weapon): eight curved crimson blades with gold edges round a silver hub, like a spinning
+// flame. Rasterised to fine pixels per rotation step (crisp, no anti-aliasing) and cached by size; 8 steps cover an
+// eighth of a turn, which is a full cycle for eight blades.
+const _cutter = new Map();
+function cutterBitmap(S, step) {
+  const key = S + ':' + step;
+  if (_cutter.has(key)) return _cutter.get(key);
+  const c = makeCanvas(S, S, g => {
+    g.translate(S / 2, S / 2);
+    g.scale(S / 40, S / 40); // drawn for 40 fine pixels across
+    g.rotate((step * Math.PI) / 32);
+    g.lineJoin = 'round';
+    // one blade: its leading edge sweeps out from the hub to the tip, the trailing edge curves back in
+    const blade = (a, inset) => {
+      g.beginPath();
+      for (let i = 0; i <= 8; i++) {
+        const t = i / 8,
+          r = 5 + 14 * t - inset;
+        g.lineTo(Math.cos(a + 0.9 * t) * r, Math.sin(a + 0.9 * t) * r);
+      }
+      for (let i = 8; i >= 0; i--) {
+        const t = i / 8,
+          r = 5 + 14 * t - inset * 1.6,
+          th = a + 0.75 + 0.15 * t * t - inset * 0.04;
+        g.lineTo(Math.cos(th) * r, Math.sin(th) * r);
+      }
+      g.closePath();
+    };
+    for (let k = 0; k < 8; k++) {
+      const a = (k * Math.PI) / 4;
+      blade(a, 0);
+      g.strokeStyle = '#0a0812';
+      g.lineWidth = 3;
+      g.stroke();
+      g.fillStyle = '#e8b040'; // gold edge
+      g.fill();
+      blade(a, 1.6);
+      g.fillStyle = '#a8183c';
+      g.fill();
+      blade(a, 3.4);
+      g.fillStyle = '#6a1028';
+      g.fill();
+      // a bright tip
+      g.fillStyle = '#f8e088';
+      g.beginPath();
+      g.arc(Math.cos(a + 0.86) * 17.6, Math.sin(a + 0.86) * 17.6, 1.4, 0, 7);
+      g.fill();
+    }
+    for (const [r, col] of [
+      [7, '#0a0812'],
+      [5.8, '#c4ccd0'],
+      [3.8, '#d8a040'],
+      [2.2, '#3a3448'],
+      [0.9, '#f8e088'],
+    ]) {
+      g.fillStyle = col;
+      g.beginPath();
+      g.arc(0, 0, r, 0, 7);
+      g.fill();
+    }
+    const img = g.getImageData(0, 0, S, S),
+      d = img.data;
+    for (let i = 3; i < d.length; i += 4) d[i] = d[i] >= 128 ? 255 : 0;
+    g.putImageData(img, 0, 0);
+  });
+  _cutter.set(key, c);
+  return c;
+}
+// an R. Cutter centred on (cx, cy), size logical pixels across, spinning with t (dir -1 turns the other way), with a
+// faint fiery glow
+function drawRCutter(cx, cy, size, t, dir = 1) {
+  glow(cx, cy, size * 0.75, '#f86030', 0.35);
+  const step = (((Math.floor(t * 3) * dir) % 8) + 8) % 8,
+    sm = ctx.imageSmoothingEnabled;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(
+    cutterBitmap(Math.round(size * 2), step),
+    Math.round(cx - size / 2),
+    Math.round(cy - size / 2),
+    size,
+    size,
+  );
+  ctx.imageSmoothingEnabled = sm;
 }
 
 // the big shuriken (charged Rolling Cutter): rasterised to fine pixels per rotation step (crisp, no
@@ -1200,7 +1279,7 @@ function drawPlayerShot(s) {
       }
       return;
     case 'cutter':
-      drawCutter(x, y, s.t * 0.5, '#f83800');
+      drawRCutter(x + 7, y + 7, 16, s.t);
       return;
     case 'shuriken': {
       glow(x + 13, y + 13, 20, '#e0e0ec', 0.35);
@@ -1258,12 +1337,7 @@ function drawPlayerShot(s) {
       return;
     }
     case 'tcutter':
-      glow(x + 10, y + 10, 14, '#e0e0ec', 0.4);
-      ctx.save();
-      ctx.translate(x + 10, y + 10);
-      ctx.scale(1.4, 1.4);
-      drawCutter(-7, -7, s.t * 0.6, '#f83800');
-      ctx.restore();
+      drawRCutter(x + 10, y + 10, 22, s.t);
       return;
     case 'ppillar':
       if (s.delay > 0) {
@@ -1349,7 +1423,7 @@ function drawEnemyShot(s) {
   if (ESHOT_KINDS[s.kind] && ESHOT_KINDS[s.kind].draw) return ESHOT_KINDS[s.kind].draw(s, x, y);
   switch (s.kind) {
     case 'bcutter':
-      drawCutter(x, y, -s.t * 0.5, '#c83010');
+      drawRCutter(x + 7, y + 7, 18, s.t, -1);
       return;
     case 'wave':
       drawFlameColumn(x + 7, y + s.h, s.h, 6);
@@ -1493,19 +1567,19 @@ function drawPickup(k) {
     );
     glow(x + 7, y + 6, 12, '#f8d800', 0.5);
   } else {
-    // Nexo's head, with the hair in the weapon's colour like the sprite
-    const hair = heroColors(WEAPONS[player.weapon].pal);
+    // Nexo's head, with the hair in the weapon's colour like his sprite
+    const hair = nexoColors(WEAPONS[player.weapon].pal);
     sprite(
       x,
       y,
       1,
       14,
-      [[2, 1, 10, 10, hair.H]],
+      [[2, 1, 10, 10, hair.Z]],
       [
         [5, 4, 6, 7, SKIN],
         [7, 5, 2, 3, '#fcfcfc'],
         [8, 6, 1, 2, '#000000'],
-        [3, 2, 4, 2, hair.L],
+        [3, 2, 4, 2, hair.z],
       ],
     );
   }
@@ -1550,7 +1624,7 @@ function drawPlayer() {
     fr = p.vy < 0 ? 0 : 1; // rising or falling
   } else if (Math.abs(p.vx) > 0.1) {
     pose = 'run';
-    fr = p.anim; // the running tick count: the hero's running cycle picks its frame from it
+    fr = p.anim; // the distance run in 1.4 px steps: the hero's running cycle picks its frame from it
   }
 
   // special weapons charge in their own colour; the buster keeps the classic green -> blue
@@ -1632,12 +1706,26 @@ function drawBoss() {
   )
     pose = 'raise';
   if (def.pose) pose = def.pose(b, pose);
+  // a native boss (js/chars.js) runs through its cycle by the distance covered (fr in 1.4 px steps) and has its own
+  // rising and falling frames
+  if (NATIVE_CHARS[def.style]) {
+    if (pose === 'run') fr = (b.anim * Math.abs(b.vx)) / 1.4;
+    else if (pose === 'jump') fr = b.vy < 0 ? 0 : 1;
+  }
   let pal = def.pal;
   if (b.state === 'stagger' && frameCount & 2) pal = PAL_WHITE;
   else if (b.state === 'slide' && b.t < 14 && frameCount & 2) pal = PAL_WHITE;
   if (def.drawBehind) def.drawBehind(b, sx, sy);
   drawRobot(sx + b.w / 2 - 12, sy + b.h - 24, b.facing, pose, fr, b.arm > 0 && pose !== 'raise', pal, def.style, {
     blade: b.hasCutter,
+    state: b.state,
+    landT: b.landT,
+    t: b.t,
+    enr: b.hp <= 14,
+    armT: b.arm,
+    vy: b.vy,
+    mode: b.mode,
+    dash: b.dash,
   });
   if (def.draw) def.draw(b, sx, sy);
   if (b.frozenT > 0) {
@@ -1647,8 +1735,9 @@ function drawBoss() {
     R(sx + 1, sy + 2, 5, 1, '#fcfcfc');
     R(sx + 1, sy + 3, 1, 4, '#fcfcfc');
   }
-  if (b.type === 'fire') glow(sx + b.w / 2, sy - 2, 16, '#f86000', 0.7);
-  if (b.type === 'snow') glow(sx + b.w / 2, sy - 2, 8, '#58e8f8', 0.5);
+  if (b.type === 'fire') glow(sx + b.w / 2, sy + 8, 20, '#f86000', 0.3); // the heat of his lava armour
+  if (b.type === 'snow') glow(sx + b.w / 2, sy + 8, 18, '#a8e8fc', 0.25); // the cold round her ice armour
+  if (b.type === 'earth') glow(sx + b.w / 2, sy + 10, 18, '#8ad058', 0.2); // the green glow of her gems
   if (b.type === 'wind' && b.state === 'gust') {
     // the gale she whips up, blowing across the room
     for (let i = 0; i < 26; i++) {
@@ -1656,7 +1745,7 @@ function drawBoss() {
       R(b.facing > 0 ? k : VW - k, 30 + ((i * 37) % 150), 10 + (i % 3) * 6, 1, 'rgba(232,252,244,0.75)');
     }
   }
-  if (b.type === 'elec') glow(sx + b.w / 2, sy - 6, 12, '#f8f058', 0.5 + ((frameCount >> 2) & 1) * 0.2);
+  if (b.type === 'elec') glow(sx + b.w / 2, sy + 8, 18, '#58b8f8', 0.25 + ((frameCount >> 2) & 1) * 0.15); // crackling charge
   if (game.time - b.weakAt < 40)
     text('WEAK!', sx + b.w / 2, sy - 16 - ((game.time - b.weakAt) >> 2), '#f8d800', 1, 'center');
 }
@@ -2184,58 +2273,15 @@ function drawPortrait(k, x, y, s, pal) {
   ctx.save();
   ctx.translate(x, y);
   ctx.scale(s, s);
-  drawRobot(0, 0, 1, 'stand', 0, false, pal || def.pal, def.style);
+  drawRobot(0, 0, 1, 'action', 0, false, pal || def.pal, def.style);
   ctx.restore();
 }
 
 // stage select grid: [column, row]; three panels per row
 // ================= WORLD MAP =================
-// Each continent is a landmass on an ocean map, MAP_SLOT apart; the slot after the last continent shows the next
-// one as a locked silhouette. Landmasses are rasterised once to fine pixels (crisp, no anti-aliasing).
+// Each continent is an island on an ocean map (see js/worldmap.js), MAP_SLOT apart; the slot after the last continent
+// shows the next one under clouds.
 const MAP_SLOT = 220;
-const _land = new Map();
-function landBitmap(i, locked) {
-  const k = i + (locked ? 'L' : ''),
-    W = 200,
-    H = 120;
-  if (_land.has(k)) return _land.get(k);
-  const color = locked ? '#3a3e58' : CONTINENTS[i].color,
-    rnd = mulberry(i * 131 + 7),
-    blobs = [];
-  for (let b = 0; b < 11; b++) {
-    const a = rnd() * Math.PI * 2,
-      d = rnd() * 36;
-    blobs.push([W / 2 + Math.cos(a) * d * 1.6, H / 2 + Math.sin(a) * d * 0.7, 20 + rnd() * 16]);
-  }
-  const c = makeCanvas(W * 2, H * 2, g => {
-    g.scale(2, 2);
-    const fill = (grow, col) => {
-      g.fillStyle = col;
-      g.beginPath();
-      for (const [x, y, r] of blobs) {
-        g.moveTo(x + r + grow, y);
-        g.arc(x, y, r + grow, 0, 7);
-      }
-      g.fill();
-    };
-    fill(5, locked ? '#22263a' : 'rgba(168,232,252,0.9)'); // surf
-    fill(3, locked ? '#2c3048' : '#e8d8a0'); // beach
-    fill(0, color);
-    for (const [x, y, r] of blobs.slice(0, 5)) {
-      // hills and forests
-      g.fillStyle = shade(color, -0.22);
-      g.beginPath();
-      g.arc(x + r * 0.2, y - r * 0.2, r * 0.45, 0, 7);
-      g.fill();
-    }
-    const img = g.getImageData(0, 0, W * 2, H * 2),
-      d = img.data;
-    for (let n = 3; n < d.length; n += 4) d[n] = d[n] >= 128 ? 255 : 0;
-    g.putImageData(img, 0, 0);
-  });
-  _land.set(k, c);
-  return c;
-}
 function drawMap() {
   const sea = ctx.createLinearGradient(0, 0, 0, VH);
   sea.addColorStop(0, '#0c2c64');
@@ -2246,22 +2292,19 @@ function drawMap() {
     for (let x = ((y * 7 + frameCount * 0.3) % 40) - 40; x < VW; x += 40) R(x, y, 6, HP, 'rgba(168,220,252,0.25)');
   text('PETA DUNIA', VW / 2, 8, '#fcfcfc', 2, 'center');
   text('POIN ' + save.points, VW - 10, 12, '#f8d800', 1, 'right');
-  const smooth = ctx.imageSmoothingEnabled;
   for (let i = 0; i <= CONTINENTS.length; i++) {
     const cx = Math.round(VW / 2 + i * MAP_SLOT - game.mapX);
     if (cx < -120 || cx > VW + 120) continue;
     const real = i < CONTINENTS.length,
       open = real && continentUnlocked(i),
       sel = game.mapSel === i;
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(landBitmap(i, !open), cx - 100, 40, 200, 120);
-    ctx.imageSmoothingEnabled = smooth;
+    drawIsland(i, cx - 100, 40, open);
     if (open) {
-      // the six bosses, placed around the island; beaten ones show a flag
-      CONTINENTS[i].stages.forEach((k, j) => {
-        const a = (j / 6) * Math.PI * 2 - Math.PI / 2,
-          mx = cx + Math.cos(a) * 54,
-          my = 100 + Math.sin(a) * 28;
+      // the six bosses at their landmarks; beaten ones show a flag
+      CONTINENTS[i].stages.forEach(k => {
+        const [ix, iy] = islandIconAt(i, k),
+          mx = cx - 100 + ix,
+          my = 40 + iy - 2;
         if (save.cleared[k]) {
           R(mx - 0.5, my - 10, 1, 12, '#3a3a48');
           R(mx + 0.5, my - 10, 7, 5, '#f8d800');
@@ -2274,7 +2317,7 @@ function drawMap() {
           ctx.restore();
         }
       });
-    } else text('?', cx - 9, 86, '#6a6e88', 3);
+    } else text('?', cx - 9, 86, '#c8cee0', 3);
     const name = real ? 'BENUA ' + CONTINENTS[i].name : 'BENUA BARU';
     text(name, cx, 166, sel ? '#fcfcfc' : '#8888a0', 1, 'center');
     const info = !real
@@ -2336,7 +2379,7 @@ function drawSelect() {
     ctx.fillStyle = pg;
     ctx.fillRect(px, py, PW, PH);
     R(px, py, PW, 1, shade(st.color, -0.2));
-    drawPortrait(k, px + 4, py + 13, 1.5, cleared ? PAL_WHITE : null);
+    drawPortrait(k, px + 4, py + 13, 1.5, cleared ? grayPal(BOSSES[k].pal) : null);
     text(st.name, px + 44, py + 16, cleared ? '#888898' : '#fcfcfc');
     drawWeaponIcon(k, px + 44, py + 30);
     text(WEAPONS[k].short, px + 58, py + 32, cleared ? '#686878' : '#a8a8b8');
@@ -2546,7 +2589,7 @@ function drawWeakChart() {
     ctx.save();
     ctx.translate(16, y - 3);
     ctx.scale(0.55, 0.55);
-    drawRobot(0, 0, 1, 'stand', 0, false, save.cleared[k] ? PAL_WHITE : def.pal, def.style);
+    drawRobot(0, 0, 1, 'action', 0, false, save.cleared[k] ? grayPal(def.pal) : def.pal, def.style);
     ctx.restore();
     text(def.name, 40, y, save.cleared[k] ? '#888898' : def.pal.b);
     drawWeaponIcon(k, 142, y - 2);
@@ -2563,7 +2606,7 @@ function drawWeakChart() {
     const x = x0 + i * 52;
     ctx.save();
     ctx.translate(x, 158);
-    drawRobot(0, 0, 1, 'stand', 0, false, save.cleared[k] ? PAL_WHITE : BOSSES[k].pal, BOSSES[k].style);
+    drawRobot(0, 0, 1, 'action', 0, false, save.cleared[k] ? grayPal(BOSSES[k].pal) : BOSSES[k].pal, BOSSES[k].style);
     ctx.restore();
     if (i < order.length - 1) {
       text('>', x + 32, 168, '#f8d800');
@@ -2719,7 +2762,7 @@ function drawEnding() {
   CONTINENTS.slice(0, 3).forEach((c, ci) => {
     const y = 50 + ci * 44;
     text('BENUA ' + c.name, 124, y, c.color);
-    c.stages.forEach((k, j) => drawPortrait(k, 124 + j * 40, y + 16, 1, PAL_WHITE));
+    c.stages.forEach((k, j) => drawPortrait(k, 124 + j * 40, y + 16, 1, grayPal(BOSSES[k].pal)));
   });
   text('SCORE ' + String(game.score).padStart(7, '0'), VW / 2, 192, '#fcfcfc', 1, 'center');
   if (game.t > 90 && (frameCount >> 4) & 1) text('PRESS ENTER', VW / 2, 208, '#f8d800', 1, 'center');

@@ -1,19 +1,34 @@
 'use strict';
-// Art: robot sprites (hero + bosses on a shared rig), themed parallax backgrounds and tilesets, weapon icons.
+// Art: palettes, the character entry point drawRobot (the characters themselves are in js/chars.js), themed parallax
+// backgrounds and tilesets, weapon icons.
 
 const SKIN = '#fcd8a8';
-const PAL_HERO = { B: '#303e74', b: '#5e78aa', S: SKIN }; // Nexo's blue armour
+const PAL_HERO = { B: '#22469e', b: '#80a8de', S: SKIN }; // Nexo's royal-blue armour
 const PAL_MID = { B: '#00a800', b: '#b8f818', S: SKIN };
 const PAL_FULL = { B: '#3cbcfc', b: '#fcfcfc', S: '#fcfcfc' };
 const PAL_WHITE = { B: '#fcfcfc', b: '#fcfcfc', S: '#fcfcfc' };
+// a defeated boss (stage select, weakness chart, ending): his own colours in grayscale
+const _grayPals = new Map();
+function grayPal(pal) {
+  let g = _grayPals.get(pal);
+  if (!g) _grayPals.set(pal, (g = Object.assign({}, pal, { gray: true })));
+  return g;
+}
+// a #rrggbb colour as the gray of the same brightness
+function grayHex(h) {
+  if (!/^#[0-9a-f]{6}$/i.test(h)) return h;
+  const v = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)),
+    l = Math.round(0.299 * v[0] + 0.587 * v[1] + 0.114 * v[2])
+      .toString(16)
+      .padStart(2, '0');
+  return '#' + l + l + l;
+}
 
 // ---------- content registries (filled by the base game and by continent files such as js/vespera.js) ----------
-// ROBOT_STYLES[style]: the look of a boss on the robot rig (see below); WEAPON_ICONS[key]() draws a 10x10 weapon
-// icon at the origin; AMBIENTS[type] = { n, update(q), draw(q, x, y) }; ROOM_FX[theme](rx, ry) animates a boss
+// (the characters: NATIVE_CHARS[style], see js/chars.js); WEAPON_ICONS[key]() draws a 10x10 weapon icon at the origin; AMBIENTS[type] = { n, update(q), draw(q, x, y) }; ROOM_FX[theme](rx, ry) animates a boss
 // room; POST_FX[theme]() draws over the world (e.g. darkness); PAD_DRAW[theme](sx, sy) skins updraft pads;
 // LIQUID[theme] = [base, crest, foam] recolours '~' tiles; PLAT_COL[theme] is the moving-platform colour.
-const ROBOT_STYLES = {},
-  WEAPON_ICONS = {},
+const WEAPON_ICONS = {},
   AMBIENTS = {},
   ROOM_FX = {},
   POST_FX = {},
@@ -28,505 +43,11 @@ const PLAT_COL = {
   wind: '#e8f0f8',
 };
 
-// ---------- robot rig ----------
-// drawRobot(ox, oy, facing, pose, frame, shooting, pal, style, opt) draws a robot in a 24 x 24 box (feet at
-// oy + 24). The box is a 48 x 48 grid of fine pixels. A character is a skeleton of parts drawn with simple shapes
-// (circles, ellipses, capsules, polygons) rasterised without anti-aliasing. Each part gets a 1-pixel black outline
-// as it is stamped, so every limb and piece of armour is separated by a dark line like classic 8-bit robot
-// sprites; each region is then lit from the top left. Arms and legs bend at shoulders, elbows, hips and knees, so
-// a pose is just angles. The face is a pixel map stamped on top.
-// Letters: H armour (pal.B), h inner suit (pal.b), L white plates, A gold trim, O core, D grey metal, G ear disc and
-// muzzle, w shine, S skin, E eye white, I iris, W glint,
-// n nose, P blush, U pupil, K black (inner outlines take a dark shade of the part they outline),
-// M mouth, k muzzle, G forehead gem, Z hair, Q skirt, X/Y/V extra colours of a style.
-//
-// ROBOT_STYLES[style] = { female, angry, hair, skirt, colors: { X, Y, V, E, U, I, G, L, A }, crest, anim(): frame for animated
-//   looks, back(R), chest(R), head(R), front(R) }: hooks that add shapes behind the body, on the chest, on the
-//   head and in front of everything. R = { shape(letter, draw, ring), disc, ell, cap, poly, rect, taper, hx, hy, hr (head
-//   centre and radius), chest ([x, y] of the chest plate), kind (face: hero, angry, female, hurt or back), by (body bob), pose, t (anim frame), opt }. Female styles get hair, lashes, lips and a skirt.
-const RIG_W = 50,
-  RIG_H = 64,
-  RIG_X = 1,
-  RIG_Y = 15; // the 48 x 48 box starts here in the grid (room above for crests)
-// face maps from two rows above the head centre, starting at its x
-// prettier-ignore
-const RIG_FACES = {
-  // anime eyes in a three-quarter view: the near eye wider than the far one, each with a thick upper lid, a
-  // coloured iris (I) with a white glint (W) and a lower lid; brows above; a nose shadow; a tiny mouth near the front
-  hero:   ['..........', '..........', '.KKKK.KKK.', '.EEIW.EIW.', '.EEII.EII.', '..EII..II.', '...KK...Kn', '..........', '.......MM.'],
-  angry:  ['.KK....KK.', '...KK.K...', '.KKKK.KKK.', '.EEIW.EIW.', '.EEII.EII.', '..EII..II.', '...KK...Kn', '..........', '......KMM.'],
-  female: ['..........', '..........', 'KKKKK.KKKK', '.EEIW.EIW.', '.EEII.EII.', '..EII..II.', '...KK...Kn', '.PP.......', '.......MM.'],
-  hurt:   ['..........', '..........', '.K....K...', '..KK...KK.', '.K....K...', '..........', '.........n', '......KK..', '......KK..'],
-};
-// the detailed face for the big hero (fine pixels at k = 3): eyes with brows, the nose shadow and the mouth
-// prettier-ignore
-const RIG_BIG_FACES = {
-  face: {
-    near: ['...KKKK........', '....KKKKKK.....', '...............', 'KKKK...........', '.KKKKKKKK......', '..KKKKKKKKKKK..', '..EKUUUUUUUKKK.', '.EEUUWWUUUUUUK.', '.EEUUWWUUUUUUK.', '.EEIUUUUUUUUIK.', '..EIIIIIIIIIIK.', '..EEIIIIIIIIK..', '...KKIIIIIKK...', '.....KKKKK.....'],
-    far:  ['..KKK....', '...KKKKK.', '.........', 'KK.......', '.KKKKK...', '..KKKKKK.', '..EUUUUK.', '.EUWWUUUK', '.EUWWUUUK', '.EUUUUUIK', '.EIIIIIIK', '..EIIIIK.', '...KIIK..', '....KK...'],
-    nose: ['..N', '..N', '.NN'],
-    mouth: ['.....N', 'NNNNN.'],
-  },
-  female: {
-    near: ['.....KKKKK.....', '........KKK....', 'K..............', 'KK.............', '.KKKKKKKK......', '..KKKKKKKKKKK..', '..EKUUUUUUUKKK.', '.EEUUWWUUUUUUK.', '.EEUUWWUUUUUUK.', '.EEIUUUUUUUUIK.', '..EIIIIIIIIIIK.', '..EEIIIIIIIIK..', '...KKIIIIIKK...', '....KKKKKKK....'],
-    far:  ['...KKKK..', '.....KKK.', '.........', 'K........', '.KKKKK...', '..KKKKKK.', '..EUUUUK.', '.EUWWUUUK', '.EUWWUUUK', '.EUUUUUIK', '.EIIIIIIK', '..EIIIIK.', '...KIIK..', '....KK...'],
-    nose: ['..N', '..N', '.NN'],
-    mouth: ['..MM..', '.M..M.'],
-  },
-  hurt: {
-    near: ['...KKKK........', '....KKKKKK.....', '...............', '...............', '...............', '...............', '..KK...........', '...KKKK........', '......KKKKK....', '..........KKK..', '......KKKKK....', '...KKKK........', '..KK...........', '...............'],
-    far:  ['..KKK....', '...KKKKK.', '.........', '.........', '.........', '.........', '.KK......', '..KKK....', '....KKKK.', '..KKK....', '.KK......', '.........', '.........', '.........'],
-    nose: ['..N', '..N', '.NN'],
-    mouth: ['..KKK.', '.KKKKK', '..KKK.'],
-  },
-};
-// joint angles in degrees, all absolute: 0 points down, positive swings forward (toward the facing side), 180 is
-// straight up. arms: [upper arm, forearm] for the back and front arm; legs: [thigh, shin, foot tilt].
-// Every pose is moved so the lowest foot stands on the bottom of the box.
-// prettier-ignore
-const RIG_POSES = {
-  // the idle stance of the X games: back leg straight out behind, front knee bent forward, buster fist up in front
-  // of the chest, the other fist at the waist, leaning a little forward
-  stand: [{ arms: [[-10, 60], [30, 120]], legs: [[-40, -35, 0], [48, -5, 0]], lean: 1, gunBack: [-20, 115] }],
-  run: [
-    { arms: [[-50, -15], [40, 100]], legs: [[-50, -40, -25], [50, 10, 5]], lean: 1 },
-    { arms: [[-10, 30], [15, 95]], legs: [[-5, -20, -10], [40, -30, -15]], lean: 1 },
-    { arms: [[-30, 10], [30, 105]], legs: [[-35, -28, -12], [35, 5, 0]], lean: 1 },
-  ],
-  jump: [{ arms: [[-140, -115], [125, 150]], legs: [[-12, 8, 0], [75, 10, 5]] }],
-  hurt: [{ arms: [[-120, -150], [120, 150]], legs: [[-40, -25, -10], [40, 25, 10]], noGun: true }],
-  climb: [
-    { arms: [[-20, -5], [160, 175]], legs: [[-5, 0, 0], [80, 10, 0]] },
-    { arms: [[-160, -175], [20, 5]], legs: [[-80, -10, 0], [5, 0, 0]] },
-  ],
-  raise: [{ arms: [[-135, -170], [135, 170]], legs: [[-40, -35, 0], [48, -5, 0]], noGun: true }],
-};
-const _rigScratch = {};
-// rasterises one shape (drawn in box coordinates) into a 0/1 mask, at k fine pixels per box unit
-function rigMask(draw, k = 1) {
-  const W = RIG_W * k,
-    H = RIG_H * k,
-    cv = _rigScratch[k] || (_rigScratch[k] = makeCanvas(W, H));
-  const g = cv.getContext('2d');
-  g.setTransform(1, 0, 0, 1, 0, 0);
-  g.clearRect(0, 0, W, H);
-  g.save(); // shapes may clip or transform; nothing leaks into the next one
-  g.translate(RIG_X * k, RIG_Y * k);
-  g.scale(k, k);
-  g.fillStyle = g.strokeStyle = '#fff';
-  g.lineCap = 'round';
-  g.lineJoin = 'round';
-  g.beginPath();
-  draw(g);
-  g.restore();
-  const d = g.getImageData(0, 0, W, H).data,
-    m = new Uint8Array(W * H);
-  for (let i = 0; i < m.length; i++) m[i] = d[i * 4 + 3] >= 128 ? 1 : 0;
-  return m;
-}
-// outline thickness and shading depth in fine pixels at resolution k
-const rigLine = k => Math.max(1, Math.round(k * 0.67));
+// ---------- characters ----------
+// angles in degrees: 0 points down, positive swings forward (toward the facing side), 180 is up
 const rad = a => (a * Math.PI) / 180;
 const along = (x, y, a, len) => [x + Math.sin(rad(a)) * len, y + Math.cos(rad(a)) * len];
-// shape helpers: each returns a draw function for rigMask
-const RIG_SHAPES = {
-  disc: (x, y, r) => g => {
-    g.arc(x, y, r, 0, Math.PI * 2);
-    g.fill();
-  },
-  ell:
-    (x, y, rx, ry, rot = 0) =>
-    g => {
-      g.ellipse(x, y, rx, ry, rot, 0, Math.PI * 2);
-      g.fill();
-    },
-  cap: (x1, y1, x2, y2, w) => g => {
-    g.lineWidth = w;
-    g.moveTo(x1, y1);
-    g.lineTo(x2, y2);
-    g.stroke();
-  },
-  poly: pts => g => {
-    for (let i = 0; i < pts.length; i += 2) g.lineTo(pts[i], pts[i + 1]);
-    g.closePath();
-    g.fill();
-  },
-  rect:
-    (x, y, w, h, r = 0) =>
-    g => {
-      g.roundRect(x, y, w, h, r);
-      g.fill();
-    },
-  // a tapered segment from (x1, y1) to (x2, y2), w1 wide at the start and w2 at the end
-  taper: (x1, y1, x2, y2, w1, w2) => g => {
-    const a = Math.atan2(y2 - y1, x2 - x1) + Math.PI / 2,
-      c = Math.cos(a) / 2,
-      s = Math.sin(a) / 2;
-    g.moveTo(x1 + c * w1, y1 + s * w1);
-    g.lineTo(x2 + c * w2, y2 + s * w2);
-    g.lineTo(x2 - c * w2, y2 - s * w2);
-    g.lineTo(x1 - c * w1, y1 - s * w1);
-    g.closePath();
-    g.fill();
-  },
-};
-// body measurements (box coordinates, facing right)
-const RIG_BODY = { hip: 30, thigh: 7.5, shin: 8.5, foot: 6 };
-// the lowest point of a leg (bottom of the foot) for a hip at y
-const legBottom = (y, [a1, a2]) =>
-  y + Math.cos(rad(a1)) * RIG_BODY.thigh + Math.cos(rad(a2)) * RIG_BODY.shin + RIG_BODY.foot;
-// builds the part grid of a pose at k fine pixels per box unit (k = 1 in game; 3 for the big hero on the title
-// screen, where the face is drawn in detail)
-function rigGrid(pose, fr, arm, face, style, t, opt, k = 1) {
-  const ext = ROBOT_STYLES[style] || {},
-    female = !!ext.female,
-    W = RIG_W * k,
-    H = RIG_H * k,
-    line = rigLine(k);
-  const g = Array.from({ length: H }, () => Array(W).fill('.'));
-  g.k = k;
-  // which part each outline pixel belongs to: inner outlines are drawn in a dark shade of that part (selective
-  // outline), only the silhouette stays black
-  g.ring = Array.from({ length: H }, () => Array(W).fill(''));
-  // stamp a mask: its outline ring first (over whatever is under it), then its pixels
-  const stamp = (c, m, ring = true) => {
-    if (ring)
-      for (let y = 0; y < H; y++)
-        for (let x = 0; x < W; x++) {
-          if (!m[y * W + x]) continue;
-          for (let dy = -line; dy <= line; dy++)
-            for (let dx = -line; dx <= line; dx++) {
-              const yy = y + dy,
-                xx = x + dx;
-              if (yy < 0 || yy >= H || xx < 0 || xx >= W || m[yy * W + xx]) continue;
-              g[yy][xx] = 'K';
-              g.ring[yy][xx] = c;
-            }
-        }
-    for (let i = 0; i < m.length; i++)
-      if (m[i]) {
-        g[(i / W) | 0][i % W] = c;
-        g.ring[(i / W) | 0][i % W] = '';
-      }
-  };
-  const shape = (c, draw, ring = true) => stamp(c, rigMask(draw, k), ring);
-  // stamps a pixel map (letters, '.' = transparent) with its top left at box coordinates bx, by; each map pixel
-  // covers sc x sc fine pixels
-  const stampMap = (map, bx, by, sc = 1) => {
-    const x0 = Math.round((RIG_X + bx) * k),
-      y0 = Math.round((RIG_Y + by) * k);
-    map.forEach((r, y) => {
-      for (let x = 0; x < r.length; x++) {
-        if (r[x] === '.') continue;
-        for (let yy = 0; yy < sc; yy++)
-          for (let xx = 0; xx < sc; xx++) {
-            const gy = y0 + y * sc + yy,
-              gx = x0 + x * sc + xx;
-            if (gy >= 0 && gy < H && gx >= 0 && gx < W) {
-              g[gy][gx] = r[x];
-              g.ring[gy][gx] = '';
-            }
-          }
-      }
-    });
-  };
-  const { disc, ell, cap, poly, taper } = RIG_SHAPES;
-  // an arm: inner-suit upper arm, a big armoured gauntlet with a gold cuff, a white fist and a white shoulder pad
-  const limbArm = (sx, sy, [a1, a2], pad) => {
-    const [ex, ey] = along(sx, sy, a1, 4.5),
-      [wx, wy] = along(ex, ey, a2, 5.5),
-      [hx, hy] = along(ex, ey, a2, 8.3);
-    shape('h', cap(sx, sy, ex, ey, 3.6));
-    shape('H', taper(ex, ey, wx, wy, 7, 9.5));
-    shape('A', cap(...along(ex, ey, a2, 5), ...along(ex, ey, a2, 6.2), 9.5)); // gold cuff
-    shape('L', disc(hx, hy, 3.8)); // white fist
-    if (pad) shape('L', ell(sx - 0.5, sy - 1.5, 4, 3.5)); // white shoulder pad
-  };
-  // a leg: inner-suit thigh, a blue knee cap, a big boot widening to the ankle with a white side disc and a gold
-  // ankle ring, and a long foot with a white toe
-  const limbLeg = (hx, hy, [a1, a2, tilt]) => {
-    const { thigh, shin } = RIG_BODY,
-      [kx, ky] = along(hx, hy, a1, thigh),
-      [ax, ay] = along(kx, ky, a2, shin),
-      [dx, dy] = along(kx, ky, a2, shin * 0.45);
-    shape('h', cap(hx, hy, kx, ky, 4.8));
-    shape('H', taper(kx, ky, ax, ay, 7, 12.5));
-    shape('L', disc(dx + 1.2, dy, 2.1));
-    shape('A', cap(...along(kx, ky, a2, shin - 1.2), ...along(kx, ky, a2, shin - 0.6), 10)); // gold ankle ring
-    shape('H', disc(kx, ky, 3.2)); // knee cap
-    shape('H', g2 => {
-      g2.translate(ax, ay);
-      g2.rotate(-rad(tilt));
-      poly([-6.5, -1, 5, -1, 10, 1.5, 12, 6, -7, 6, -7.5, 1.5])(g2);
-    });
-    shape('L', g2 => {
-      g2.translate(ax, ay);
-      g2.rotate(-rad(tilt));
-      poly([6.5, 1.2, 10, 1.8, 11.4, 5, 6.5, 5])(g2);
-    }); // white toe
-  };
-  const R = { shape, ...RIG_SHAPES, pose, t, opt, by: 0, hx: 25, hy: 9, hr: 9, chest: [24, 21], kind: face };
-  const head = (cx, cy, kind) => {
-    Object.assign(R, { hx: cx, hy: cy, kind });
-    const clipHead = g2 => {
-      g2.arc(cx, cy, 9, 0, Math.PI * 2);
-      g2.clip();
-      g2.beginPath();
-    };
-    shape('H', disc(cx, cy, 9)); // helmet
-    if (ext.crest !== false)
-      // the crest: a narrow white stripe from the forehead up over the middle of the helmet to the back
-      shape(
-        'L',
-        g2 => {
-          clipHead(g2);
-          g2.lineWidth = 1.8;
-          g2.moveTo(cx + 3, cy - 2.5);
-          g2.quadraticCurveTo(cx - 1.5, cy - 7.5, cx - 6.5, cy - 3);
-          g2.stroke();
-        },
-        false,
-      );
-    shape('w', ell(cx - 4.5, cy - 2.5, 1.4, 0.9), false); // shine
-    if (kind === 'back') {
-      shape('L', disc(cx - 1, cy + 1.5, 3.3));
-      shape('G', disc(cx - 1, cy + 1.5, 1.7), false);
-    } else {
-      // the face: a wide forehead, the cheek running down to a pointed chin, and the nose sticking out at the front
-      // edge (a three-quarter anime face)
-      shape(
-        'S',
-        poly([
-          cx - 0.3,
-          cy - 2.6,
-          cx + 8.4,
-          cy - 2.6,
-          cx + 8.8,
-          cy + 2.5,
-          cx + 10.6,
-          cy + 4.6,
-          cx + 9,
-          cy + 5.4,
-          cx + 9,
-          cy + 7,
-          cx + 7,
-          cy + 9.6,
-          cx + 3,
-          cy + 8.6,
-          cx - 0.3,
-          cy + 5,
-        ]),
-      );
-      shape('L', disc(cx - 4.5, cy + 1.5, 2.8)); // ear disc
-      shape('G', disc(cx - 4.5, cy + 1.5, 1.4), false);
-      stampMap(RIG_FACES[kind], cx, cy - 2, k);
-    }
-    if (ext.head) ext.head(R);
-  };
-  // the helmeted head in detail (k >= 3): a smooth helmet with the crest and ear disc, and a three-quarter anime
-  // face with the big eye maps (angry brows for the men, lashes and blush for the women)
-  const headBig = (cx, cy, kind) => {
-    Object.assign(R, { hx: cx, hy: cy, kind });
-    const o = (x, y) => [cx + x, cy + y];
-    const clipHead = g2 => {
-      g2.arc(cx, cy, 9, 0, Math.PI * 2);
-      g2.clip();
-      g2.beginPath();
-    };
-    shape('H', disc(cx, cy, 9)); // helmet
-    if (ext.crest !== false)
-      shape(
-        'L',
-        g2 => {
-          clipHead(g2);
-          g2.lineWidth = 1.8;
-          g2.moveTo(cx + 3, cy - 2.5);
-          g2.quadraticCurveTo(cx - 1.5, cy - 7.5, cx - 6.5, cy - 3);
-          g2.stroke();
-        },
-        false,
-      );
-    shape('w', ell(cx - 4.5, cy - 2.5, 1.4, 0.9), false); // shine
-    if (kind === 'back') {
-      shape('L', disc(cx - 1, cy + 1.5, 3.3));
-      shape('G', disc(cx - 1, cy + 1.5, 1.7), false);
-    } else {
-      // the face opening: a wide forehead under the helmet rim, the nose at the front edge, a short pointed chin
-      // prettier-ignore
-      shape('S', g2 => { clipHead(g2); poly([...o(-0.5, -3.6), ...o(9.4, -3.6), ...o(9.9, 1), ...o(10.7, 3.2), ...o(9.8, 3.9), ...o(9.6, 5.2), ...o(8.2, 7.2), ...o(6.2, 8.4), ...o(3.5, 7.6), ...o(0.6, 5.2), ...o(-0.4, 2)])(g2); });
-      shape('s', poly([...o(-0.5, -3.6), ...o(9.4, -3.6), ...o(9.5, -2.6), ...o(-0.4, -2.4)]), false); // shadow under the rim
-      shape('L', disc(cx - 4.5, cy + 1.5, 2.8)); // ear disc
-      shape('G', disc(cx - 4.5, cy + 1.5, 1.4), false);
-      const F = RIG_BIG_FACES[kind === 'hurt' ? 'hurt' : female ? 'female' : 'face'];
-      stampMap(F.near, cx + 0.6, cy - 1.2);
-      stampMap(F.far, cx + 6.9, cy - 1);
-      stampMap(F.nose, cx + 9.4, cy + 3);
-      stampMap(F.mouth, cx + 6.2, cy + 5.6);
-      if (female && kind !== 'hurt') stampMap(['PP', 'PP'], cx + 1.4, cy + 4.2); // blush
-    }
-    if (ext.head) ext.head(R);
-  };
-  // hair hangs behind everything, so it goes first
-  const hair = () => {
-    if (!female || ext.hair === false) return;
-    const { hx, hy } = R,
-      o = (x, y) => [hx + x, hy + y];
-    shape('Z', ell(hx - 4, hy + 4, 6.5, 9));
-    if (k < 3) return;
-    // prettier-ignore
-    for (const [ax, ay, bx, by, tx, ty] of [[-9.5, 4, -6.5, 8, -9.5, 15], [-6.5, 7, -3, 9, -5, 16], [-3, 8.5, 0.5, 9, -1, 14.5], [-10, -2, -8, 2, -13, 2], [-9, 7, -8, 10, -12.5, 10]])
-      shape('Z', poly([...o(ax, ay), ...o(tx, ty), ...o(bx, by)]));
-    // prettier-ignore
-    for (const [x1, y1, x2, y2] of [[-7.5, 3, -8.3, 12], [-4.5, 5, -4.8, 13], [-1.5, 6, -1.8, 12]])
-      shape('z', cap(...o(x1, y1), ...o(x2, y2), 0.9), false);
-  };
-  const faceKind = face === 'hurt' || face === 'back' ? face : female ? 'female' : ext.angry ? 'angry' : 'hero';
-
-  if (pose === 'slide') {
-    // low and long: kneeling on the back leg, the front leg stretched out along the floor
-    Object.assign(R, { by: 10, chest: [18, 28], hx: 13, hy: 22 });
-    hair();
-    if (ext.back) ext.back(R);
-    limbLeg(14, 34, [0, -90, 0]);
-    shape('L', poly([13, 31, 23, 31, 24, 35, 14, 35]));
-    shape('H', poly([9, 24, 23, 23, 24, 29, 20, 32, 13, 32, 9, 28]));
-    limbLeg(20, 35, [75, 85, 0]);
-    limbArm(20, 25, [60, 100], true);
-    (k >= 3 ? headBig : head)(13, 22, faceKind);
-    return g;
-  }
-  const fs = RIG_POSES[pose] || RIG_POSES.stand,
-    F = fs[Math.min(fr || 0, fs.length - 1)];
-  // stand the lowest foot on the bottom of the box
-  const [L0, L1] = F.legs,
-    by = Math.round(47.5 - Math.max(legBottom(RIG_BODY.hip, L0), legBottom(RIG_BODY.hip, L1))),
-    y = v => v + by,
-    gun = arm && !F.noGun;
-  const lean = F.lean || 0; // the head sits a little forward when leaning into the stance
-  Object.assign(R, { by, chest: [24, y(21)], hx: 25 + lean, hy: y(8) });
-  hair();
-  if (ext.back) ext.back(R);
-  // shooting from the stance, the back fist comes up in front of the chest
-  const backFront = gun && F.gunBack;
-  if (!backFront) limbArm(17, y(18), F.arms[0], true);
-  limbLeg(21, y(RIG_BODY.hip), L0);
-  limbLeg(27, y(RIG_BODY.hip), L1);
-  shape('h', poly([21.5, y(24), 26.5, y(24), 26, y(28.5), 22, y(28.5)])); // slim waist (inner suit)
-  shape('L', poly([19, y(27.5), 29, y(27.5), 28.5, y(30.5), 25.5, y(32.5), 22.5, y(32.5), 19.5, y(30.5)])); // pelvis
-  shape('A', cap(19.6, y(28), 28.4, y(28), 1.6)); // gold belt
-  shape('H', poly([15, y(15.5), 33, y(15.5), 32, y(21), 27, y(25), 21, y(25), 16, y(21)])); // chest armour
-  const hex = [];
-  for (let i = 0; i < 6; i++)
-    hex.push(25.5 + Math.cos((i * Math.PI) / 3) * 2.8, y(21) + Math.sin((i * Math.PI) / 3) * 2.6);
-  shape('A', poly(hex)); // the gold core
-  shape('O', disc(25.5, y(21), 1.1), false);
-  shape('w', poly([18, y(19.5), 21.5, y(19.5), 19.5, y(21.5)]), false);
-  if (female) shape('Q', poly([19, y(27.5), 29, y(27.5), 33, y(34), 15, y(34)])); // skirt
-  if (ext.chest) ext.chest(R);
-  if (backFront) limbArm(18, y(18), F.gunBack, true);
-  if (gun) {
-    // the arm cannon: a grey breech, a blue barrel with gold vents, a red muzzle ring
-    shape('h', cap(31, y(19), 34, y(20), 3.6));
-    shape('D', RIG_SHAPES.rect(32.5, y(15.5), 5, 9, 2));
-    shape('H', RIG_SHAPES.rect(35.5, y(14.5), 12, 11, 4));
-    shape('A', RIG_SHAPES.rect(38.5, y(15.6), 1.6, 2.6, 0.4));
-    shape('A', RIG_SHAPES.rect(41.3, y(15.6), 1.6, 2.6, 0.4));
-    shape('G', ell(46, y(20), 1.6, 3.4));
-    shape('k', ell(46.4, y(20), 0.8, 2), false);
-    shape('L', ell(30, y(16.5), 4, 3.5)); // shoulder pad
-  } else limbArm(31, y(19), F.arms[1], true);
-  // the head goes on top so the face is never hidden behind the front arm
-  (k >= 3 ? headBig : head)(25 + lean, y(8), faceKind);
-  if (ext.front) ext.front(R);
-  return g;
-}
-// colours for the letters
-function robotColors(pal, style) {
-  const { B, b, S } = pal,
-    white = pal === PAL_WHITE,
-    ext = ROBOT_STYLES[style] || {},
-    x = ext.colors || {};
-  const c = {
-    H: B,
-    h: b,
-    w: shade(b, 0.7),
-    S,
-    E: x.E || '#fcfcfc',
-    U: x.U || '#0a0a16',
-    I: x.I || '#2a6ee0',
-    W: '#fcfcfc',
-    n: shade(S, -0.22),
-    N: shade(S, -0.55),
-    s: shade(S, -0.15),
-    P: '#f8a0a8',
-    K: '#0a0a16',
-    M: ext.female ? '#e05878' : '#a83828',
-    k: shade(B, -0.6),
-    Z: ext.hair || '#6a3818',
-    z: ext.hairShine || shade(ext.hair || '#6a3818', 0.32),
-    Q: ext.skirt || b,
-    X: x.X || '#d8d8e0',
-    Y: x.Y || '#f83800',
-    V: x.V || '#202028',
-    G: x.G || '#e83838',
-    L: x.L || '#eef4fc',
-    A: x.A || '#f8b830',
-    O: '#e86818',
-    D: '#8890a8',
-  };
-  if (white) for (const k in c) if (!'KUI'.includes(k)) c[k] = '#fcfcfc';
-  return c;
-}
-const RIG_FLAT = 'KEUMkwIWnPOzNs';
-// paints a grid into a bitmap: each region lit from the top left (light top and left edges, a darker bottom edge
-// two pixels deep) so every part reads as a rounded piece of armour
-function rigBitmap(grid, cols) {
-  const H = grid.length,
-    W = grid[0].length,
-    k = grid.k || 1,
-    lt = rigLine(k), // highlight band
-    dk = lt * 2; // shadow band
-  const at = (x, y) => (y < 0 || y >= H || x < 0 || x >= W ? '.' : grid[y][x]);
-  // true when a different letter lies within n pixels in direction dx, dy
-  const diff = (x, y, dx, dy, n, c) => {
-    for (let i = 1; i <= n; i++) if (at(x + dx * i, y + dy * i) !== c) return true;
-    return false;
-  };
-  return makeCanvas(W * HP * SCALE, H * HP * SCALE, g => {
-    g.scale(SCALE * HP, SCALE * HP);
-    for (let y = 0; y < H; y++)
-      for (let x = 0; x < W; x++) {
-        const c = grid[y][x];
-        if (c === '.') continue;
-        let col = cols[c] || '#ff00ff';
-        const own = grid.ring && grid.ring[y][x];
-        if (c === 'K' && own && cols[own]) {
-          // an inner outline: a dark shade of its part; the silhouette (next to empty space) stays black
-          let open = false;
-          for (let n = 1; n <= lt && !open; n++)
-            open = at(x - n, y) === '.' || at(x + n, y) === '.' || at(x, y - n) === '.' || at(x, y + n) === '.';
-          if (!open) col = shade(cols[own], -0.62);
-        } else if (c === 'Z') {
-          if (diff(x, y, 0, 1, lt, c) || diff(x, y, 1, 0, lt, c)) col = shade(col, -0.28);
-        } else if (c === 'S') {
-          // skin is shaded softly: a light top edge and a thin shadow along the bottom and right
-          if (diff(x, y, 0, -1, lt, c)) col = shade(col, 0.25);
-          else if (diff(x, y, 0, 1, lt, c) || diff(x, y, 1, 0, lt, c)) col = shade(col, -0.12);
-        } else if (!RIG_FLAT.includes(c)) {
-          // cel shading: a light top edge, a softer left edge, a deeper shadow band at the bottom and right
-          if (diff(x, y, 0, -1, lt, c)) col = shade(col, 0.42);
-          else if (diff(x, y, -1, 0, lt, c)) col = shade(col, 0.16);
-          else if (diff(x, y, 0, 1, dk, c)) col = shade(col, -0.3);
-          else if (diff(x, y, 1, 0, lt, c)) col = shade(col, -0.2);
-        }
-        g.fillStyle = col;
-        g.fillRect(x, y, 1, 1);
-      }
-  });
-}
-const _rigCache = new Map();
-// ---------- hero sprites (Nexo, converted from his character sheet, see js/hero-sprites.js) ----------
-const _heroCache = new Map();
+// colour mixing for the native characters (js/chars.js)
 const hexRgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
 const mixHex = (a, b, t) =>
   '#' +
@@ -537,281 +58,25 @@ const mixHex = (a, b, t) =>
         .padStart(2, '0'),
     )
     .join('');
-// colours for the sprite letters: the armour (1, 2, 3, c) is always Nexo's blue; only the hair (h, H, L), the gloves
-// and boots (5-8) and the bare hands (9, 0) take the weapon's palette. With the buster the hair stays brown and the
-// hands bare, so the gloves and boots match the armour.
-function heroColors(pal) {
-  const A = PAL_HERO.B,
-    a = PAL_HERO.b,
-    W = pal.B,
-    w = pal.b,
-    c = { o: '#0a0a16', 1: shade(A, -0.4), 2: A, 3: mixHex(A, a, 0.45), c: a };
-  Object.assign(c, { 5: shade(W, -0.4), 6: W, 7: mixHex(W, w, 0.45), 8: w });
-  Object.assign(c, { y: '#ce9c4a', Y: '#8c6034', s: '#f2caaa', S: '#be8c76', b: '#345abe', w: '#e8ecf6' });
-  Object.assign(c, { r: '#ec6e28', C: '#82d2f4', q: '#34201c', Q: '#603e2c', l: '#966646' });
-  if (W === A && w === a) Object.assign(c, { h: '#34201c', H: '#603e2c', L: '#966646', 9: '#f2caaa', 0: '#be8c76' });
-  else Object.assign(c, { h: shade(W, -0.45), H: W, L: mixHex(W, w, 0.6), 9: w, 0: mixHex(W, w, 0.45) });
-  if (pal === PAL_WHITE) for (const k in c) if (k !== 'o') c[k] = '#fcfcfc';
-  return c;
-}
-// The running cycle, chosen so the planted foot stays put on the ground while the hero moves at its running speed
-// (1.4 px a tick): the order, each frame's ticks and a small fixed shift per frame (sprite pixels) were searched so
-// a planted foot moves back exactly as far as the body moves forward (it slides 0.3 px on average). Two steps:
-// landing, mid stance and push-off for each foot. Running frames are anchored on the torso.
-const HERO_RUN = {
-  frames: ['run4', 'run2', 'run5', 'run6', 'run3', 'run1'],
-  ticks: [5, 2, 3, 4, 3, 3],
-  shift: [0, 0, 2, 0, 0, -2],
-};
-HERO_RUN.length = HERO_RUN.ticks.reduce((a, b) => a + b, 0);
-// the running frame at tick t of the cycle
-function heroRunFrame(t) {
-  t %= HERO_RUN.length;
-  for (let i = 0; i < HERO_RUN.ticks.length; i++) {
-    if (t < HERO_RUN.ticks[i]) return HERO_RUN.frames[i];
-    t -= HERO_RUN.ticks[i];
-  }
-  return HERO_RUN.frames[0];
-}
-// the frame a pose uses: fr is the running tick count, the climbing frame (0-3), or 0 rising / 1 falling in a jump
-function heroFrame(pose, fr, arm, big) {
-  fr = fr || 0;
-  if (big) return arm ? 'action' : 'stand';
-  if (pose === 'slide') return 'slide';
-  if (pose === 'hurt') return 'hurt';
-  if (pose === 'climb') return arm ? 'shoot' : 'climb' + ((fr % 4) + 1);
-  if (pose === 'jump') return fr ? 'jumpFall' : 'jumpRise';
-  if (pose === 'run') return arm ? (Math.floor(fr / 8) % 2 ? 'shootRun2' : 'shootRun1') : heroRunFrame(fr);
-  return arm ? 'shoot' : 'idle';
-}
-function drawHeroSprite(ox, oy, f, pose, fr, arm, pal, big) {
-  // the HD set (3 sprite pixels per logical pixel) needs whole device pixels, so it is used when SCALE is 6
-  const hd = !big && SCALE % 3 === 0 && typeof HERO_SPRITES_HD !== 'undefined',
-    k = hd ? 1.5 : 1, // HD pixels per pixel of the normal set
-    name = heroFrame(pose, fr, arm, big),
-    map = (big ? HERO_SPRITES_BIG : hd ? HERO_SPRITES_HD : HERO_SPRITES)[name],
-    back = pose === 'climb' && !arm, // climbing is seen from behind, whichever way the hero faces
-    flip = !back && f < 0,
-    key = [SCALE, big ? 1 : hd ? 2 : 0, name, flip ? 1 : 0, pal.B, pal.b, pal === PAL_WHITE ? 1 : 0].join('|');
-  let e = _heroCache.get(key);
-  if (!e) {
-    const h = map.length,
-      w = map[0].length,
-      cols = heroColors(pal),
-      px = SCALE / (2 * k); // one sprite pixel is one fine pixel on screen (two thirds of one in HD)
-    const cv = makeCanvas(w * px, h * px, g => {
-      for (let y = 0; y < h; y++)
-        for (let x = 0; x < w; x++) {
-          const ch = map[y][flip ? w - 1 - x : x];
-          if (ch === '.') continue;
-          g.fillStyle = cols[ch] || '#ff00ff';
-          g.fillRect(x * px, y * px, px, px);
-        }
-    });
-    // the head's centre column anchors the frame, so the body stays put when the frames change; running frames are
-    // anchored on the torso instead, with the cycle's shift (2.8 = how far the head sits ahead of the torso)
-    const mean = (y0, y1) => {
-      let sx = 0,
-        n = 0;
-      for (let y = y0; y < y1; y++)
-        for (let x = 0; x < w; x++)
-          if (map[y][x] !== '.') {
-            sx += x;
-            n++;
-          }
-      return n ? sx / n + 0.5 : w / 2;
-    };
-    const wi = HERO_RUN.frames.indexOf(name);
-    let ax =
-      wi >= 0
-        ? mean(Math.floor(h * 0.35), Math.floor(h * 0.55)) + (2.8 - HERO_RUN.shift[wi]) * k
-        : mean(0, Math.ceil(h * 0.22));
-    if (flip) ax = w - ax;
-    e = { cv, w, h, ax };
-    if (_heroCache.size > 400) _heroCache.clear();
-    _heroCache.set(key, e);
-  }
-  const u = big ? 24 / 144 : HP / k, // logical size of one sprite pixel
-    target = back ? 12 : 12 + 0.75 * f;
-  const smooth = ctx.imageSmoothingEnabled;
-  ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(e.cv, Math.round(ox) + target - e.ax * u, Math.round(oy) + 24 - e.h * u, e.w * u, e.h * u);
-  ctx.imageSmoothingEnabled = smooth;
-}
-
+// drawRobot(ox, oy, facing, pose, frame, shooting, pal, style, opt) draws a character in a 24 x 24 box (feet at oy + 24):
+// the hero and every boss are native characters (NATIVE_CHARS[style], js/chars.js), drawn in detail in the 3x views
+// (title, intro and ending screens); a style without one is drawn as the hero
 function drawRobot(ox, oy, f, pose, fr, arm, pal, style = 'hero', opt = {}) {
-  if (style === 'hero' && typeof HERO_SPRITES !== 'undefined') {
-    drawHeroSprite(ox, oy, f, pose, fr, arm, pal, Math.abs(ctx.getTransform().a) / SCALE >= 3);
-    return;
-  }
-  const ext = ROBOT_STYLES[style] || {},
-    face = pose === 'hurt' ? 'hurt' : pose === 'climb' && !arm ? 'back' : 'face',
-    t = ext.anim ? ext.anim(opt) : 0,
-    // when the canvas is zoomed 3x or more (the title screen and the ending), the robot is built in detail
-    k = Math.abs(ctx.getTransform().a) / SCALE >= 3 ? 3 : 1,
-    key = [
-      SCALE,
-      k,
-      style,
-      pose,
-      fr,
-      arm ? 1 : 0,
-      face,
-      f < 0 ? 1 : 0,
-      pal.B,
-      pal.b,
-      pal.S,
-      t,
-      opt.blade === false ? 0 : 1,
-    ].join('|');
-  let bm = _rigCache.get(key);
-  if (!bm) {
-    const grid = rigGrid(pose, fr, arm, face, style, t, opt, k);
-    if (f < 0) {
-      grid.forEach(r => r.reverse());
-      grid.ring.forEach(r => r.reverse());
-    }
-    bm = rigBitmap(grid, robotColors(pal, style));
-    if (_rigCache.size > 800) _rigCache.clear();
-    _rigCache.set(key, bm);
-  }
-  const smooth = ctx.imageSmoothingEnabled;
-  ctx.imageSmoothingEnabled = false;
-  // the grid is mirrored as a whole, so its left margin moves to the right when facing left
-  const gx = Math.round(ox) - (f < 0 ? RIG_W - 48 - RIG_X : RIG_X) * HP;
-  ctx.drawImage(bm, gx, Math.round(oy) - RIG_Y * HP, RIG_W * HP, RIG_H * HP);
-  ctx.imageSmoothingEnabled = smooth;
+  const ch = NATIVE_CHARS[style] || NATIVE_CHARS.hero;
+  drawNative(
+    NATIVE_CHARS[style] ? style : 'hero',
+    ch,
+    ox,
+    oy,
+    f,
+    pose,
+    fr,
+    arm,
+    pal,
+    Math.abs(ctx.getTransform().a) / SCALE >= 3,
+    opt,
+  );
 }
-
-// Azura bosses on the rig (positions relative to the head centre hx, hy and the chest plate)
-Object.assign(ROBOT_STYLES, {
-  cut: {
-    // a big pair of scissors on the head that opens and closes
-    angry: true,
-    colors: { X: '#e0e0ea', Y: '#f83800' },
-    anim: opt => (opt.blade === false ? 0 : (frameCount >> 3) & 1),
-    head(R) {
-      if (R.opt.blade === false) return;
-      const { hx, hy, t } = R,
-        o = t ? 2 : 0;
-      R.shape('X', R.poly([hx - 1, hy - 7, hx - 7 - o, hy - 18, hx - 4 - o, hy - 19, hx + 2, hy - 8]));
-      R.shape('X', R.poly([hx + 1, hy - 7, hx + 7 + o, hy - 18, hx + 4 + o, hy - 19, hx - 2, hy - 8]));
-      R.shape('Y', R.disc(hx, hy - 7.5, 2.4));
-    },
-  },
-  fire: {
-    // a flame burning on top of the head
-    angry: true,
-    colors: { X: '#f87800', Y: '#f8d800' },
-    anim: () => (frameCount >> 2) % 3,
-    head(R) {
-      const { hx, hy, t } = R;
-      R.shape(
-        'X',
-        R.poly([
-          hx - 6,
-          hy - 5,
-          hx - 5,
-          hy - 12,
-          hx - 2,
-          hy - 9,
-          hx,
-          hy - 17 - t,
-          hx + 2,
-          hy - 10,
-          hx + 5,
-          hy - 14 + t,
-          hx + 6,
-          hy - 5,
-        ]),
-      );
-      R.shape(
-        'Y',
-        R.poly([hx - 3, hy - 6, hx - 1, hy - 10, hx + 1, hy - 13 - t, hx + 2, hy - 9, hx + 4, hy - 6]),
-        false,
-      );
-    },
-  },
-  elec: {
-    // a lightning-bolt fin and a bolt on the chest
-    angry: true,
-    colors: { X: '#f8d800', Y: '#fcf8a0' },
-    head(R) {
-      const { hx, hy } = R;
-      R.shape(
-        'X',
-        R.poly([
-          hx - 3,
-          hy - 6,
-          hx - 1,
-          hy - 14,
-          hx + 1,
-          hy - 11,
-          hx + 3,
-          hy - 20,
-          hx + 5,
-          hy - 10,
-          hx + 3,
-          hy - 12,
-          hx + 2,
-          hy - 6,
-        ]),
-      );
-    },
-    chest(R) {
-      const [x, y] = R.chest;
-      R.shape(
-        'V',
-        R.poly([x + 1, y - 4, x - 2, y, x + 1, y, x - 1, y + 4, x + 4, y - 1, x + 1, y - 1, x + 3, y - 4]),
-        false,
-      );
-    },
-  },
-  snow: {
-    // long pale hair, an ice-crystal tiara
-    female: true,
-    hair: '#d8f0fc',
-    skirt: '#e8f8fc',
-    colors: { X: '#58e8f8', G: '#58e8f8' },
-    head(R) {
-      const { hx, hy } = R;
-      R.shape('X', R.poly([hx + 1, hy - 16, hx + 4, hy - 10, hx + 1, hy - 6, hx - 2, hy - 10]));
-    },
-  },
-  earth: {
-    // brown hair with a green headband and stone shoulder pads
-    female: true,
-    hair: '#6a3818',
-    skirt: '#4a8a30',
-    colors: { X: '#8a8070', Y: '#4a8a30', G: '#4a8a30', L: '#d8c8a8' },
-    head(R) {
-      const { hx, hy } = R;
-      R.shape('Y', R.cap(hx - 7, hy - 4.5, hx + 7, hy - 5.5, 2.2));
-    },
-    front(R) {
-      const y = R.chest[1] - 8;
-      R.shape('X', R.rect(11, y, 10, 5, 2));
-      R.shape('X', R.rect(26, y, 10, 5, 2));
-    },
-  },
-  wind: {
-    // teal hair streaming back and a swirl crest
-    female: true,
-    hair: '#58c8a8',
-    skirt: '#e8fcf4',
-    colors: { X: '#e8fcf4', Y: '#78e8c8', G: '#78e8c8' },
-    back(R) {
-      const { hy } = R;
-      R.shape('Z', R.poly([22, hy - 5, 5, hy - 1, 9, hy + 3, 2, hy + 9, 11, hy + 10, 7, hy + 15, 20, hy + 11]));
-    },
-    head(R) {
-      const { hx, hy } = R;
-      R.shape('Y', R.ell(hx + 1, hy - 8, 4.5, 2.2));
-      R.shape('X', R.disc(hx + 5, hy - 11.5, 2));
-      R.shape('X', R.disc(hx - 3, hy - 11, 1.6));
-    },
-  },
-});
 
 function drawWeaponIcon(kind, x, y, s = 1) {
   ctx.save();
@@ -821,15 +86,14 @@ function drawWeaponIcon(kind, x, y, s = 1) {
     case 'buster':
       sprite(0, 0, 1, 10, [[1, 2, 8, 6, '#3cbcfc']], [[3, 3, 4, 3, '#fcfcfc']]);
       break;
-    case 'cut':
-      sprite(0, 0, 1, 10, [
-        [0, 0, 3, 3, '#d8d8e0'],
-        [7, 0, 3, 3, '#d8d8e0'],
-        [2, 2, 6, 3, '#a8a8b8'],
-        [1, 5, 3, 5, '#f83800'],
-        [6, 5, 3, 5, '#f83800'],
-      ]);
+    case 'cut': {
+      // a still R. Cutter (main.js)
+      const sm = ctx.imageSmoothingEnabled;
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(cutterBitmap(Math.round(10 * s * 2), 0), 0, 0, 10, 10);
+      ctx.imageSmoothingEnabled = sm;
       break;
+    }
     case 'fire':
       sprite(
         0,

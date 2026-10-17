@@ -1,17 +1,21 @@
 'use strict';
-// Stage layouts. Each stage is 300x44 tiles: the main path runs on the surface (floor top = row 22), with towers
-// above it and caves below it; the boss room is the last 24 columns.
+// Stage layouts. Each stage is 300x44 tiles and has a route of its own (towers, caves, shafts, sky routes); the
+// surface floor top is row 22, where the stage starts and the boss room (the last 24 columns) stands.
 // Tiles: # ground, = block, I ice (slippery), C crumbling block, ^ spikes, ~ lava, H ladder, D boss door,
 //        b cave/backdrop wall (not solid, drawn dark), X abyss (falling into it is death),
 //        < > conveyor belt, Q quicksand (you sink; jump out before your head goes under),
-//        U updraft pad (launches you about 8 tiles up).
+//        U updraft pad (launches you about 8 tiles up), W water.
 // Hazards: saw, jet (fire), icicle, rockfall, zap (electric beam from a ceiling emitter down to row y1),
 //          bubble (magma leaping out of lava at row y), eblock (energy block idx of n, solid in turn),
-//          wind (blizzard gusts over columns x..x1 pushing toward dir).
+//          wind (blizzard gusts over columns x..x1 pushing toward dir), crusher (a press slamming from row y down to
+//          the floor at row y1, w tiles wide), rising (lava or acid rising up a shaft from row y to row y1 once the
+//          player starts to climb; see actors.js).
 // Each stage has its own enemy on top of the common ones: blader (cut), totem (fire), watcher (elec),
 // snowman (snow), mole (earth), fanbot (wind).
 // Rules of thumb for layouts: a jump clears 3 empty tiles (but only 2 tiles of spikes, which kill on any touch)
-// and rises at most 2 tiles; an updraft pad rises about 8; ladders are 1 tile wide.
+// and rises at most 2 tiles (5 under water); an updraft pad rises about 8 tiles and carries you about 5 across; a
+// slide passes under a gap 1 tile high; ladders are 1 tile wide. Check every stage with the reachability test
+// (every checkpoint and the boss door reachable from the start).
 
 const LEVEL_H = 44,
   FLOOR = 22,
@@ -19,7 +23,14 @@ const LEVEL_H = 44,
   DOOR_COL = 276;
 
 const STAGES = {
-  cut: { name: 'SNIPTOR', title: 'MANUSIA GUNTING', theme: 'cut', music: 'cut', ambient: 'dust', color: '#f87858' },
+  cut: {
+    name: 'SNIPTOR',
+    title: 'MANUSIA PISAU PUTAR',
+    theme: 'cut',
+    music: 'cut',
+    ambient: 'dust',
+    color: '#f87858',
+  },
   fire: { name: 'MAGMARON', title: 'MANUSIA API', theme: 'fire', music: 'fire', ambient: 'embers', color: '#f8a800' },
   elec: { name: 'VOLTRAX', title: 'MANUSIA LISTRIK', theme: 'elec', music: 'elec', ambient: 'rain', color: '#f8e030' },
   snow: { name: 'GLACIELLE', title: 'WANITA ES', theme: 'snow', music: 'snow', ambient: 'snow', color: '#a8e8fc' },
@@ -154,6 +165,23 @@ function makeBuilder() {
     add(type, x, y = FLOOR - 1, o = {}) {
       ents.push(Object.assign({ type, x, y }, o));
     },
+    // a solid block, and a hollow (the backdrop wall of a room or a tunnel) carved out of one
+    solid(x0, y0, x1, y1) {
+      B.rect(x0, y0, x1, y1, '#');
+    },
+    // a one-tile ledge of blocks (or of another tile: ice, crumbling, a belt)
+    ledge(x0, x1, y, c = '=') {
+      B.rect(x0, y, x1, y, c);
+    },
+    // a conveyor belt pushing toward dir (-1 left, 1 right)
+    belt(x0, x1, y, dir) {
+      B.rect(x0, y, x1, y, dir < 0 ? '<' : '>');
+    },
+    // fill the open cells of a rectangle with water (W); ladders and walls stay
+    flood(x0, y0, x1, y1) {
+      for (let y = y0; y <= y1; y++)
+        for (let x = x0; x <= x1; x++) if (map[y][x] === 'b' || map[y][x] === '.') map[y][x] = 'W';
+    },
   };
   return B;
 }
@@ -193,498 +221,575 @@ function bossRoom(B, dc, theme) {
 
 const F = FLOOR;
 const LAYOUTS = {
+  // Sniptor's sawmill: presses over a belt, a tower of saws, catwalks over a spike floor, a shaft of sweeping saws
+  // down into the belt tunnels, and a saw gauntlet back on the surface
   cut(B) {
-    // --- yard
-    B.ground(0, 24);
+    // --- the yard
+    B.ground(0, 23);
     B.add('start', 3);
-    B.add('met', 12);
+    B.add('met', 14);
     B.add('blader', 20, 15);
-    // pit 25-27
-    B.ground(28, 46);
-    B.add('saw', 31, 21, { x1: 43, y1: 21, speed: 1.3 });
-    B.add('met', 45);
-    B.add('h', 37);
-    // spike pit crossed on a moving platform
-    B.ground(47, 56);
-    B.spikes(48, 55);
-    B.add('plat', 48, 20, { x1: 53, y1: 20, speed: 0.8 });
-    // --- factory tower: ladders up the side, saw on the roof, stepping blocks down the far side
-    B.ground(57, 170);
-    B.add('hopper', 60);
-    B.rect(64, 15, 69, 21, '#');
-    B.ladder(63, 15, 21);
-    B.add('met', 66, 14);
-    B.ladder(69, 8, 14);
-    B.rect(70, 8, 86, 21, '#');
-    B.rect(72, 8, 84, 8, '<'); // roof conveyor pushes back toward the ladder
-    B.add('turret', 76, 7);
-    B.add('saw', 79, 7, { x1: 85, y1: 7, speed: 1.1 });
-    B.add('flyer', 82, 3);
-    B.rect(89, 11, 90, 11, '=');
-    B.rect(93, 14, 94, 14, '=');
-    B.rect(97, 17, 98, 17, '=');
-    B.add('blader', 95, 10);
-    B.add('cp', 103);
-    // --- sewer: the surface is a spike field, so go under it
-    B.spikes(112, 145);
-    B.cave(104, 28, 151, 35);
-    B.shaft(108, F, 35);
-    B.add('L', 105, 35);
-    B.add('met', 116, 35);
-    B.rect(112, 36, 117, 36, '>');
-    B.add('saw', 118, 35, { x1: 126, y1: 35, speed: 1.2 }); // belt feeds the saw
-    B.spikes(129, 134, 36);
-    B.add('plat', 129, 34, { x1: 133, y1: 34, speed: 0.8 });
-    B.add('hopper', 138, 35);
-    B.rect(140, 28, 146, 32, '#');
-    B.add('met', 144, 35); // low tunnel
-    B.shaft(150, F, 35);
-    B.rect(156, 20, 156, 21, '=');
-    B.add('turret', 156, 19);
-    B.add('met', 162);
-    B.add('h', 166);
-    // pit 171-173
-    // --- lift up the warehouse wall, catwalk on top
-    B.ground(174, 240);
-    B.add('plat', 180, 20, { x1: 180, y1: 7, speed: 0.7 });
-    B.add('flyer', 177, 12);
-    B.rect(184, 6, 200, 21, '#');
-    B.add('saw', 186, 5, { x1: 198, y1: 5, speed: 1.2 });
-    B.add('met', 196, 5);
-    B.add('blader', 192, 2);
-    B.add('cp', 205);
-    // --- slide under the saw in the low corridor
-    B.add('hopper', 210);
-    B.add('hopper', 215);
-    B.rect(220, 0, 233, 17, '=');
-    B.add('saw', 221, 20, { x1: 232, y1: 20, speed: 0.9 });
-    B.add('met', 236);
-    // pit 241-243
-    B.ground(244, 275);
-    B.add('flyer', 242, 16);
-    B.rect(247, F, 259, F, '<');
-    B.add('saw', 248, 21, { x1: 258, y1: 21, speed: 1.6 });
-    B.add('E', 262);
-    B.add('met', 266);
-    B.add('blader', 270, 15);
+    // --- the press hall: the belt carries you under four presses slamming one after another
+    B.ground(24, 61);
+    B.solid(24, 8, 61, 12);
+    B.cave(25, 13, 60, 21);
+    B.solid(24, 13, 24, 17);
+    B.solid(61, 13, 61, 17);
+    B.belt(26, 59, F, 1);
+    [31, 38, 45, 52].forEach((x, i) => B.add('crusher', x, 13, { y1: F, phase: i * 46 }));
+    B.add('blader', 42, 16);
+    B.add('h', 58);
+    // --- the saw tower: up four floors by the ladders at alternate ends, a saw sweeping every floor
+    B.ground(62, 99);
+    B.solid(64, 5, 99, 21);
+    B.cave(65, 6, 98, 21);
+    B.cave(64, 18, 64, 21); // the way in
+    for (const [y, lx] of [
+      [18, 97],
+      [14, 67],
+      [10, 97],
+    ]) {
+      B.ledge(65, 98, y, '#');
+      B.ladder(lx, y, y + 3);
+    }
+    B.ladder(97, 18, 21);
+    B.ladder(67, 5, 9); // up through the roof
+    B.add('saw', 70, 17, { x1: 94, y1: 17, speed: 1.3 });
+    B.add('saw', 94, 13, { x1: 70, y1: 13, speed: 1.5 });
+    B.add('met', 82, 13);
+    B.add('saw', 70, 9, { x1: 94, y1: 9, speed: 1.7 });
+    B.add('turret', 84, 4);
+    B.add('cp', 93, 4);
+    // --- catwalks over the spike floor, saws rising and falling in the gaps
+    B.ground(100, 120);
+    B.spikes(100, 120);
+    B.ledge(102, 105, 5);
+    B.ledge(109, 112, 5);
+    B.ledge(116, 119, 5);
+    B.add('saw', 107, 1, { x1: 107, y1: 9, speed: 1.2 });
+    B.add('saw', 114, 9, { x1: 114, y1: 1, speed: 1.4 });
+    B.add('flyer', 111, 0);
+    // --- the sawmill shaft: drop from ledge to ledge while the saws sweep across
+    B.solid(121, 6, 139, 43);
+    B.cave(123, 6, 137, 37);
+    for (const [y, x0, x1] of [
+      [12, 123, 129],
+      [18, 131, 137],
+      [24, 123, 129],
+      [30, 131, 137],
+    ])
+      B.ledge(x0, x1, y, '#');
+    B.add('saw', 124, 11, { x1: 136, y1: 11, speed: 1.3 });
+    B.add('saw', 136, 17, { x1: 124, y1: 17, speed: 1.5 });
+    B.add('saw', 124, 23, { x1: 136, y1: 23, speed: 1.7 });
+    B.add('saw', 136, 29, { x1: 124, y1: 29, speed: 1.9 });
+    B.add('h', 125, 37);
+    // --- the belt tunnels: belts against you and with you, spike pits, a press, a crawlway (the ground over them is a
+    // spike field)
+    B.solid(138, 22, 210, 43);
+    B.spikes(140, 201);
+    B.cave(138, 32, 140, 37);
+    B.cave(141, 30, 205, 37);
+    B.belt(141, 150, 38, -1);
+    B.spikes(151, 152, 38);
+    B.belt(153, 165, 38, 1);
+    B.add('crusher', 159, 30, { y1: 38, phase: 30 });
+    B.spikes(166, 167, 38);
+    B.belt(168, 182, 38, -1);
+    B.solid(171, 30, 178, 36); // the crawlway: slide under it
+    B.add('blader', 160, 32);
+    B.add('met', 186, 37);
+    B.spikes(189, 190, 38);
+    B.ledge(194, 196, 36);
+    B.add('blader', 197, 31);
+    B.add('L', 199, 37);
+    B.shaft(203, F, 37);
+    // --- the saw gauntlet: saws running along the floor, a crawlway, then the last press
+    B.ground(206, 275);
+    B.add('cp', 208);
+    B.add('saw', 214, 21, { x1: 224, y1: 21, speed: 1.2 });
+    B.add('saw', 238, 21, { x1: 228, y1: 21, speed: 1.6 });
+    B.add('met', 233);
+    B.rect(242, 9, 251, 20, '=');
+    B.add('turret', 255, F - 1);
+    B.solid(258, 10, 270, 12);
+    B.cave(258, 13, 270, 21);
+    B.belt(259, 269, F, -1);
+    B.add('crusher', 263, 13, { y1: F, phase: 20 });
+    B.add('E', 260);
+    B.add('blader', 272, 15);
     bossRoom(B, DOOR_COL, 'cut');
   },
 
+  // Magmaron's volcano: basalt columns up out of a lava field to the crater, down the crater into the magma
+  // chamber, up the vent with the lava rising behind you, and down the outer slopes to a lava river
   fire(B) {
-    B.ground(0, 20);
+    // --- the black-sand beach
+    B.ground(0, 25);
     B.add('start', 3);
     B.add('met', 12);
-    B.lava(21, 23);
-    B.ground(24, 44);
-    B.add('jet', 29, F, { phase: 0 });
-    B.add('jet', 35, F, { phase: 75 });
-    B.add('flyer', 40, 15);
-    B.add('totem', 42);
-    B.add('h', 32);
-    // lava lake with stepping blocks
-    B.lava(45, 58);
-    B.rect(47, 20, 48, 20, '=');
-    B.rect(51, 19, 52, 19, '=');
-    B.rect(55, 20, 56, 20, '=');
-    B.add('flyer', 53, 13);
-    B.add('bubble', 49, F + 1, { phase: 0 });
-    B.add('bubble', 53, F + 1, { phase: 70 });
-    // --- volcano: climb the cone, drop through the crater into the magma chamber (the far side is a lava lake)
-    B.ground(59, 90);
-    B.add('hopper', 61);
-    B.rect(66, 18, 90, 21, '#');
-    B.ladder(65, 18, 21);
-    B.add('jet', 67, 18, { phase: 20 });
-    B.rect(70, 14, 86, 17, '#');
-    B.ladder(69, 14, 17);
-    B.add('met', 72, 13);
-    B.rect(74, 10, 82, 13, '#');
-    B.ladder(73, 10, 13);
-    B.add('flyer', 80, 5);
-    B.lava(91, 118);
-    B.ground(119, 167);
-    B.cave(70, 28, 121, 36);
-    B.cave(77, 10, 79, 27); // crater shaft
-    B.pool(84, 88, 37);
-    B.rect(86, 35, 86, 35, '=');
-    B.add('bubble', 85, 38, { period: 120 });
-    B.add('jet', 92, 37, { phase: 0 });
-    B.add('met', 95, 36);
-    B.add('jet', 98, 37, { phase: 50 });
-    B.add('hopper', 103, 36);
-    B.pool(106, 111, 37);
-    B.add('plat', 106, 35, { x1: 110, y1: 35, speed: 0.9 });
-    B.add('flyer', 112, 31);
-    B.add('bubble', 108, 38, { period: 120, phase: 60 });
-    B.add('h', 116, 36);
-    B.shaft(120, F, 36);
-    B.add('cp', 124);
-    // fire tunnel
-    B.rect(130, 0, 140, 18, '=');
-    B.add('jet', 135, F, { phase: 0 });
-    B.add('met', 145);
-    B.add('totem', 150);
-    B.add('flyer', 158, 14);
-    // --- basalt pillars rising out of a lava field up to a plateau
-    B.lava(168, 191);
-    B.pillar(168, 169, 20);
-    B.pillar(172, 173, 18);
-    B.pillar(176, 177, 16);
-    B.pillar(180, 181, 14);
-    B.pillar(184, 185, 12);
-    B.pillar(188, 189, 10);
-    B.add('jet', 176, 16, { phase: 0 });
-    B.add('jet', 184, 12, { phase: 60 });
-    B.add('flyer', 182, 6);
-    B.add('bubble', 170, F + 1, { phase: 0 });
-    B.add('bubble', 178, F + 1, { phase: 45 });
-    B.add('bubble', 186, F + 1, { phase: 90 });
-    B.pillar(192, 210, 8);
-    B.add('met', 196, 7);
-    B.add('totem', 202, 7);
-    B.add('hopper', 207, 7);
-    B.ground(211, 235);
-    B.add('cp', 214);
-    B.add('jet', 220, F, { phase: 0 });
-    B.add('jet', 224, F, { phase: 50 });
-    B.add('jet', 228, F, { phase: 100 });
-    B.add('hopper', 233);
-    B.lava(236, 238);
-    B.ground(239, 241);
-    // lava lake crossed on a moving platform
-    B.lava(242, 254);
-    B.add('plat', 242, 20, { x1: 252, y1: 20, speed: 1 });
-    B.add('flyer', 248, 14);
-    B.add('bubble', 246, F + 1, { phase: 0 });
-    B.add('bubble', 250, F + 1, { phase: 70 });
-    B.ground(255, 275);
-    B.add('E', 260);
-    B.add('totem', 264);
-    B.add('flyer', 268, 15);
-    B.add('jet', 271, F, { phase: 30 });
+    B.lava(16, 17);
+    B.add('bubble', 16, F + 1, { phase: 0 });
+    B.add('totem', 22);
+    // --- basalt columns rising out of the lava field, each two higher than the last
+    B.lava(26, 55);
+    [28, 32, 36, 40, 44, 48, 52].forEach((x, i) => B.pillar(x, x + 1, 20 - i * 2));
+    B.add('jet', 36, 16, { phase: 0 });
+    B.add('jet', 44, 12, { phase: 60 });
+    [30, 34, 38, 42, 46, 50].forEach((x, i) => B.add('bubble', x, F + 1, { phase: i * 23 }));
+    B.add('flyer', 42, 5);
+    // --- the crater rim (an energy tank on the far side), then down the crater
+    B.solid(56, 8, 63, 43);
+    B.solid(73, 8, 80, 43);
+    B.solid(81, 2, 120, 43); // the summit: a wall of rock
+    B.add('jet', 59, 8, { phase: 30 });
+    B.add('jet', 77, 8, { phase: 100 });
+    B.add('E', 79, 7);
+    B.cave(64, 8, 72, 29); // the crater
+    B.ledge(64, 66, 14, '#');
+    B.add('jet', 65, 14, { phase: 0 });
+    B.ledge(70, 72, 20, '#');
+    B.ledge(64, 66, 26, '#');
+    // --- the magma chamber: islands and rafts over a lava floor
+    B.cave(64, 24, 137, 37);
+    B.rect(64, 38, 137, 38, '~');
+    B.solid(64, 39, 137, 43);
+    B.solid(64, 34, 72, 38); // where you land
+    B.add('cp', 68, 33);
+    B.add('plat', 74, 33, { x1: 84, y1: 33, speed: 1 });
+    B.add('bubble', 79, 38, { period: 120 });
+    B.solid(87, 32, 90, 38);
+    B.add('totem', 89, 31);
+    B.pillar(94, 95, 33);
+    B.pillar(99, 100, 31);
+    B.pillar(104, 105, 33);
+    B.add('bubble', 97, 38, { period: 110, phase: 30 });
+    B.add('bubble', 102, 38, { period: 110, phase: 80 });
+    B.add('plat', 109, 36, { x1: 109, y1: 30, speed: 0.7 });
+    B.solid(113, 31, 120, 38);
+    B.add('jet', 116, 31, { phase: 50 });
+    B.add('flyer', 118, 26);
+    B.add('hopper', 119, 30);
+    B.solid(124, 34, 129, 38);
+    B.add('cp', 126, 33);
+    B.add('plat', 131, 34, { x1: 136, y1: 34, speed: 1.1 });
+    // --- the vent: climb it fast, the lava rises behind you
+    B.solid(138, 4, 151, 43);
+    B.cave(138, 30, 139, 36);
+    B.cave(140, 6, 147, 36);
+    B.ledge(140, 147, 37, '#');
+    for (const [y, lx] of [
+      [33, 146],
+      [29, 141],
+      [25, 146],
+      [21, 141],
+      [17, 146],
+      [13, 141],
+      [9, 146],
+    ]) {
+      B.ledge(140, 147, y, '#');
+      B.ladder(lx, y, y + 3);
+    }
+    B.ladder(146, 6, 8);
+    B.cave(148, 5, 151, 8); // out to the slopes
+    B.add('rising', 140, 37, { x1: 147, y1: 5, speed: 0.5, delay: 40 });
+    B.add('flyer', 143, 15);
+    // --- the outer slopes: basalt steps down over the lava streams, a crumbling ledge between some
+    B.lava(152, 214);
+    B.add('cp', 150, 8);
+    for (const [x, y] of [
+      [152, 9],
+      [159, 11],
+      [166, 13],
+      [173, 15],
+      [180, 17],
+      [187, 19],
+      [194, 20],
+    ])
+      B.pillar(x, x + 3, y);
+    B.ledge(156, 158, 10, 'C');
+    B.ledge(170, 172, 14, 'C');
+    B.ledge(184, 186, 18, 'C');
+    [157, 164, 171, 178, 185, 192].forEach((x, i) => B.add('bubble', x, F + 1, { phase: i * 31 }));
+    B.add('flyer', 175, 8);
+    B.add('totem', 196, 19);
+    B.pillar(199, 200, 20);
+    B.pillar(204, 205, 20);
+    B.pillar(209, 210, 20);
+    B.add('bubble', 202, F + 1, { phase: 10 });
+    B.add('bubble', 207, F + 1, { phase: 70 });
+    // --- the lava river: two rafts across, magma leaping under them
+    B.ground(215, 220);
+    B.add('h', 217);
+    B.lava(221, 245);
+    B.add('plat', 222, 20, { x1: 232, y1: 20, speed: 1 });
+    B.add('plat', 234, 19, { x1: 243, y1: 19, speed: 1.2 });
+    B.add('bubble', 226, F + 1, { phase: 0 });
+    B.add('bubble', 238, F + 1, { phase: 60 });
+    B.add('flyer', 233, 13);
+    // --- the last stretch: three jets in a row and a totem
+    B.ground(246, 275);
+    [252, 258, 264].forEach((x, i) => B.add('jet', x, F, { phase: i * 40 }));
+    B.add('hopper', 255);
+    B.add('totem', 269);
     bossRoom(B, DOOR_COL, 'fire');
   },
 
+  // Voltrax's power plant in the storm: a hall of beams firing in a wave, energy blocks over the abyss, the
+  // transformer tower, cable cars across the chasm, and the substation's energy blocks over a live floor
   elec(B) {
+    // --- the gate
     B.ground(0, 18);
     B.add('start', 3);
     B.add('met', 12);
-    // two electric gates under a ceiling
-    B.ground(19, 44);
-    B.rect(22, 12, 34, 13, '=');
-    B.add('zap', 25, 14, { y1: 21, phase: 0 });
-    B.add('zap', 31, 14, { y1: 21, phase: 70 });
-    B.add('h', 28);
-    B.add('watcher', 38, 15);
-    // pit 45-47
-    // --- transformer tower: ladders up, beams on the roof
-    B.ground(48, 138);
-    B.add('hopper', 52);
-    B.rect(60, 16, 64, 21, '#');
-    B.ladder(59, 16, 21);
-    B.add('met', 62, 15);
-    B.ladder(64, 10, 15);
-    B.rect(65, 10, 84, 21, '#');
-    B.rect(69, 4, 71, 4, '=');
-    B.add('zap', 70, 5, { y1: 9, phase: 0 });
-    B.rect(77, 4, 79, 4, '=');
-    B.add('zap', 78, 5, { y1: 9, phase: 75 });
-    B.add('turret', 74, 9);
-    B.add('watcher', 81, 6);
-    B.add('cp', 90);
-    // --- cable tunnel: the surface is live wire, go under it past three pulsing beams
-    B.spikes(96, 128);
-    B.cave(90, 28, 134, 35);
-    B.shaft(93, F, 35);
-    B.add('zap', 100, 28, { y1: 35, phase: 0 });
-    B.add('zap', 106, 28, { y1: 35, phase: 50 });
-    B.add('zap', 112, 28, { y1: 35, phase: 100 });
-    B.add('met', 117, 35);
-    B.spikes(120, 124, 36);
-    B.add('plat', 120, 34, { x1: 123, y1: 34, speed: 0.8 });
-    B.add('hopper', 128, 35);
-    B.shaft(132, F, 35);
-    B.rect(136, 20, 136, 21, '=');
-    B.add('turret', 136, 19);
-    // --- energy blocks over a pit: they light up one after another
-    for (const [i, x, y] of [
-      [0, 140, 20],
-      [1, 144, 19],
-      [2, 148, 18],
-      [3, 152, 19],
-    ])
-      B.add('eblock', x, y, { idx: i, n: 4 });
-    B.add('watcher', 146, 13);
-    // --- generator pit: drop in, dodge the beams, ride the lift back up
-    B.ground(154, 245);
-    B.cave(157, F, 185, 36);
-    B.rect(164, 25, 166, 25, '=');
-    B.add('zap', 165, 26, { y1: 36, phase: 0 });
-    B.rect(172, 25, 174, 25, '=');
-    B.add('zap', 173, 26, { y1: 36, phase: 70 });
-    B.add('met', 169, 36);
-    B.add('hopper', 177, 36);
-    B.add('h', 160, 36);
-    B.add('plat', 182, 35, { x1: 182, y1: 20, speed: 0.7 });
-    B.add('cp', 190);
-    // low tunnel with three beams pulsing in sequence
-    B.rect(200, 0, 216, 17, '=');
-    B.add('zap', 204, 18, { y1: 21, phase: 0 });
-    B.add('zap', 209, 18, { y1: 21, phase: 50 });
-    B.add('zap', 214, 18, { y1: 21, phase: 100 });
-    B.add('E', 222);
-    B.add('hopper', 226);
-    B.rect(232, 20, 232, 21, '=');
-    B.add('turret', 232, 19);
-    B.add('met', 238);
-    B.add('watcher', 242, 15);
-    // pit 246-248
-    // spike pit crossed on a platform that rides through a beam
-    B.ground(249, 275);
-    B.spikes(250, 256);
-    B.add('plat', 250, 20, { x1: 255, y1: 20, speed: 0.9 });
-    B.rect(252, 9, 254, 10, '=');
-    B.add('zap', 253, 11, { y1: 21, phase: 30 });
-    B.add('flyer', 262, 14);
-    B.add('met', 268);
+    // --- the beam hall: five beams firing one after another down the hall
+    B.ground(19, 50);
+    B.solid(19, 10, 50, 13);
+    B.cave(20, 14, 50, 21);
+    B.solid(19, 14, 19, 17);
+    [24, 29, 34, 39, 44].forEach((x, i) => B.add('zap', x, 14, { y1: 21, phase: i * 30 }));
+    B.add('watcher', 47, 16);
+    B.add('h', 49);
+    // --- energy blocks over the abyss: two runs of five, a pillar between
+    [
+      [53, 20],
+      [57, 19],
+      [61, 18],
+      [65, 19],
+      [69, 20],
+    ].forEach(([x, y], i) => B.add('eblock', x, y, { idx: i, n: 5 }));
+    B.pillar(72, 74, 20);
+    B.add('flyer', 73, 12);
+    [
+      [77, 19],
+      [81, 17],
+      [85, 16],
+      [89, 18],
+      [93, 20],
+    ].forEach(([x, y], i) => B.add('eblock', x, y, { idx: i, n: 5 }));
+    B.add('watcher', 86, 10);
+    // --- the transformer tower: three floors, a beam across each, ladders at alternate ends
+    B.ground(96, 125);
+    B.solid(98, 4, 123, 21);
+    B.cave(99, 5, 122, 21);
+    B.cave(98, 18, 98, 21);
+    for (const [y, lx] of [
+      [18, 121],
+      [14, 100],
+      [10, 121],
+    ]) {
+      B.ledge(99, 122, y, '#');
+      B.ladder(lx, y, y + 3);
+    }
+    B.ladder(121, 18, 21);
+    B.ladder(100, 4, 9);
+    B.add('zap', 110, 19, { y1: 21, phase: 0 });
+    B.add('zap', 106, 15, { y1: 17, phase: 50 });
+    B.add('zap', 114, 15, { y1: 17, phase: 100 });
+    B.add('met', 110, 13);
+    B.add('zap', 110, 11, { y1: 13, phase: 75 });
+    B.add('turret', 116, 9);
+    B.add('cp', 104, 3);
+    B.add('watcher', 114, 1);
+    // --- cable cars across the chasm, flyers and watchers swooping at you
+    B.add('plat', 125, 6, { x1: 143, y1: 6, speed: 1.1 });
+    B.add('plat', 147, 8, { x1: 164, y1: 8, speed: 1.3 });
+    B.add('plat', 168, 6, { x1: 182, y1: 6, speed: 1.2 });
+    B.add('flyer', 140, 1);
+    B.add('watcher', 158, 2);
+    B.add('flyer', 172, 1);
+    B.pillar(186, 189, 8);
+    B.pillar(190, 191, 12);
+    B.pillar(192, 193, 16);
+    B.pillar(194, 195, 20);
+    B.add('L', 187, 7);
+    // --- the substation: energy blocks over a live floor, beams in between
+    B.ground(196, 275);
+    B.add('cp', 197);
+    B.solid(200, 10, 234, 13);
+    B.cave(201, 14, 233, 21);
+    B.solid(200, 14, 200, 17);
+    B.solid(234, 14, 234, 17);
+    B.spikes(203, 231);
+    [
+      [203, 20],
+      [207, 19],
+      [211, 20],
+    ].forEach(([x, y], i) => B.add('eblock', x, y, { idx: i, n: 3, step: 40 }));
+    B.pillar(215, 216, 19);
+    B.add('zap', 218, 14, { y1: 21, phase: 0 });
+    [
+      [220, 19],
+      [224, 18],
+      [228, 19],
+    ].forEach(([x, y], i) => B.add('eblock', x, y, { idx: i, n: 3, step: 40 }));
+    B.add('watcher', 222, 15);
+    // --- the last yard: a belt between two beams, a turret
+    B.belt(242, 254, F, -1);
+    B.solid(240, 9, 256, 11);
+    B.add('zap', 244, 12, { y1: 21, phase: 0 });
+    B.add('zap', 252, 12, { y1: 21, phase: 75 });
+    B.add('E', 258);
+    B.solid(262, 20, 262, 21);
+    B.add('turret', 262, 19);
+    B.add('watcher', 268, 15);
     bossRoom(B, DOOR_COL, 'elec');
   },
 
+  // Glacielle's ice mountain: ice floes over a frozen chasm, the cliff in the blizzard, the summit ridge under
+  // hanging icicles, the long ice slide down, and the ice cave under the glacier
   snow(B) {
-    B.ground(0, 18);
+    // --- the snowfield, icicles under the overhang
+    B.ground(0, 24);
     B.add('start', 3);
-    B.add('met', 12);
-    B.rect(19, F, 35, LEVEL_H - 1, 'I');
-    B.rect(24, 13, 33, 15, '=');
-    B.add('icicle', 25, 16);
-    B.add('icicle', 28, 16);
-    B.add('icicle', 31, 16);
-    B.ground(36, 40);
-    // pit 41-43
-    B.ground(44, 62);
-    B.add('hopper', 50);
-    B.add('flyer', 57, 15);
-    B.add('snowman', 60);
-    B.add('h', 54);
-    // ice blocks over a bottomless pit
-    B.rect(65, 20, 66, 20, '=');
-    B.rect(69, 18, 70, 18, '=');
-    B.rect(73, 20, 74, 20, '=');
-    B.add('flyer', 70, 12);
-    // --- mountain: ice steps up to the summit, then drop through a crevasse into the ice cave
-    B.ground(76, 175);
-    B.rect(80, 20, 82, 20, 'I');
-    B.rect(84, 18, 86, 18, 'I');
-    B.rect(88, 16, 90, 16, 'I');
-    B.rect(92, 14, 94, 14, 'I');
-    B.rect(96, 12, 98, 12, 'I');
-    B.add('flyer', 90, 9);
-    B.add('wind', 78, F, { x1: 118, dir: -1, phase: 0 }); // blizzard on the way up
-    B.pillar(100, 118, 10);
-    B.rect(100, 10, 118, 10, 'I');
-    B.add('snowman', 104, 9);
-    B.add('flyer', 108, 4);
-    B.add('hopper', 115, 9);
-    B.cave(109, 10, 111, 27); // crevasse
-    B.pit(119, 145); // the far side of the mountain is a chasm
-    B.cave(100, 28, 150, 35);
-    B.add('L', 101, 35);
-    B.rect(114, 36, 128, 36, 'I');
-    B.add('icicle', 117, 28);
-    B.add('icicle', 121, 28);
-    B.add('icicle', 125, 28);
-    B.spikes(132, 136, 36);
-    B.add('plat', 132, 34, { x1: 135, y1: 34, speed: 0.8 });
-    B.add('hopper', 140, 35);
-    B.add('h', 144, 35);
-    B.shaft(148, F, 35);
-    B.add('cp', 152);
-    // long icy slide under icicles
-    B.rect(156, F, 172, LEVEL_H - 1, 'I');
-    B.rect(160, 12, 170, 14, '=');
-    B.add('icicle', 162, 15);
-    B.add('icicle', 165, 15);
-    B.add('icicle', 168, 15);
-    B.add('hopper', 167);
-    // --- frozen chasm: platform, lift and ice blocks
-    B.pit(176, 200);
-    B.add('wind', 176, F, { x1: 200, dir: -1, phase: 80 });
-    B.add('plat', 177, 20, { x1: 182, y1: 20, speed: 0.8 });
-    B.add('plat', 186, 20, { x1: 186, y1: 14, speed: 0.7 });
-    B.rect(190, 15, 191, 15, '=');
-    B.rect(194, 17, 195, 17, '=');
-    B.rect(198, 19, 199, 19, '=');
-    B.add('flyer', 192, 10);
-    B.ground(201, 275);
-    B.add('cp', 205);
-    B.add('snowman', 210);
-    B.add('wind', 212, F, { x1: 232, dir: 1, phase: 0 }); // tailwind over the ice
-    B.rect(214, F, 230, LEVEL_H - 1, 'I');
-    B.rect(216, 13, 228, 15, '=');
-    B.add('icicle', 218, 16);
-    B.add('icicle', 221, 16);
-    B.add('icicle', 224, 16);
-    B.add('icicle', 227, 16);
-    B.add('snowman', 236);
-    B.rect(240, 20, 242, 21, '=');
-    B.add('turret', 241, 19);
-    B.add('flyer', 246, 15);
-    B.pit(250, 252);
-    B.add('E', 260);
-    B.add('met', 266);
-    B.add('h', 270);
+    B.add('met', 11);
+    B.ledge(7, 13, F, 'I');
+    B.solid(16, 12, 24, 15);
+    [17, 20, 23].forEach(x => B.add('icicle', x, 16));
+    B.add('snowman', 22);
+    // --- ice floes over the frozen chasm: they are slippery, so land with care
+    for (const [x0, x1, y] of [
+      [27, 29, 21],
+      [33, 34, 20],
+      [38, 40, 21],
+      [44, 45, 19],
+      [49, 51, 21],
+      [55, 56, 20],
+    ])
+      B.ledge(x0, x1, y, 'I');
+    B.add('flyer', 42, 12);
+    B.add('flyer', 53, 13);
+    // --- the cliff: up the steps in the blizzard (it blows you back toward the drop), the ladder to the summit
+    B.ground(60, 66);
+    B.pillar(67, 69, 20);
+    B.pillar(70, 72, 18);
+    B.pillar(73, 76, 16);
+    B.ledge(73, 76, 16, 'I');
+    B.pillar(77, 80, 14);
+    B.add('snowman', 79, 13);
+    B.ladder(81, 8, 13);
+    B.pillar(82, 104, 8);
+    B.pillar(81, 81, 14);
+    B.add('wind', 60, F, { x1: 92, dir: -1, phase: 0 });
+    B.add('cp', 86, 7);
+    B.add('h', 90, 7);
+    B.add('snowman', 100, 7);
+    // --- the summit ridge: crumbling ice bridges, icicles under the rock arch
+    B.ledge(105, 108, 8, 'C');
+    B.pillar(109, 112, 8);
+    B.ledge(113, 116, 8, 'C');
+    B.pillar(117, 120, 8);
+    B.solid(115, 2, 130, 3);
+    [117, 120, 123, 126, 129].forEach(x => B.add('icicle', x, 4));
+    B.pillar(124, 127, 7);
+    B.ledge(128, 131, 7, 'C');
+    B.pillar(132, 134, 8);
+    B.add('flyer', 122, 0);
+    // --- the ice slide: steps of ice all the way down, spikes on two of them, the wind at your back
+    for (const [x0, y] of [
+      [135, 9],
+      [141, 11],
+      [147, 13],
+      [153, 15],
+      [159, 17],
+      [165, 19],
+      [171, 21],
+    ]) {
+      B.pillar(x0, x0 + 5, y);
+      B.ledge(x0, x0 + 5, y, 'I');
+    }
+    B.spikes(150, 151, 13);
+    B.spikes(162, 163, 17);
+    B.add('wind', 135, F, { x1: 180, dir: 1, phase: 60 });
+    B.add('flyer', 158, 8);
+    // --- under the glacier: down the shaft into the ice cave, over its crumbling floor, up the frozen waterfall
+    B.ground(177, 275);
+    B.add('snowman', 180);
+    B.add('cp', 184);
+    B.solid(192, 6, 234, 25);
+    B.shaft(189, F, 36);
+    B.cave(188, 26, 238, 36);
+    [198, 202, 206, 214, 222].forEach(x => B.add('icicle', x, 26));
+    B.ledge(196, 207, 37, 'C');
+    B.rect(196, 38, 207, LEVEL_H - 1, '.');
+    B.ledge(208, 214, 37, 'I');
+    B.add('hopper', 212, 36);
+    B.rect(215, 37, 221, LEVEL_H - 1, '.');
+    B.ledge(217, 218, 35, 'I');
+    B.ledge(222, 233, 37, 'I');
+    B.add('snowman', 226, 36);
+    B.add('L', 230, 36);
+    B.shaft(236, F, 36);
+    // --- the last stretch: ice underfoot, a turret on a block
+    B.ledge(242, 252, F, 'I');
+    B.add('snowman', 248);
+    B.add('E', 256);
+    B.solid(262, 20, 263, 21);
+    B.add('turret', 262, 19);
+    B.add('flyer', 268, 14);
     bossRoom(B, DOOR_COL, 'snow');
   },
 
+  // Winderwomen's sky castle: updrafts up from the clouds, cloud platforms against the gusts, down through the
+  // castle's three halls, the storm bridges and the last updraft hops (falling into the clouds is the end)
   wind(B) {
-    // floating islands over a sea of clouds (falling into the clouds is death)
     const isle = (x0, x1, top = F, th = 3) => B.rect(x0, top, x1, top + th, '#');
     isle(0, 18);
     B.add('start', 3);
     B.add('met', 12);
-    // gap 19-21
-    isle(22, 40);
-    B.add('fanbot', 33, 18);
-    B.add('h', 27);
-    B.add('flyer', 38, 14);
-    // gap 41-43
-    // --- updraft pads up to the sky castle
-    isle(44, 52);
-    B.rect(50, F, 51, F, 'U');
-    isle(53, 59, 16, 1);
-    B.add('met', 55, 15);
-    B.rect(58, 16, 59, 16, 'U');
-    isle(62, 67, 10, 1);
-    B.add('flyer', 66, 5);
-    // sky castle: the tower blocks the roof, so go down the ladder and through the hall
-    B.rect(69, 8, 95, F + 3, '=');
-    B.rect(86, 0, 95, 7, '=');
-    B.add('fanbot', 76, 5);
-    B.add('met', 79, 7);
-    B.ladder(82, 8, 21);
-    B.cave(71, 12, 93, 21);
-    B.add('L', 72, 21);
-    B.rect(84, F, 85, F, 'U');
-    B.spikes(86, 88);
-    B.add('fanbot', 91, 17); // ride the updraft over the spikes
-    B.cave(94, 18, 95, 21); // castle gate
-    isle(96, 112);
-    B.add('cp', 100);
-    B.add('flyer', 108, 14);
-    // gap 113-115
-    // --- wind well: drop into the floating rock (a spire blocks its top), ride the updrafts back out
-    isle(116, 153, F, 16);
-    B.rect(124, 0, 128, F - 1, '=');
-    B.cave(119, F, 121, 29);
-    B.cave(117, 30, 139, 36);
-    B.add('met', 123, 36);
-    B.spikes(128, 129, 37);
-    B.add('fanbot', 134, 33);
-    B.cave(140, F, 148, 36);
-    B.rect(146, 37, 147, 37, 'U');
-    B.rect(141, 31, 143, 31, '#');
-    B.rect(141, 31, 141, 31, 'U');
-    B.rect(144, 26, 147, 26, '#');
-    B.rect(147, 26, 147, 26, 'U');
-    isle(154, 170);
-    B.add('cp', 158);
-    B.add('fanbot', 166, 18);
-    // --- cloud platform, updraft and a sky bridge
-    B.add('plat', 172, 20, { x1: 180, y1: 20, speed: 0.9 });
-    B.add('flyer', 176, 13);
-    isle(184, 190, 20, 1);
-    B.rect(189, 20, 190, 20, 'U');
-    isle(193, 222, 13, 1);
-    B.add('fanbot', 200, 9);
-    B.add('met', 206, 12);
-    B.add('flyer', 212, 7);
-    B.add('h', 216, 12);
-    isle(226, 240);
-    B.add('met', 232);
-    B.add('fanbot', 238, 18);
-    // gap 241-243
-    isle(244, 275);
-    B.add('fanbot', 254, 18);
+    // --- up on the updrafts
+    isle(22, 26, 21, 1);
+    B.rect(24, 21, 25, 21, 'U');
+    isle(28, 33, 14, 1);
+    B.add('fanbot', 30, 12);
+    B.rect(32, 14, 33, 14, 'U');
+    isle(36, 44, 7, 1);
+    B.add('flyer', 40, 1);
+    // --- cloud platforms over the void, the wind blowing against you
+    B.add('wind', 45, 12, { x1: 108, dir: -1, phase: 0 });
+    B.add('plat', 46, 7, { x1: 54, y1: 7, speed: 0.9 });
+    B.add('plat', 57, 9, { x1: 65, y1: 9, speed: 1.1 });
+    B.add('plat', 68, 7, { x1: 75, y1: 7, speed: 1 });
+    isle(78, 82, 8, 1);
+    B.add('fanbot', 80, 6);
+    B.add('plat', 85, 6, { x1: 95, y1: 6, speed: 1.2 });
+    B.add('flyer', 90, 1);
+    isle(98, 109, 7, 1);
+    B.add('cp', 100, 6);
+    B.add('h', 106, 6);
+    // --- the sky castle: in at the top, down through its three halls
+    B.solid(110, 0, 165, 24);
+    B.cave(110, 5, 110, 6);
+    B.cave(111, 2, 164, 6);
+    B.spikes(118, 119, 7);
+    B.spikes(126, 127, 7);
+    B.add('met', 123, 6);
+    B.spikes(134, 135, 7);
+    B.rect(140, 4, 152, 5, '=');
+    B.add('fanbot', 156, 5);
+    B.ladder(162, 7, 13);
+    B.cave(111, 9, 164, 14);
+    B.spikes(150, 151, 15);
+    B.spikes(140, 141, 15);
+    B.add('fanbot', 135, 12); // it blows you back toward the spikes
+    B.spikes(128, 129, 15);
+    B.add('met', 120, 14);
+    B.ladder(113, 15, 21);
+    B.cave(111, 17, 164, 21);
+    B.spikes(119, 128, 22);
+    B.add('plat', 119, 20, { x1: 127, y1: 20, speed: 0.8 });
+    B.add('fanbot', 140, 19);
+    B.add('L', 150, 21);
+    B.add('met', 158, 21);
+    B.cave(165, 19, 165, 21);
+    // --- the storm bridges: crumbling cloudstone, gusts from either side
+    isle(166, 172);
+    B.add('cp', 168);
+    B.ledge(173, 182, F, 'C');
+    isle(183, 186);
+    B.add('wind', 166, F, { x1: 214, dir: 1, phase: 40 });
+    B.ledge(187, 196, F, 'C');
+    isle(197, 200, 20, 1);
+    B.add('fanbot', 199, 18);
+    B.ledge(201, 210, 20, 'C');
+    isle(211, 216);
+    B.add('flyer', 192, 12);
+    // --- the last hops: updrafts over spike gaps, fanbots on guard
+    isle(217, 222);
+    B.rect(221, F, 222, F, 'U');
+    isle(227, 231, 18, 1);
+    B.add('fanbot', 229, 16);
+    isle(236, 244);
+    B.rect(243, F, 244, F, 'U');
+    isle(249, 253, 17, 1);
+    isle(258, 275);
     B.add('E', 262);
-    B.add('flyer', 268, 14);
+    B.add('fanbot', 268, 18);
+    B.add('flyer', 271, 13);
     bossRoom(B, DOOR_COL, 'wind');
   },
 
   earth(B) {
-    B.ground(0, 18);
+    // --- the canyon floor under falling rocks
+    B.ground(0, 25);
     B.add('start', 3);
-    B.add('met', 12);
-    // crumbling bridge over a bottomless pit
-    B.rect(19, F, 30, F, 'C');
-    B.ground(31, 54);
-    B.add('rockfall', 36, F, { period: 110, phase: 0 });
-    B.add('rockfall', 44, F, { period: 110, phase: 55 });
-    B.add('mole', 40);
-    B.add('h', 52);
-    B.rect(46, F, 49, F + 1, 'Q'); // quicksand
-    // --- canyon wall: stone steps up under falling rocks, drop down the mine shaft
-    B.ground(55, 71);
-    B.rect(56, 20, 57, 20, '=');
-    B.rect(59, 18, 60, 18, '=');
-    B.rect(62, 16, 63, 16, '=');
-    B.rect(65, 14, 66, 14, '=');
-    B.rect(68, 12, 69, 12, '=');
-    B.add('rockfall', 59, 18, { period: 120, phase: 0 });
-    B.add('rockfall', 65, 14, { period: 120, phase: 60 });
-    B.pillar(71, 92, 10);
-    B.add('met', 76, 9);
-    B.add('hopper', 82, 9);
-    B.add('flyer', 86, 4);
-    B.cave(87, 10, 89, 27); // mine shaft
-    B.ground(93, 147);
-    B.pit(93, 118);
-    // --- mine: crumbling floors over the abyss
-    B.cave(80, 28, 125, 35);
-    B.add('met', 95, 35);
-    B.rect(98, 36, 105, 36, 'C');
-    B.rect(98, 37, 105, 37, 'b');
-    B.rect(98, 38, 105, 39, 'X');
-    B.add('mole', 109, 35);
-    B.add('flyer', 113, 31);
-    B.add('h', 118, 35);
-    B.rect(112, 36, 115, 37, 'Q');
-    B.shaft(122, F, 35);
-    B.add('cp', 128);
-    B.rect(130, F, 135, F, 'C');
-    B.rect(130, F + 1, 135, LEVEL_H - 1, '.');
-    B.add('flyer', 138, 15);
-    B.add('met', 142);
-    // --- two lifts up to the mesa, falling rocks on top
-    B.ground(148, 200);
-    B.add('plat', 150, 20, { x1: 150, y1: 12, speed: 0.7 });
-    B.pillar(153, 155, 12);
-    B.add('plat', 158, 12, { x1: 158, y1: 6, speed: 0.7 });
-    B.pillar(161, 181, 5);
-    B.add('rockfall', 166, 5, { period: 100, phase: 0 });
-    B.add('hopper', 170, 4);
-    B.add('rockfall', 174, 5, { period: 100, phase: 50 });
-    B.add('met', 178, 4);
-    B.add('cp', 184);
-    B.add('rockfall', 188, F, { period: 90, phase: 0 });
-    B.add('mole', 192);
-    B.add('hopper', 196);
-    // crumbling bridge over a pit
-    B.rect(201, F, 210, F, 'C');
-    B.ground(211, 230);
-    B.rect(218, 20, 218, 21, '=');
-    B.add('turret', 218, 19);
-    B.add('flyer', 225, 15);
-    // crumbling stepping stones
-    B.rect(233, 20, 234, 20, 'C');
-    B.rect(237, 18, 238, 18, 'C');
-    B.rect(241, 19, 242, 19, '=');
+    B.add('met', 11);
+    B.add('rockfall', 15, F, { period: 110, phase: 0 });
+    B.rect(18, F, 20, F + 1, 'Q');
+    B.add('rockfall', 23, F, { period: 110, phase: 55 });
+    B.add('mole', 22);
+    // --- the cavern: down ledge by ledge, two of them crumbling; the bottom is a bottomless drop
+    B.ground(26, 140);
+    B.cave(28, 20, 56, LEVEL_H - 1);
+    for (const [x0, x1, y, c] of [
+      [29, 34, 24, '#'],
+      [38, 43, 27, 'C'],
+      [47, 52, 30, '#'],
+      [39, 44, 33, 'C'],
+      [48, 56, 36, '#'],
+    ])
+      B.ledge(x0, x1, y, c);
+    B.add('flyer', 45, 22);
+    B.add('flyer', 36, 31);
+    // --- the deep tunnels: a crumbling bridge, quicksand, then a low stretch with spikes in the roof
+    B.cave(57, 30, 125, 35);
+    B.add('cp', 54, 35);
+    B.ledge(66, 73, 36, 'C');
+    B.rect(66, 37, 73, LEVEL_H - 1, '.');
+    B.cave(57, 36, 65, 36);
+    B.cave(74, 36, 125, 36);
+    B.ledge(57, 65, 37, '#');
+    B.ledge(74, 125, 37, '#');
+    B.add('mole', 78, 36);
+    B.rect(82, 36, 85, 37, 'Q');
+    B.add('hopper', 90, 36);
+    B.rect(94, 31, 104, 32, '#');
+    B.ledge(94, 104, 33, '^');
+    B.add('met', 99, 36);
+    B.rect(108, 36, 110, 37, 'Q');
+    B.add('mole', 114, 36);
+    B.add('h', 119, 36);
+    B.ledge(121, 125, 37, '#');
+    // --- the mine cart: ride it over the abyss, jump the rocks on the rails, keep low under the spikes
+    B.solid(126, 22, 186, 29);
+    B.cave(126, 30, 186, LEVEL_H - 1);
+    B.add('plat', 127, 36, { x1: 183, y1: 36, speed: 1.6 });
+    for (const x of [140, 157, 171]) B.solid(x, 34, x, 35);
+    B.ledge(146, 152, 31, '^');
+    B.ledge(162, 166, 31, '^');
+    B.ledge(176, 180, 31, '^');
+    B.add('flyer', 150, 34);
+    // --- up through the quicksand: three tiers and two ladders; hop across the deep sand before it swallows you
+    B.solid(186, 36, 206, LEVEL_H - 1);
+    B.add('cp', 187, 35);
+    B.cave(186, 22, 206, 35);
+    B.rect(193, 36, 196, 37, 'Q');
+    B.add('mole', 200, 35);
+    B.solid(187, 30, 205, 31);
+    B.ladder(204, 30, 35);
+    B.rect(191, 30, 193, 30, 'Q');
+    B.rect(196, 30, 198, 31, 'Q');
+    B.add('hopper', 201, 29);
+    B.solid(189, 24, 206, 25);
+    B.ladder(188, 24, 29);
+    B.rect(195, 24, 198, 25, 'Q');
+    B.add('mole', 202, 23);
+    B.add('flyer', 204, 18);
+    // --- the canyon bridge: it crumbles under you between the stone piers, rocks falling on it
+    B.ground(207, 212);
+    B.ledge(213, 244, F, 'C');
+    B.pillar(221, 222, F);
+    B.pillar(233, 234, F);
+    [217, 228, 240].forEach((x, i) => B.add('rockfall', x, F, { period: 100, phase: i * 33 }));
+    B.add('flyer', 230, 14);
+    // --- the last stretch
     B.ground(245, 275);
-    B.add('rockfall', 250, F, { period: 90, phase: 0 });
-    B.add('mole', 254);
-    B.add('rockfall', 258, F, { period: 90, phase: 45 });
-    B.rect(260, F, 263, F + 1, 'Q');
-    B.add('E', 265);
-    B.add('flyer', 270, 15);
+    B.add('mole', 252);
+    B.rect(256, F, 259, F + 1, 'Q');
+    B.add('E', 262);
+    B.solid(266, 20, 267, 21);
+    B.add('turret', 266, 19);
+    B.add('flyer', 271, 14);
     bossRoom(B, DOOR_COL, 'earth');
   },
 };

@@ -181,103 +181,8 @@ Object.assign(BOSS_ROOMS, {
 });
 
 // ================= LOOKS =================
-Object.assign(ROBOT_STYLES, {
-  hydro: {
-    // a fin crest and gills on the chest
-    angry: true,
-    colors: { X: '#a8e8fc', Y: '#1868b8', G: '#58e8f8' },
-    head(R) {
-      const { hx, hy } = R;
-      R.shape('X', R.poly([hx - 6, hy - 5, hx + 1, hy - 17, hx + 4, hy - 16, hx + 3, hy - 6]));
-    },
-    chest(R) {
-      const [x, y] = R.chest;
-      for (const d of [-2, 1]) R.shape('Y', R.cap(x - 6, y + d, x - 3, y + d, 1.2), false);
-    },
-  },
-  toxic: {
-    // a tank on the back and a gas mask over the mouth
-    angry: true,
-    colors: { X: '#5a7a28', Y: '#98e838', V: '#2a3a18', G: '#98e838' },
-    back(R) {
-      const y = R.chest[1] - 7;
-      R.shape('X', R.rect(6, y, 8, 14, 3));
-      R.shape('Y', R.disc(10, y - 1, 2));
-    },
-    head(R) {
-      const { hx, hy } = R;
-      if (R.kind === 'back') return;
-      R.shape('V', R.rect(hx, hy + 2, 9, 5, 2));
-      R.shape('Y', R.disc(hx + 8, hy + 5, 2.2));
-    },
-  },
-  shadow: {
-    // horns, a cape and glowing violet eyes
-    angry: true,
-    colors: { X: '#3a2858', Y: '#22183a', E: '#f0d8fc', I: '#a028e8', G: '#a878e8', L: '#7a68a8', A: '#a878e8' },
-    back(R) {
-      const y = R.chest[1] - 5;
-      R.shape('Y', R.poly([15, y, 32, y, 36, y + 26, 24, y + 22, 10, y + 27]));
-    },
-    head(R) {
-      const { hx, hy } = R;
-      R.shape('X', R.poly([hx - 5, hy - 5, hx - 9, hy - 16, hx - 2, hy - 7]));
-      R.shape('X', R.poly([hx + 3, hy - 7, hx + 8, hy - 16, hx + 7, hy - 4]));
-    },
-  },
-  sonic: {
-    // long magenta hair and headphones
-    female: true,
-    hair: '#e858b8',
-    skirt: '#f8a8d8',
-    colors: { X: '#202028', Y: '#f878c8', G: '#f878c8' },
-    back(R) {
-      R.shape('Z', R.ell(R.hx - 8, R.hy + 11, 5.5, 11));
-    },
-    head(R) {
-      const { hx, hy } = R;
-      R.shape('X', R.cap(hx - 6, hy - 2, hx - 1, hy - 9, 2));
-      R.shape('X', R.disc(hx - 4.5, hy + 1.5, 3.8));
-      R.shape('Y', R.disc(hx - 4.5, hy + 1.5, 1.8), false);
-    },
-  },
-  light: {
-    // golden hair and a crystal tiara
-    female: true,
-    hair: '#f8d878',
-    skirt: '#fcfcf0',
-    colors: { X: '#a8f0fc', Y: '#e8fcfc', G: '#a8f0fc' },
-    back(R) {
-      R.shape('Z', R.ell(R.hx - 9, R.hy + 11, 6, 12));
-    },
-    head(R) {
-      const { hx, hy } = R;
-      R.shape('X', R.poly([hx + 1, hy - 18, hx + 4, hy - 11, hx + 1, hy - 6, hx - 2, hy - 11]));
-      R.shape('Y', R.poly([hx + 1, hy - 15, hx + 2.5, hy - 11, hx + 1, hy - 9, hx - 0.5, hy - 11]), false);
-    },
-  },
-  time: {
-    // a hair bun, a clock-hand crest and a clock on the chest
-    female: true,
-    hair: '#8a5a38',
-    skirt: '#c89858',
-    colors: { X: '#c8a048', Y: '#fcf0d0', G: '#c8a048' },
-    back(R) {
-      R.shape('Z', R.disc(R.hx - 8, R.hy - 5, 4.5));
-    },
-    head(R) {
-      const { hx, hy } = R;
-      R.shape('X', R.cap(hx + 1, hy - 7, hx + 1, hy - 16, 2.4));
-      R.shape('X', R.cap(hx + 1, hy - 7, hx + 6, hy - 11, 2.4));
-    },
-    chest(R) {
-      const [x, y] = R.chest;
-      R.shape('Y', R.disc(x, y, 3.4));
-      R.shape('V', R.cap(x, y, x, y - 2.2, 0.9), false);
-      R.shape('V', R.cap(x, y, x + 1.8, y, 0.9), false);
-    },
-  },
-});
+// the bosses are native characters: js/hydros.js, js/toxaris.js, js/umbrion.js, js/sonique.js, js/lumina.js and
+// js/chronia.js (see js/chars.js)
 Object.assign(WEAPON_ICONS, {
   hydro: () =>
     sprite(
@@ -1160,14 +1065,15 @@ Object.assign(HAZARD_KINDS, {
       );
     },
   },
-  // light: a horizontal laser between two emitters, from column x to x1 at row y (30 warning, 60 live)
+  // light: a horizontal laser between two emitters, from column x to x1 at row y (30 warning, 60 live); oy moves it
+  // down by pixels (oy 6 on the row above a floor: a beam at head height, which you slide under)
   hlaser: {
     make: d => ({
       x0: d.x * TILE,
       x1: (d.x1 + 1) * TILE,
-      row: d.y * TILE + 8,
+      row: d.y * TILE + 8 + (d.oy || 0),
       x: d.x * TILE,
-      y: d.y * TILE + 6,
+      y: d.y * TILE + 6 + (d.oy || 0),
       w: (d.x1 + 1 - d.x) * TILE,
       h: 4,
       phase: d.phase || 0,
@@ -1208,6 +1114,7 @@ Object.assign(HAZARD_KINDS, {
       amp: d.amp || 1,
       spd: d.speed || 0.035,
       phase: d.phase || 0,
+      axe: !!d.axe, // a castle axe on a chain instead of a clock pendulum
       x: 0,
       y: 0,
       w: 18,
@@ -1225,9 +1132,27 @@ Object.assign(HAZARD_KINDS, {
         py = h.py - camY,
         bx = h.x + 9 - camX,
         by = h.y + 9 - camY;
-      R(px - 3, py - 2, 6, 4, '#3a2418');
+      R(px - 3, py - 2, 6, 4, h.axe ? '#2a2236' : '#3a2418');
       for (let r = 0; r < h.len - 6; r += 1.5)
-        R(px + Math.sin(h.a) * r - 0.75, py + Math.cos(h.a) * r - 0.75, 1.5, 1.5, '#8a6a48');
+        R(px + Math.sin(h.a) * r - 0.75, py + Math.cos(h.a) * r - 0.75, 1.5, 1.5, h.axe ? '#5a5070' : '#8a6a48');
+      if (h.axe) {
+        // a crescent axe head across the end of the chain: thick in the middle, bulging out to its edge
+        const c = Math.cos(h.a),
+          s = Math.sin(h.a),
+          pts = [];
+        for (let k = -11; k <= 11; k += 0.5) {
+          const u = k / 11,
+            w = 1 + 5 * Math.sqrt(1 - u * u),
+            bulge = 3.5 * (1 - u * u);
+          pts.push([bx + c * k + s * bulge, by - s * k + c * bulge, w]);
+        }
+        for (const [x, y, w] of pts) circle(x, y, w / 2 + 1, '#0a0a16');
+        for (const [x, y, w] of pts) circle(x, y, w / 2, '#8a90a8');
+        for (const [x, y, w] of pts) circle(x + s * w * 0.3, y + c * w * 0.3, w / 4, '#d8dcec');
+        circle(bx, by, 2.6, '#0a0a16');
+        circle(bx, by, 1.8, '#4a4058');
+        return;
+      }
       circle(bx, by, 9.5, '#0a0a16');
       circle(bx, by, 8.5, '#c8c8d8');
       circle(bx, by + 2, 6, '#e8e8f0');
@@ -2030,11 +1955,7 @@ Object.assign(SHOT_KINDS, {
     },
     draw(s, x, y) {
       ctx.globalAlpha = 0.75;
-      drawRobot(x + 7 - 12, y + s.h - 24, s.vx > 0 ? 1 : -1, 'run', (s.t >> 2) % 3, false, {
-        B: '#1a1028',
-        b: '#3a2a58',
-        S: '#3a2a58',
-      });
+      drawRobot(x + 7 - 12, y + s.h - 24, s.vx > 0 ? 1 : -1, 'run', (s.t * Math.abs(s.vx)) / 1.4, false, SHADOW_PAL);
       ctx.globalAlpha = 1;
       glow(x + 7, y + 11, 12, '#a878e8', 0.4);
     },
@@ -2259,8 +2180,10 @@ Object.assign(BOSSES, {
     pal: { B: '#1878d8', b: '#a8e0f8', S: SKIN },
     weapon: 'hydro',
     weak: 'toxic',
+    pose: (b, pose) => (b.state === 'stagger' ? 'hurt' : pose),
     update(b, enr) {
       const Rm = ROOM();
+      if (b.landT > 0) b.landT--; // the landing crouch after the tide leap
       switch (b.state) {
         case 'idle':
           faceP(b);
@@ -2331,6 +2254,7 @@ Object.assign(BOSSES, {
                 delay: 0,
                 big: true,
               });
+            b.landT = 12;
             bossToIdle(b);
           }
           break;
@@ -2346,8 +2270,10 @@ Object.assign(BOSSES, {
     pal: { B: '#3a8a28', b: '#c8f878', S: SKIN },
     weapon: 'toxic',
     weak: 'shadow',
+    pose: (b, pose) => (b.state === 'stagger' ? 'hurt' : pose),
     update(b, enr) {
       const Rm = ROOM();
+      if (b.landT > 0) b.landT--; // the landing crouch after a leap
       switch (b.state) {
         case 'idle':
           faceP(b);
@@ -2420,6 +2346,7 @@ Object.assign(BOSSES, {
                 delay: 0,
                 life: 150,
               });
+            b.landT = 12;
             bossToIdle(b);
           }
           break;
@@ -2435,6 +2362,7 @@ Object.assign(BOSSES, {
     pal: { B: '#3a2a58', b: '#6a58a0', S: SKIN },
     weapon: 'shadow',
     weak: 'light',
+    pose: (b, pose) => (b.state === 'stagger' ? 'hurt' : b.state === 'warp' && b.dash > 0 ? 'run' : pose),
     update(b, enr) {
       const Rm = ROOM();
       switch (b.state) {
@@ -2479,8 +2407,10 @@ Object.assign(BOSSES, {
           if (b.t > (enr ? 30 : 42)) {
             if (b.dash > 0) {
               b.dash--;
-              moveX(b, b.facing * 4);
-            }
+              b.anim++;
+              b.vx = b.facing * 4;
+              moveX(b, b.vx);
+            } else b.vx = 0;
             physics(b);
             if (!b.dash) bossToIdle(b);
           }
@@ -2573,7 +2503,9 @@ Object.assign(BOSSES, {
           if (b.t === 1) faceP(b);
           if (b.t > 12) {
             b.anim++;
-            if (moveX(b, b.facing * (enr ? 5 : 4.2)) || b.t > 70) {
+            b.vx = b.facing * (enr ? 5 : 4.2);
+            if (moveX(b, b.vx) || b.t > 70) {
+              b.vx = 0;
               game.shake = 6;
               sfx.land();
               bossToIdle(b);
@@ -2584,7 +2516,8 @@ Object.assign(BOSSES, {
           break;
       }
     },
-    pose: (b, pose) => (b.state === 'scream' ? 'raise' : b.state === 'dash' && b.t > 12 ? 'run' : pose),
+    pose: (b, pose) =>
+      b.state === 'stagger' ? 'hurt' : b.state === 'scream' ? 'raise' : b.state === 'dash' && b.t > 12 ? 'run' : pose,
     drawBehind(b, sx, sy) {
       // afterimages while dashing
       if (b.state !== 'dash' || b.t < 12) return;
@@ -2595,10 +2528,11 @@ Object.assign(BOSSES, {
           sy + b.h - 24,
           b.facing,
           'run',
-          1,
+          Math.max(0, (b.anim - i * 2) * Math.abs(b.vx)) / 1.4,
           false,
           BOSSES.sonic.pal,
           'sonic',
+          { state: 'dash', t: b.t, ghost: true },
         );
       ctx.globalAlpha = 1;
     },
@@ -2701,8 +2635,13 @@ Object.assign(BOSSES, {
           break;
       }
     },
-    pose: (b, pose) => (b.state === 'pillars' && b.t < 40 ? 'raise' : b.state === 'flash' && b.t < 26 ? 'raise' : pose),
-    draw: (b, sx, sy) => glow(sx + b.w / 2, sy + 8, 16, '#fcf0a8', 0.5),
+    pose: (b, pose) =>
+      b.state === 'stagger'
+        ? 'hurt'
+        : (b.state === 'pillars' && b.t < 40) || (b.state === 'flash' && b.t < 26)
+          ? 'raise'
+          : pose,
+    draw: (b, sx, sy) => glow(sx + b.w / 2, sy + 12, 18, '#fcf0a8', 0.2), // her radiance (the halo is hers, js/lumina.js)
   },
   time: {
     name: 'CHRONIA',
@@ -2813,10 +2752,13 @@ Object.assign(BOSSES, {
           break;
       }
     },
-    pose: (b, pose) => (b.state === 'stop' && b.t < 44 ? 'raise' : pose),
+    pose: (b, pose) => (b.state === 'stagger' ? 'hurt' : b.state === 'stop' && b.t < 44 ? 'raise' : pose),
   },
 });
 
+// the shadow clones: dark silhouettes (shadow: every colour turned to its brightness between B and b)
+const SHADOW_PAL = { B: '#1a1028', b: '#4a3a70', S: '#3a2a58', shadow: true },
+  UMBRION_CLONE_PAL = { B: '#140c22', b: '#3a2c58', S: '#2a1e40', shadow: true };
 // ================= ENEMY / BOSS SHOTS =================
 const life = s => {
   if (--s.life <= 0) s.dead = true;
@@ -2945,9 +2887,9 @@ Object.assign(ESHOT_KINDS, {
         y,
         s.vx > 0 ? 1 : -1,
         'run',
-        (s.t >> 2) % 3,
+        (s.t * Math.abs(s.vx)) / 1.4,
         false,
-        { B: '#140c22', b: '#2a1e40', S: '#2a1e40' },
+        UMBRION_CLONE_PAL,
         'shadow',
       );
       ctx.globalAlpha = 1;
@@ -3071,512 +3013,555 @@ Object.assign(ESHOT_KINDS, {
 });
 
 // ================= LAYOUTS =================
-// Each layout keeps the validated geometry of an Azura stage (jumps, ladders, pits) and swaps in its own
-// hazards, enemies and tiles: hydro ~ cut, toxic ~ fire, shadow ~ earth, sonic ~ wind, light ~ elec, time ~ snow.
-// fill the open cells of a rectangle with water (W); ladders and walls stay
-const flood = (B, x0, y0, x1, y1) => {
-  for (let y = y0; y <= y1; y++)
-    for (let x = x0; x <= x1; x++) if (B.map[y][x] === 'b' || B.map[y][x] === '.') B.map[y][x] = 'W';
-};
+// Each stage has a route of its own, built from its continent's tiles, hazards and enemies (see levels.js).
 Object.assign(LAYOUTS, {
+  // Hydros's waterworks: the flooded canal (under water you jump far higher), the sewer with its currents and
+  // urchins top and bottom, the climb inside the dam, the reservoir on top, and the spillway down to the pumps
   hydro(B) {
-    // --- harbour
-    B.ground(0, 24);
-    B.add('start', 3);
-    B.add('met', 12);
-    B.add('jelly', 20, 17);
-    // pit 25-27
-    B.ground(28, 46);
-    flood(B, 31, F, 43, F); // a shallow channel with jellyfish
-    B.add('jelly', 35, 19);
-    B.add('jelly', 41, 19);
-    B.add('met', 45);
-    B.add('h', 37);
-    // urchin pit crossed on a moving platform
-    B.ground(47, 56);
-    B.spikes(48, 55);
-    B.add('plat', 48, 20, { x1: 53, y1: 20, speed: 0.8 });
-    // --- water tower: ladders up the side, the current on the roof, stepping blocks down the far side
-    B.ground(57, 170);
-    B.add('hopper', 60);
-    B.rect(64, 15, 69, 21, '#');
-    B.ladder(63, 15, 21);
-    B.add('met', 66, 14);
-    B.ladder(69, 8, 14);
-    B.rect(70, 8, 86, 21, '#');
-    B.rect(72, 8, 84, 8, '<'); // the current on the roof pushes back toward the ladder
-    B.add('turret', 76, 7);
-    B.add('jelly', 81, 4);
-    B.add('flyer', 82, 3);
-    B.rect(89, 11, 90, 11, '=');
-    B.rect(93, 14, 94, 14, '=');
-    B.rect(97, 17, 98, 17, '=');
-    B.add('jelly', 95, 9);
-    B.add('cp', 103);
-    // --- flooded sewer: the surface is an urchin field, so swim under it
-    B.spikes(112, 145);
-    B.cave(104, 28, 151, 35);
-    B.shaft(108, F, 35);
-    B.shaft(150, F, 35);
-    B.rect(140, 28, 146, 32, '#'); // low tunnel
-    flood(B, 104, 30, 151, 35);
-    B.add('L', 105, 35);
-    B.add('met', 116, 35);
-    B.rect(112, 36, 117, 36, '>');
-    B.add('drip', 119, 28, { period: 80 });
-    B.add('drip', 123, 28, { period: 80, phase: 40 });
-    B.add('jelly', 121, 31);
-    B.spikes(129, 134, 36);
-    B.add('plat', 129, 34, { x1: 133, y1: 34, speed: 0.8 });
-    B.add('hopper', 138, 35);
-    B.add('met', 144, 35);
-    B.rect(156, 20, 156, 21, '=');
-    B.add('turret', 156, 19);
-    B.add('met', 162);
-    B.add('h', 166);
-    // pit 171-173
-    // --- lift up the dam wall, jellyfish over the top
-    B.ground(174, 240);
-    B.add('plat', 180, 20, { x1: 180, y1: 7, speed: 0.7 });
-    B.add('flyer', 177, 12);
-    B.rect(184, 6, 200, 21, '#');
-    B.add('jelly', 188, 1);
-    B.add('met', 196, 5);
-    B.add('jelly', 192, 1);
-    B.add('cp', 205);
-    // --- pipe corridor dripping from the ceiling
-    B.add('hopper', 210);
-    B.add('hopper', 215);
-    B.rect(220, 0, 233, 17, '=');
-    B.add('drip', 222, 18, { period: 70 });
-    B.add('drip', 226, 18, { period: 70, phase: 23 });
-    B.add('drip', 230, 18, { period: 70, phase: 46 });
-    B.add('met', 236);
-    // pit 241-243
-    B.ground(244, 275);
-    B.add('flyer', 242, 16);
-    B.rect(247, F, 259, F, '<');
-    B.add('jelly', 253, 17);
-    B.add('E', 262);
-    B.add('met', 266);
-    B.add('jelly', 270, 16);
-    bossRoom(B, DOOR_COL, 'hydro');
-  },
-
-  toxic(B) {
+    // --- the dock
     B.ground(0, 20);
     B.add('start', 3);
     B.add('met', 12);
-    B.lava(21, 23); // '~' is poison sludge here
-    B.ground(24, 44);
-    B.add('vent', 29, F, { phase: 0 });
-    B.add('vent', 35, F, { phase: 85 });
-    B.add('flyer', 40, 15);
-    B.add('slime', 42);
-    B.add('h', 32);
-    // sludge lake with stepping blocks
-    B.lava(45, 58);
-    B.rect(47, 20, 48, 20, '=');
-    B.rect(51, 19, 52, 19, '=');
-    B.rect(55, 20, 56, 20, '=');
-    B.add('flyer', 53, 13);
-    // --- waste heap: climb it, drop through the chute into the processing tunnel (the far side is a sludge lake)
-    B.ground(59, 90);
-    B.add('hopper', 61);
-    B.rect(66, 18, 90, 21, '#');
-    B.ladder(65, 18, 21);
-    B.add('vent', 67, 18, { phase: 20 });
-    B.rect(70, 14, 86, 17, '#');
-    B.ladder(69, 14, 17);
-    B.add('met', 72, 13);
-    B.rect(74, 10, 82, 13, '#');
-    B.ladder(73, 10, 13);
-    B.add('flyer', 80, 5);
-    B.lava(91, 118);
-    B.ground(119, 167);
-    B.cave(70, 28, 121, 36);
-    B.cave(77, 10, 79, 27); // chute
-    B.pool(84, 88, 37);
-    B.rect(86, 35, 86, 35, '=');
-    B.add('vent', 92, 37, { phase: 0 });
-    B.add('met', 95, 36);
-    B.add('vent', 98, 37, { phase: 85 });
-    B.add('slime', 101, 30);
-    B.add('hopper', 103, 36);
-    B.pool(106, 111, 37);
-    B.add('plat', 106, 35, { x1: 110, y1: 35, speed: 0.9 });
-    B.add('flyer', 112, 31);
-    B.add('h', 116, 36);
-    B.shaft(120, F, 36);
-    B.add('cp', 124);
-    // gas tunnel with slimes on the ceiling
-    B.rect(130, 0, 140, 18, '=');
-    B.add('slime', 132, 20);
-    B.add('vent', 135, F, { phase: 0 });
-    B.add('slime', 138, 20);
-    B.add('met', 145);
-    B.add('slime', 150);
-    B.add('flyer', 158, 14);
-    // --- rusted pillars rising out of a sludge field up to a plateau
-    B.lava(168, 191);
-    B.pillar(168, 169, 20);
-    B.pillar(172, 173, 18);
-    B.pillar(176, 177, 16);
-    B.pillar(180, 181, 14);
-    B.pillar(184, 185, 12);
-    B.pillar(188, 189, 10);
-    B.add('vent', 176, 16, { phase: 0 });
-    B.add('vent', 184, 12, { phase: 85 });
-    B.add('flyer', 182, 6);
-    B.pillar(192, 210, 8);
-    B.add('met', 196, 7);
-    B.add('slime', 202, 7);
-    B.add('hopper', 207, 7);
-    B.ground(211, 235);
-    B.add('cp', 214);
-    B.add('vent', 220, F, { phase: 0 });
-    B.add('vent', 224, F, { phase: 57 });
-    B.add('vent', 228, F, { phase: 114 });
-    B.add('hopper', 233);
-    B.lava(236, 238);
-    B.ground(239, 241);
-    // sludge lake crossed on a moving platform
-    B.lava(242, 254);
-    B.add('plat', 242, 20, { x1: 252, y1: 20, speed: 1 });
-    B.add('flyer', 248, 14);
-    B.ground(255, 275);
-    B.add('E', 260);
-    B.add('slime', 264);
-    B.add('flyer', 268, 15);
-    B.add('vent', 271, F, { phase: 30 });
+    B.add('jelly', 17, 16);
+    // --- the flooded canal: under water you jump far higher; hop the floating rocks over the urchin bed, or sink to
+    // the bare patches of the bottom and climb back up the rocks at the far end
+    B.ground(21, 70);
+    B.cave(21, 22, 69, 38);
+    B.flood(21, 22, 69, 38);
+    B.spikes(24, 33, 39);
+    B.spikes(38, 47, 39);
+    B.spikes(51, 60, 39);
+    for (const [x0, y] of [
+      [27, 30],
+      [34, 28],
+      [41, 30],
+      [48, 28],
+      [55, 30],
+    ])
+      B.ledge(x0, x0 + 2, y, '#');
+    B.ledge(63, 65, 35, '#');
+    B.ledge(66, 68, 31, '#');
+    B.ledge(62, 64, 27, '#');
+    B.ledge(66, 68, 25, '#');
+    B.add('jelly', 31, 25);
+    B.add('jelly', 45, 24);
+    B.add('jelly', 58, 26);
+    B.add('h', 49, 27);
+    // --- the sewer under the dam: the current pushes you back, urchins on the floor and the roof
+    B.ground(70, 78);
+    B.add('cp', 72);
+    B.solid(79, 6, 132, LEVEL_H - 1);
+    B.shaft(76, F, 37);
+    B.cave(74, 30, 124, 37);
+    B.flood(74, 30, 124, 37);
+    B.belt(84, 92, 38, -1);
+    B.spikes(93, 95, 38);
+    B.ledge(88, 90, 30, '^');
+    B.belt(98, 106, 38, -1);
+    B.spikes(108, 110, 38);
+    B.ledge(103, 106, 30, '^');
+    B.add('jelly', 96, 33);
+    B.add('jelly', 113, 32);
+    B.add('met', 118, 37);
+    // --- inside the dam: up the ladder out of the sewer, then five floors with drips from the pipes on each
+    B.cave(121, 7, 131, 25);
+    B.ladder(123, 26, 37);
+    for (const [y, lx] of [
+      [22, 129],
+      [18, 122],
+      [14, 129],
+      [10, 122],
+    ]) {
+      B.ledge(121, 131, y, '#');
+      B.ladder(lx, y, y + 3);
+    }
+    B.ladder(129, 6, 9);
+    [
+      [126, 19],
+      [125, 15],
+      [126, 11],
+      [125, 7],
+    ].forEach(([x, y], i) => B.add('drip', x, y, { period: 70, phase: i * 17 }));
+    B.add('turret', 126, 9);
+    // --- the reservoir on top of the dam: swim across it, up the rocks on the far side
+    B.add('cp', 131, 5);
+    // (its bed is all urchins: miss a rock and you sink onto them)
+    B.solid(133, 6, 199, LEVEL_H - 1);
+    B.cave(135, 6, 196, 20);
+    B.flood(135, 6, 196, 20);
+    B.spikes(135, 196, 20);
+    for (const [x0, y] of [
+      [139, 12],
+      [146, 14],
+      [153, 12],
+      [160, 14],
+      [167, 12],
+      [174, 14],
+      [181, 12],
+      [187, 10],
+      [192, 8],
+    ])
+      B.ledge(x0, x0 + 2, y, '#');
+    B.add('jelly', 150, 8);
+    B.add('jelly', 164, 9);
+    B.add('jelly', 178, 8);
+    B.add('L', 175, 13);
+    // --- the spillway: steps down with the water rushing over them, drips from the gantry
+    for (const [x0, y] of [
+      [200, 7],
+      [206, 10],
+      [212, 13],
+      [218, 16],
+      [224, 19],
+    ]) {
+      B.pillar(x0, x0 + 5, y);
+      B.belt(x0, x0 + 5, y, 1);
+    }
+    B.solid(203, 0, 228, 1);
+    [205, 211, 217, 223].forEach((x, i) => B.add('drip', x, 2, { period: 80, phase: i * 20 }));
+    B.add('flyer', 214, 6);
+    // --- the pump room: the current carries you toward the urchins
+    B.ground(230, 275);
+    B.add('cp', 232);
+    B.belt(238, 247, F, 1);
+    B.spikes(248, 249);
+    B.belt(252, 262, F, -1);
+    B.add('jelly', 244, 17);
+    B.add('jelly', 258, 16);
+    B.add('E', 266);
+    B.add('met', 270);
+    bossRoom(B, DOOR_COL, 'hydro');
+  },
+
+  // Toxaris's waste plant: the presses over the acid conveyor, the drums floating down the acid river, the sinking
+  // catwalks over the vats, the flooding tank (the acid rises as you climb), and the vent gauntlet
+  toxic(B) {
+    // --- the loading bay
+    B.ground(0, 20);
+    B.add('start', 3);
+    B.add('met', 12);
+    B.add('slime', 18, 15);
+    // --- the compactors: presses slam down on the belt that carries you over the acid gutters
+    B.ground(21, 62);
+    B.solid(21, 9, 62, 12);
+    B.cave(22, 13, 61, 21);
+    B.solid(21, 13, 21, 17);
+    B.solid(62, 13, 62, 17);
+    B.belt(23, 31, F, 1);
+    B.lava(32, 33);
+    B.belt(34, 45, F, 1);
+    B.lava(46, 47);
+    B.belt(48, 60, F, 1);
+    [27, 38, 42, 53].forEach((x, i) => B.add('crusher', x, 13, { y1: F, phase: i * 37 }));
+    B.add('slime', 50, 13);
+    B.add('h', 60);
+    // --- the acid river: ride the drums down it, vents and slimes along the banks
+    B.lava(63, 120);
+    B.add('plat', 64, 20, { x1: 78, y1: 20, speed: 1 });
+    B.pillar(81, 83, 19);
+    B.add('vent', 82, 19, { phase: 0 });
+    B.add('plat', 86, 19, { x1: 98, y1: 19, speed: 1.2 });
+    B.pillar(101, 103, 18);
+    B.add('slime', 102, 14);
+    B.add('plat', 106, 20, { x1: 117, y1: 20, speed: 1.1 });
+    B.add('flyer', 92, 12);
+    // --- the vats: catwalks that crumble under you, vents puffing between them
+    B.ground(121, 125);
+    B.add('cp', 122);
+    B.lava(126, 170);
+    for (const [x0, y] of [
+      [127, 20],
+      [133, 18],
+      [139, 20],
+      [145, 18],
+      [151, 20],
+      [157, 18],
+      [163, 20],
+    ])
+      B.ledge(x0, x0 + 3, y, 'C');
+    B.pillar(137, 137, 21);
+    B.add('vent', 137, 21, { phase: 20 });
+    B.pillar(149, 149, 21);
+    B.add('vent', 149, 21, { phase: 90 });
+    B.pillar(161, 161, 21);
+    B.add('vent', 161, 21, { phase: 40 });
+    B.add('flyer', 146, 11);
+    // --- the flooding tank: in at the bottom, the acid rises as soon as you start climbing
+    B.ground(171, 176);
+    B.solid(177, 3, 193, 21);
+    B.cave(177, 18, 177, 21);
+    B.cave(178, 4, 192, 21);
+    B.solid(177, 22, 200, LEVEL_H - 1);
+    for (const [y, lx] of [
+      [18, 191],
+      [14, 179],
+      [10, 191],
+      [6, 179],
+    ]) {
+      B.ledge(178, 192, y, '#');
+      B.ladder(lx, y, y + 3);
+    }
+    B.ladder(191, 18, 21);
+    B.ladder(179, 3, 5);
+    B.add('rising', 178, 21, { x1: 192, y1: 4, speed: 0.28, delay: 60 });
+    B.add('slime', 185, 15);
+    B.add('slime', 186, 7);
+    // --- the roof of the plant: down past the smokestacks, a vent gauntlet, slimes dropping from the pipes
+    B.add('cp', 186, 2);
+    B.solid(194, 3, 200, 21);
+    B.pillar(201, 205, 8);
+    B.pillar(206, 210, 13);
+    B.ground(211, 275);
+    B.solid(216, 9, 244, 11);
+    [218, 223, 228, 233, 238, 243].forEach((x, i) => B.add('vent', x, F, { phase: i * 28 }));
+    [220, 231, 241].forEach(x => B.add('slime', x, 14));
+    B.lava(248, 250);
+    B.lava(254, 256);
+    B.add('E', 262);
+    B.add('slime', 266);
+    B.add('flyer', 270, 15);
     bossRoom(B, DOOR_COL, 'toxic');
   },
 
+  // Umbrion's dark castle (only torches, your shots and yourself give light): the great hall with axes swinging over
+  // a crumbling floor, the dungeon of spike traps and falling ceilings, the lifts up the tower, the broken
+  // battlements, and the corridor of axes before the throne
   shadow(B) {
-    // a dark castle: only torches, your shots and yourself give light
+    // --- the courtyard
     B.ground(0, 18);
     B.add('start', 3);
     B.add('torch', 8, 19);
     B.add('met', 12);
-    B.add('torch', 17, 19);
-    // crumbling bridge over a bottomless pit
-    B.rect(19, F, 30, F, 'C');
-    B.ground(31, 54);
-    B.add('torch', 34, 19);
-    B.add('shade', 40, 16);
-    B.add('torch', 44, 19);
-    B.add('met', 48);
-    B.add('h', 52);
-    // --- rampart: steps up past the torches, drop down the well
-    B.ground(55, 71);
-    B.rect(56, 20, 57, 20, '=');
-    B.rect(59, 18, 60, 18, '=');
-    B.rect(62, 16, 63, 16, '=');
-    B.rect(65, 14, 66, 14, '=');
-    B.rect(68, 12, 69, 12, '=');
-    B.add('torch', 58, 15);
-    B.add('torch', 64, 11);
-    B.add('shade', 66, 8);
-    B.pillar(71, 92, 10);
-    B.add('met', 76, 9);
-    B.add('torch', 79, 7);
-    B.add('hopper', 82, 9);
-    B.add('flyer', 86, 4);
-    B.cave(87, 10, 89, 27); // well
-    B.ground(93, 147);
-    B.pit(93, 118);
-    // --- dungeon: crumbling floors over the abyss
-    B.cave(80, 28, 125, 35);
-    B.add('torch', 84, 31);
-    B.add('met', 95, 35);
-    B.rect(98, 36, 105, 36, 'C');
-    B.rect(98, 37, 105, 37, 'b');
-    B.rect(98, 38, 105, 39, 'X');
-    B.add('torch', 101, 31);
-    B.add('shade', 109, 32);
-    B.add('flyer', 113, 31);
-    B.add('torch', 116, 31);
-    B.add('h', 118, 35);
-    B.shaft(122, F, 35);
-    B.add('cp', 128);
-    B.rect(130, F, 135, F, 'C');
-    B.rect(130, F + 1, 135, LEVEL_H - 1, '.');
-    B.add('torch', 137, 19);
-    B.add('flyer', 138, 15);
-    B.add('met', 142);
-    // --- two lifts up to the tower top, ghosts on the battlements
-    B.ground(148, 200);
-    B.add('plat', 150, 20, { x1: 150, y1: 12, speed: 0.7 });
-    B.pillar(153, 155, 12);
-    B.add('torch', 154, 9);
-    B.add('plat', 158, 12, { x1: 158, y1: 6, speed: 0.7 });
-    B.pillar(161, 181, 5);
-    B.add('torch', 164, 2);
-    B.add('hopper', 170, 4);
-    B.add('shade', 173, 0);
-    B.add('torch', 176, 2);
-    B.add('met', 178, 4);
-    B.add('cp', 184);
-    B.add('torch', 188, 19);
-    B.add('shade', 192, 16);
-    B.add('hopper', 196);
-    // crumbling bridge over a pit
-    B.rect(201, F, 210, F, 'C');
-    B.ground(211, 230);
-    B.add('torch', 214, 19);
-    B.rect(218, 20, 218, 21, '=');
-    B.add('turret', 218, 19);
-    B.add('flyer', 225, 15);
-    B.add('torch', 228, 19);
-    // crumbling stepping stones
-    B.rect(233, 20, 234, 20, 'C');
-    B.rect(237, 18, 238, 18, 'C');
-    B.rect(241, 19, 242, 19, '=');
-    B.ground(245, 275);
-    B.add('torch', 248, 19);
-    B.add('shade', 254, 16);
-    B.add('torch', 258, 19);
-    B.add('E', 265);
-    B.add('shade', 268, 14);
-    B.add('torch', 272, 19);
+    B.add('torch', 16, 19);
+    // --- the great hall: wait on the stone for the axe to swing past, then run (or slide under it) over the floor
+    // that crumbles behind you
+    B.solid(19, 6, 62, 11);
+    B.solid(19, 12, 19, 17);
+    B.ground(19, 23);
+    B.ledge(24, 30, F, 'C');
+    B.ground(31, 34);
+    B.ledge(35, 41, F, 'C');
+    B.ground(42, 45);
+    B.ledge(46, 52, F, 'C');
+    B.ground(53, 150);
+    [27, 38, 49].forEach((x, i) => B.add('pendulum', x, 12, { len: 8.5, amp: 0.6, phase: i * 2.1, axe: true }));
+    [22, 33, 44, 56].forEach(x => B.add('torch', x, 16));
+    B.add('shade', 40, 14);
+    B.add('shade', 58, 16);
+    B.add('h', 55);
+    // --- down into the dungeon: spike traps and falling ceilings in the dark
+    B.solid(66, 0, 72, 21);
+    B.shaft(64, F, 37);
+    B.cave(62, 26, 140, 37);
+    B.add('cp', 67, 37);
+    B.add('torch', 66, 32);
+    B.spikes(70, 71, 38);
+    B.add('crusher', 75, 26, { y1: 38, phase: 0 });
+    B.add('torch', 80, 32);
+    B.add('shade', 84, 31);
+    B.spikes(88, 89, 38);
+    B.add('crusher', 92, 26, { y1: 38, phase: 50 });
+    B.ledge(97, 104, 38, 'C');
+    B.rect(97, 39, 104, LEVEL_H - 1, '.');
+    B.add('torch', 100, 32);
+    B.spikes(108, 109, 38);
+    B.add('crusher', 112, 26, { y1: 38, phase: 100 });
+    B.add('L', 117, 37);
+    B.solid(120, 26, 127, 36); // a crawlway: slide through
+    B.add('torch', 130, 32);
+    B.add('met', 134, 37);
+    // --- the tower: lifts and ledges up from the dungeon, ghosts drifting through the walls
+    B.solid(138, 0, 152, 43);
+    B.cave(139, 2, 151, 37);
+    B.cave(138, 28, 138, 37); // in from the dungeon
+    B.ledge(145, 150, 27, '#');
+    B.ledge(139, 142, 18, '#');
+    B.ledge(143, 151, 8, '#');
+    B.add('plat', 140, 36, { x1: 140, y1: 27, speed: 0.7 });
+    B.add('plat', 143, 26, { x1: 143, y1: 18, speed: 0.7 });
+    B.add('plat', 139, 17, { x1: 139, y1: 8, speed: 0.7 });
+    B.cave(152, 5, 152, 7);
+    B.add('torch', 148, 24);
+    B.add('torch', 141, 15);
+    B.add('torch', 149, 5);
+    B.add('shade', 146, 21);
+    B.add('shade', 142, 11);
+    // --- the battlements: a broken wall top, crumbling bridges, a watchtower, a lift over the widest breach
+    B.add('cp', 150, 7);
+    B.solid(153, 8, 230, LEVEL_H - 1);
+    for (const x of [158, 163, 181, 186, 201, 225]) B.ledge(x, x, 7, '#');
+    B.rect(169, 8, 175, LEVEL_H - 1, '.');
+    B.ledge(169, 175, 8, 'C');
+    B.solid(192, 3, 195, 7);
+    B.ladder(191, 3, 7);
+    B.add('turret', 194, 2);
+    B.rect(208, 8, 219, LEVEL_H - 1, '.');
+    B.add('plat', 209, 8, { x1: 217, y1: 8, speed: 1 });
+    [160, 178, 198, 222].forEach(x => B.add('torch', x, 5));
+    B.add('shade', 166, 2);
+    B.add('shade', 185, 1);
+    B.add('shade', 212, 2);
+    // --- down the outer stairs to the throne corridor
+    for (const [x0, y] of [
+      [231, 11],
+      [235, 14],
+      [239, 17],
+      [243, 20],
+    ])
+      B.pillar(x0, x0 + 3, y);
+    B.ground(247, 275);
+    B.add('cp', 249);
+    B.solid(251, 6, 275, 11);
+    [256, 263, 270].forEach((x, i) => B.add('pendulum', x, 12, { len: 8.5, amp: 0.55, phase: i * 1.7, axe: true }));
+    [253, 260, 267, 274].forEach(x => B.add('torch', x, 16));
+    B.add('E', 273);
+    B.add('shade', 265, 14);
     bossRoom(B, DOOR_COL, 'shadow');
   },
 
+  // Sonique's concert in the clouds (falling into the clouds is the end): bounce up the drum tower past the speakers,
+  // dance across the floors that light up to the beat, run the speaker gauntlet, ride the floating stages and the
+  // turntable, and bounce the drum chain over the spikes
   sonic(B) {
-    // floating stages over a sea of clouds (falling into the clouds is death); drums (U) bounce you up
-    const isle = (x0, x1, top = F, th = 3) => B.rect(x0, top, x1, top + th, '#');
+    const isle = (x0, x1, top = F, th = 3) => B.rect(x0, top, x1, top + th, '#'),
+      drum = (x, y) => B.rect(x, y, x + 1, y, 'U');
     isle(0, 18);
     B.add('start', 3);
     B.add('met', 12);
-    // gap 19-21
-    isle(22, 40);
-    B.add('speakerbot', 33);
-    B.add('h', 27);
-    B.add('flyer', 38, 14);
-    // gap 41-43
-    // --- drums up to the concert hall
-    isle(44, 52);
-    B.rect(50, F, 51, F, 'U');
-    isle(53, 59, 16, 1);
-    B.add('met', 55, 15);
-    B.rect(58, 16, 59, 16, 'U');
-    isle(62, 67, 10, 1);
-    B.add('flyer', 66, 5);
-    // concert hall: the tower blocks the roof, so go down the ladder and through the hall
-    B.rect(69, 8, 95, F + 3, '=');
-    B.rect(86, 0, 95, 7, '=');
-    B.add('speakerbot', 76, 7);
-    B.add('met', 79, 7);
-    B.ladder(82, 8, 21);
-    B.cave(71, 12, 93, 21);
-    B.add('L', 72, 21);
-    B.add('speaker', 77, 21, { dir: 1, period: 150 });
-    B.rect(84, F, 85, F, 'U');
-    B.spikes(86, 88);
-    B.add('flyer', 91, 17); // bounce off the drum over the spikes
-    B.cave(94, 18, 95, 21); // stage door
-    isle(96, 112);
-    B.add('cp', 100);
-    B.add('flyer', 108, 14);
-    B.add('speaker', 111, F - 1, { dir: -1 });
-    // gap 113-115
-    // --- echo well: drop into the floating rock (a spire blocks its top), bounce back out on the drums
-    isle(116, 153, F, 16);
-    B.rect(124, 0, 128, F - 1, '=');
-    B.cave(119, F, 121, 29);
-    B.cave(117, 30, 139, 36);
-    B.add('met', 123, 36);
-    B.spikes(128, 129, 37);
-    B.add('speakerbot', 134, 36);
-    B.cave(140, F, 148, 36);
-    B.rect(146, 37, 147, 37, 'U');
-    B.rect(141, 31, 143, 31, '#');
-    B.rect(141, 31, 141, 31, 'U');
-    B.rect(144, 26, 147, 26, '#');
-    B.rect(147, 26, 147, 26, 'U');
-    isle(154, 170);
-    B.add('cp', 158);
-    B.add('speakerbot', 166);
-    // --- floating stage, a drum and a sky bridge
-    B.add('plat', 172, 20, { x1: 180, y1: 20, speed: 0.9 });
-    B.add('flyer', 176, 13);
-    isle(184, 190, 20, 1);
-    B.rect(189, 20, 190, 20, 'U');
-    isle(193, 222, 13, 1);
-    B.add('speakerbot', 200, 12);
-    B.add('met', 206, 12);
-    B.add('flyer', 212, 7);
-    B.add('h', 216, 12);
-    B.add('speaker', 221, 12, { dir: -1 });
-    isle(226, 240);
-    B.add('met', 232);
-    B.add('speakerbot', 238);
-    // gap 241-243
-    isle(244, 275);
-    B.add('speaker', 252, F - 1, { dir: -1, phase: 40 });
-    B.add('speakerbot', 258);
-    B.add('E', 264);
-    B.add('flyer', 268, 14);
+    // --- the drum tower: each drum bounces you up to the next stage, the speakers fire rings at you as you land
+    isle(20, 27);
+    drum(25, F);
+    isle(29, 36, 16, 1);
+    drum(30, 16);
+    B.add('speaker', 36, 15, { dir: -1, period: 110 });
+    isle(21, 28, 10, 1);
+    drum(22, 10);
+    B.add('speaker', 21, 9, { dir: 1, period: 110, phase: 55 });
+    isle(25, 39, 4, 1);
+    B.add('flyer', 35, 0);
+    B.add('cp', 37, 3);
+    // --- the dance floors: the tiles light up in a wave to the beat; dance across with it
+    [40, 42, 44, 46, 48, 50].forEach((x, i) => B.add('eblock', x, 4, { idx: i, n: 6, step: 28 }));
+    isle(52, 55, 4, 1);
+    B.add('speakerbot', 54, 3);
+    [56, 58, 60, 62, 64, 66, 68].forEach((x, i) => B.add('eblock', x, 4 + (i % 2), { idx: i, n: 7, step: 24 }));
+    isle(70, 74, 5, 1);
+    B.add('h', 72, 4);
+    [75, 77, 79, 81, 83, 85].forEach((x, i) => B.add('eblock', x, 5 + i, { idx: i, n: 6, step: 24 })); // a staircase down
+    isle(87, 92, 11, 1);
+    B.add('flyer', 84, 1);
+    // --- the speaker gauntlet: rings roll at you along each stage and drop off the edges
+    isle(94, 113);
+    B.add('speaker', 113, F - 1, { dir: -1, period: 90 });
+    B.add('speakerbot', 104);
+    isle(117, 131);
+    B.add('speaker', 131, F - 1, { dir: -1, period: 80, phase: 30 });
+    B.spikes(122, 123);
+    isle(135, 150);
+    B.add('speaker', 135, F - 1, { dir: 1, period: 100 });
+    B.add('speaker', 150, F - 1, { dir: -1, period: 100, phase: 50 });
+    B.add('speakerbot', 144);
+    B.add('cp', 147);
+    // --- the floating stages: a lift, a stage with a speaker, a moving stage, then the turntable
+    B.add('plat', 152, 20, { x1: 152, y1: 12, speed: 0.7 });
+    isle(156, 162, 12, 1);
+    B.add('speaker', 162, 11, { dir: -1, period: 120 });
+    B.add('plat', 164, 12, { x1: 172, y1: 12, speed: 1 });
+    isle(175, 180, 14, 1);
+    B.add('flyer', 178, 7);
+    B.add('plat', 186, 14, { r: 3, speed: 0.025 }); // the turntable
+    isle(192, 200, 16, 1);
+    B.add('speakerbot', 197, 15);
+    // --- the drum chain: one bounce to the next over the spikes; miss a drum and it is over
+    isle(201, 206);
+    drum(205, F);
+    B.spikes(207, 239, 26);
+    B.rect(207, 27, 239, 28, '#');
+    for (const x of [211, 216, 221, 226, 231]) drum(x, F);
+    B.add('flyer', 219, 12);
+    isle(236, 275);
+    B.add('speaker', 252, F - 1, { dir: -1, period: 90 });
+    B.add('speakerbot', 260);
+    B.add('E', 265);
+    B.add('flyer', 270, 14);
     bossRoom(B, DOOR_COL, 'sonic');
   },
 
+  // Lumina's crystal palace: lasers at the feet (jump) and at the head (slide), the prism spire where the floors are
+  // swept by lasers (wait on the crystals), fragile crystal bridges, the slippery crystal cave, and the gallery of
+  // lasers on a crystal floor
   light(B) {
-    // a crystal palace: laser gates (hlaser, short ones you jump over) and crystals that shoot back
+    // a laser along a floor whose top is row f: 'low' at the feet (jump it) or 'head' (slide under it)
+    const laser = (kind, x0, x1, f, phase = 0, period) =>
+      B.add('hlaser', x0, kind === 'low' ? f - 1 : f - 2, { x1, phase, oy: kind === 'low' ? 0 : 6, period });
     B.ground(0, 18);
     B.add('start', 3);
     B.add('met', 12);
-    // two laser gates under a ceiling
-    B.ground(19, 44);
-    B.rect(22, 12, 34, 13, '=');
-    B.add('hlaser', 24, 21, { x1: 26, phase: 0 });
-    B.add('hlaser', 30, 21, { x1: 32, phase: 75 });
-    B.add('h', 28);
-    B.add('prismo', 39);
-    // pit 45-47
-    // --- crystal tower: ladders up, laser gates on the roof
-    B.ground(48, 138);
-    B.add('hopper', 52);
-    B.rect(60, 16, 64, 21, '#');
-    B.ladder(59, 16, 21);
-    B.add('met', 62, 15);
-    B.ladder(64, 10, 15);
-    B.rect(65, 10, 84, 21, '#');
-    B.add('hlaser', 69, 9, { x1: 71, phase: 0 });
-    B.add('hlaser', 77, 9, { x1: 79, phase: 75 });
-    B.add('turret', 74, 9);
-    B.add('prismo', 82, 9);
-    B.add('cp', 90);
-    // --- mirror tunnel: the surface is a spike field, go under it past three pulsing gates
-    B.spikes(96, 128);
-    B.cave(90, 28, 134, 35);
-    B.shaft(93, F, 35);
-    B.add('hlaser', 99, 35, { x1: 101, phase: 0 });
-    B.add('hlaser', 105, 35, { x1: 107, phase: 50 });
-    B.add('hlaser', 111, 35, { x1: 113, phase: 100 });
-    B.add('met', 117, 35);
-    B.spikes(120, 124, 36);
-    B.add('plat', 120, 34, { x1: 123, y1: 34, speed: 0.8 });
-    B.add('hopper', 128, 35);
-    B.shaft(132, F, 35);
-    B.rect(136, 20, 136, 21, '=');
-    B.add('turret', 136, 19);
-    // --- crystal stepping stones over a pit
-    B.rect(140, 20, 141, 20, '=');
-    B.rect(144, 19, 145, 19, '=');
-    B.rect(148, 18, 149, 18, '=');
-    B.rect(152, 19, 153, 19, '=');
-    B.add('flyer', 146, 13);
-    // --- prism pit: drop in, dodge the gates, ride the lift back up
-    B.ground(154, 245);
-    B.cave(157, F, 185, 36);
-    B.rect(164, 25, 166, 25, '=');
-    B.rect(172, 25, 174, 25, '=');
-    B.add('hlaser', 163, 36, { x1: 165, phase: 0 });
-    B.add('hlaser', 172, 36, { x1: 174, phase: 70 });
-    B.add('prismo', 169, 36);
-    B.add('hopper', 177, 36);
-    B.add('h', 160, 36);
-    B.add('plat', 182, 35, { x1: 182, y1: 20, speed: 0.7 });
-    B.add('cp', 190);
-    // low hall with three gates pulsing in sequence
-    B.rect(200, 0, 216, 17, '=');
-    B.add('hlaser', 203, 21, { x1: 205, phase: 0 });
-    B.add('hlaser', 208, 21, { x1: 210, phase: 50 });
-    B.add('hlaser', 213, 21, { x1: 215, phase: 100 });
-    B.add('E', 222);
-    B.add('hopper', 226);
-    B.rect(232, 20, 232, 21, '=');
-    B.add('turret', 232, 19);
-    B.add('met', 238);
-    B.add('prismo', 242);
-    // pit 246-248
-    // spike pit crossed on a platform under a laser: don't jump
-    B.ground(249, 275);
-    B.spikes(250, 256);
-    B.add('plat', 250, 20, { x1: 255, y1: 20, speed: 0.9 });
-    B.add('hlaser', 250, 17, { x1: 256, phase: 30 });
-    B.add('flyer', 262, 14);
-    B.add('prismo', 266);
-    B.add('met', 270);
+    // --- the laser hall
+    B.ground(19, 58);
+    B.solid(19, 12, 58, 15);
+    B.solid(19, 16, 19, 17);
+    laser('low', 23, 25, F, 0);
+    laser('head', 29, 31, F, 50);
+    laser('low', 35, 37, F, 100);
+    laser('head', 41, 43, F, 0);
+    laser('low', 47, 49, F, 0);
+    laser('head', 47, 49, F, 75);
+    B.add('prismo', 53);
+    B.add('h', 56);
+    // --- the prism spire: each floor is swept by lasers in turn; wait on the crystal blocks while they fire
+    B.ground(59, 90);
+    B.solid(59, 2, 90, 21);
+    B.cave(60, 3, 89, 21);
+    B.cave(59, 18, 59, 21);
+    B.ledge(60, 89, 17, '#');
+    B.ledge(60, 89, 12, '#');
+    B.ledge(60, 89, 7, '#');
+    B.ladder(88, 17, 21);
+    B.ladder(61, 12, 16);
+    B.ladder(88, 7, 11);
+    for (const f of [F, 17, 12]) {
+      const segs = [
+        [62, 66],
+        [69, 73],
+        [76, 80],
+        [83, 86],
+      ];
+      segs.forEach(([x0, x1], i) => laser('low', x0, x1, f, (i * 50 + f * 7) % 150));
+      for (const x of [67, 74, 81]) B.ledge(x, x + 1, f - 1, '=');
+    }
+    B.add('prismo', 70, 11);
+    B.add('flyer', 77, 3);
+    B.cave(90, 4, 90, 6);
+    // --- the crystal bridges: they shatter under you; a lift rides through a laser (jump it)
+    B.add('cp', 86, 6);
+    B.ledge(91, 98, 7, 'C');
+    B.pillar(99, 101, 7);
+    B.ledge(102, 109, 7, 'C');
+    B.pillar(110, 112, 7);
+    B.add('prismo', 111, 6);
+    B.add('plat', 113, 7, { x1: 124, y1: 7, speed: 1 });
+    B.add('hlaser', 117, 6, { x1: 120, phase: 0 });
+    B.pillar(127, 129, 7);
+    B.ledge(130, 136, 7, 'C');
+    B.add('flyer', 105, 1);
+    B.add('flyer', 121, 0);
+    // --- the crystal cave: down the shaft (the surface is all crystal spikes), slippery floors, spike pits and
+    // lasers, the lift back up
+    B.ground(137, 275);
+    B.add('cp', 139);
+    B.spikes(145, 188);
+    B.shaft(142, F, 37);
+    B.cave(141, 27, 193, 37);
+    B.ledge(141, 193, 38, 'I');
+    B.spikes(151, 152, 38);
+    laser('head', 155, 158, 38, 0);
+    B.spikes(163, 164, 38);
+    laser('low', 167, 170, 38, 60);
+    B.add('prismo', 174, 37);
+    laser('head', 178, 181, 38, 30);
+    B.spikes(184, 185, 38);
+    B.add('L', 187, 37);
+    B.cave(189, 22, 192, 26);
+    B.add('plat', 190, 36, { x1: 190, y1: 21, speed: 0.8 });
+    // --- the gallery: lasers at feet and head over a slippery crystal floor
+    B.add('cp', 197);
+    B.solid(203, 12, 248, 15);
+    B.solid(203, 16, 203, 17);
+    B.ledge(204, 247, F, 'I');
+    laser('low', 208, 210, F, 0);
+    B.add('prismo', 213);
+    laser('head', 216, 218, F, 40);
+    laser('low', 222, 224, F, 80);
+    laser('head', 228, 230, F, 0);
+    B.add('prismo', 233);
+    laser('low', 237, 240, F, 0);
+    laser('head', 237, 240, F, 75);
+    laser('head', 244, 246, F, 110);
+    // --- the throne approach
+    B.add('E', 256);
+    B.add('prismo', 262);
+    B.solid(266, 20, 267, 21);
+    B.add('turret', 266, 19);
+    B.add('flyer', 271, 14);
     bossRoom(B, DOOR_COL, 'light');
   },
 
+  // Chronia's clock tower: hop the turning gear wheels over the chasm, ride the hands of the great clock face up the
+  // tower, cross the gear belts running both ways at the top, climb down past the great pendulums, and cross the
+  // last wheel over the spikes
   time(B) {
-    // a clockwork tower: gears turn the floors (conveyors), pendulums swing from the ceilings
-    B.ground(0, 18);
+    B.ground(0, 22);
     B.add('start', 3);
     B.add('met', 12);
-    B.ground(19, 35);
-    B.rect(19, F, 35, F, '<');
-    B.rect(24, 13, 33, 15, '=');
-    B.add('pendulum', 26, 16, { len: 4.5, amp: 0.8, phase: 0 });
-    B.add('pendulum', 31, 16, { len: 4.5, amp: 0.8, phase: Math.PI });
-    B.ground(36, 40);
-    // pit 41-43
-    B.ground(44, 62);
-    B.add('hopper', 50);
-    B.add('flyer', 57, 15);
-    B.add('gearbot', 60);
-    B.add('h', 54);
-    // blocks over a bottomless pit
-    B.rect(65, 20, 66, 20, '=');
-    B.rect(69, 18, 70, 18, '=');
-    B.rect(73, 20, 74, 20, '=');
-    B.add('flyer', 70, 12);
-    // --- clock tower: steps up to the top, then drop down the shaft into the gear room
-    B.ground(76, 175);
-    B.rect(80, 20, 82, 20, '=');
-    B.rect(84, 18, 86, 18, '=');
-    B.rect(88, 16, 90, 16, '=');
-    B.rect(92, 14, 94, 14, '=');
-    B.rect(96, 12, 98, 12, '=');
-    B.add('flyer', 90, 9);
-    B.pillar(100, 118, 10);
-    B.add('gearbot', 104, 9);
-    B.add('flyer', 108, 4);
-    B.add('hopper', 115, 9);
-    B.cave(109, 10, 111, 27); // shaft
-    B.pit(119, 145); // the far side of the tower is a chasm
-    B.cave(100, 28, 150, 35);
-    B.add('L', 101, 35);
-    B.rect(114, 36, 128, 36, '>');
-    B.add('pendulum', 118, 28, { len: 6.5, amp: 0.7, phase: 0 });
-    B.add('pendulum', 125, 28, { len: 6.5, amp: 0.7, phase: 1.6 });
-    B.spikes(132, 136, 36);
-    B.add('plat', 132, 34, { x1: 135, y1: 34, speed: 0.8 });
-    B.add('hopper', 140, 35);
-    B.add('h', 144, 35);
-    B.shaft(148, F, 35);
-    B.add('cp', 152);
-    // long gear belt under the pendulums
-    B.rect(156, F, 172, F, '>');
-    B.rect(160, 12, 170, 14, '=');
-    B.add('pendulum', 163, 15, { len: 4.5, amp: 0.8, phase: 0 });
-    B.add('pendulum', 168, 15, { len: 4.5, amp: 0.8, phase: Math.PI });
-    B.add('gearbot', 158);
-    // --- chasm: a platform, a turning wheel and blocks
-    B.pit(176, 200);
-    B.add('plat', 177, 20, { x1: 182, y1: 20, speed: 0.8 });
-    B.add('plat', 185, 17, { r: 3, speed: 0.02 }); // ride it to the top, jump to the blocks
-    B.rect(190, 15, 191, 15, '=');
-    B.rect(194, 17, 195, 17, '=');
-    B.rect(198, 19, 199, 19, '=');
-    B.add('flyer', 192, 10);
-    B.ground(201, 275);
-    B.add('cp', 205);
-    B.add('gearbot', 210);
-    B.rect(214, F, 230, F, '>');
-    B.rect(216, 13, 228, 15, '=');
-    B.add('pendulum', 219, 16, { len: 4.5, amp: 0.8, phase: 0 });
-    B.add('pendulum', 225, 16, { len: 4.5, amp: 0.8, phase: 2 });
-    B.add('gearbot', 236);
-    B.rect(240, 20, 242, 21, '=');
-    B.add('turret', 241, 19);
-    B.add('flyer', 246, 15);
-    B.pit(250, 252);
+    B.add('gearbot', 19);
+    // --- the gear wheels: each carries one platform round; hop from wheel to wheel over the chasm
+    [
+      [27, 19, 0.025, 0],
+      [33, 17, -0.028, 1],
+      [39, 19, 0.03, 2],
+      [45, 16, -0.026, 3],
+      [51, 18, 0.032, 4],
+    ].forEach(([x, y, sp, i]) => B.add('plat', x, y, { r: 2.5, speed: sp, phase: i * 1.3 }));
+    B.add('flyer', 36, 10);
+    B.add('flyer', 48, 9);
+    B.ground(56, 72);
+    B.add('cp', 58);
+    B.add('gearbot', 66);
+    // --- the great clock face: ride its four hands round from the bottom to the top of the tower
+    B.ground(73, 108);
+    B.solid(73, 0, 108, 21);
+    B.cave(74, 1, 107, 21);
+    B.cave(73, 18, 73, 21);
+    [0, 1, 2, 3].forEach(i => B.add('plat', 89, 16, { r: 4, speed: 0.012, phase: (i * Math.PI) / 2 }));
+    B.ledge(93, 107, 10, '#');
+    B.add('gearbot', 82);
+    B.add('flyer', 98, 4);
+    B.add('h', 104, 9);
+    B.cave(108, 7, 108, 9);
+    // --- the gear belts at the top of the tower: they run both ways between the spike gaps
+    B.add('cp', 105, 9);
+    B.solid(109, 10, 150, LEVEL_H - 1);
+    B.belt(109, 117, 10, -1);
+    B.spikes(118, 119, 10);
+    B.belt(120, 129, 10, 1);
+    B.spikes(130, 131, 10);
+    B.belt(132, 141, 10, -1);
+    B.spikes(142, 143, 10);
+    B.belt(144, 150, 10, 1);
+    B.add('gearbot', 124, 9);
+    B.add('gearbot', 137, 9);
+    B.add('flyer', 130, 3);
+    // --- the pendulum shaft: down the ledges past the great pendulums
+    B.solid(151, 0, 186, 21);
+    B.cave(152, 2, 185, 21);
+    B.cave(151, 8, 151, 9);
+    B.ledge(152, 160, 10, '#');
+    B.ledge(166, 176, 13, '#');
+    B.ledge(156, 164, 17, '#');
+    B.ground(151, 186);
+    B.add('pendulum', 163, 2, { len: 9, amp: 0.55, phase: 0 });
+    B.add('pendulum', 172, 2, { len: 13, amp: 0.45, phase: 1.6 });
+    B.add('pendulum', 160, 2, { len: 17, amp: 0.4, phase: 3.1 });
+    B.add('gearbot', 170, 12);
+    B.cave(186, 18, 186, 21);
+    // --- the last wheel over the spikes, then the clock's top floor to the throne
+    B.ground(187, 196);
+    B.add('cp', 189);
+    B.spikes(197, 214, 26);
+    B.rect(197, 27, 214, 28, '#');
+    B.add('plat', 202, 20, { r: 3, speed: 0.03 });
+    B.add('plat', 202, 20, { r: 3, speed: 0.03, phase: Math.PI });
+    B.add('plat', 210, 19, { r: 2.5, speed: -0.034 });
+    B.ground(215, 275);
+    B.belt(220, 232, F, -1);
+    B.add('gearbot', 228);
+    B.add('pendulum', 240, 13, { len: 7.5, amp: 0.7, phase: 0 });
+    B.solid(236, 10, 245, 12);
+    B.add('gearbot', 252);
     B.add('E', 260);
-    B.add('met', 266);
-    B.add('h', 270);
+    B.add('flyer', 266, 14);
+    B.add('met', 270);
     bossRoom(B, DOOR_COL, 'time');
   },
 });

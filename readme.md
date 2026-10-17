@@ -2,7 +2,7 @@
 
 > Game action-platformer 2D bergaya **Mega Man** untuk browser — pixel art dengan kepadatan pixel 2x yang detail, tapi tetap ringan dan optimal untuk web.
 
-**Versi saat ini: `1.1.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
+**Versi saat ini: `1.4.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
 
 ---
 
@@ -67,49 +67,49 @@ Tidak perlu build atau install apa pun — cukup HTML + JavaScript murni.
 
 ## Stage
 
-Setiap stage berukuran 300 × 44 tile. Jalur utama ada di permukaan, dengan bagian yang wajib dilewati di atas dan di bawahnya.
+Setiap stage berukuran 300 × 44 tile dan punya alur, platform, dan rintangannya sendiri.
 
 ### Benua Azura
 
-| Stage | Bagian naik                                                  | Bagian bawah tanah                                                            | Rintangan khas                                    |
-| ----- | ------------------------------------------------------------ | ----------------------------------------------------------------------------- | ------------------------------------------------- |
-| Cut   | Menara pabrik (tangga, gergaji di atap), lift ke atap gudang | Saluran air di bawah ladang duri                                              | Gergaji di rel, koridor rendah untuk slide        |
-| Fire  | Kerucut gunung berapi, pilar basal di atas lautan lava       | Ruang magma lewat kawah                                                       | Kolam lava, semburan api, lautan lava             |
-| Elec  | Menara trafo dengan sinar listrik di atap                    | Terowongan kabel di bawah kabel listrik terbuka, lubang generator dengan lift | Sinar listrik yang menyala-mati                   |
-| Snow  | Tangga es ke puncak gunung                                   | Gua es lewat celah gunung                                                     | Lantai licin, es gantung, jurang beku dengan lift |
-| Earth | Undakan batu di tebing, dua lift ke atas mesa                | Tambang dengan lantai rapuh di atas jurang                                    | Batu jatuh, jembatan rapuh                        |
-| Wind  | Pad angin ke atap benteng langit, jembatan langit            | Sumur angin di dalam batu melayang, keluar lewat pad bertingkat               | Pulau melayang di atas lautan awan, platform awan |
+| Stage | Alur                                                                                                                                                                                                                                                                                                                                                 |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cut   | Aula pengepres (4 mesin press menghantam bergantian di atas ban berjalan) → menara gergaji 4 lantai → jalan di atas lantai duri, gergaji naik-turun di celahnya → sumur penggergajian (turun dari pijakan ke pijakan, gergaji menyapu) → terowongan ban berjalan (lubang duri, press, lorong rendah untuk slide) → lorong gergaji dan press terakhir |
+| Fire  | Tiang basal naik dari lautan lava → bibir kawah → turun ke ruang magma (rakit, pulau batu, bola magma) → **saluran kawah: lava naik mengejar saat kamu memanjat** → lereng luar: undakan basal turun di atas aliran lava → sungai lava dengan dua rakit                                                                                              |
+| Elec  | Aula sinar (5 sinar listrik menyala berurutan seperti gelombang) → dua rangkaian blok energi di atas jurang → menara trafo 3 lantai → kereta gantung melintasi jurang → gardu induk: blok energi di atas lantai bertegangan → ban berjalan di antara dua sinar                                                                                       |
+| Snow  | Padang salju dengan es gantung → bongkahan es licin di atas jurang beku → tebing dalam badai (angin mendorong ke arah jurang) → punggung puncak: jembatan es rapuh di bawah es gantung → luncuran es menurun → gua es di bawah gletser dengan lantai rapuh di atas jurang                                                                            |
+| Earth | Dasar ngarai (batu jatuh, pasir hisap) → gua dalam: turun dari pijakan ke pijakan di atas jurang → terowongan dalam: jembatan rapuh, pasir hisap, duri di langit-langit → **kereta tambang: lompati batu di rel, jangan lompat di bawah duri** → naik lewat pasir hisap bertingkat → jembatan ngarai rapuh di antara pilar                           |
+| Wind  | Naik dengan pad angin → platform awan melawan angin di atas kehampaan → benteng langit: masuk dari atas lalu turun tiga aula (duri, fanbot yang meniupmu ke arah duri, platform di atas duri) → jembatan badai rapuh → lompatan pad angin terakhir                                                                                                   |
 
 Setiap stage juga punya musuh, mekanik, dan ruang boss yang hanya ada di stage itu:
 
 | Stage | Musuh khas                                                                                         | Mekanik khas                                                                                                              | Ruang boss                                                                                      |
 | ----- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Cut   | **Blader**: kepala gunting terbang yang menukik ke arahmu                                          | **Ban berjalan**: mendorong ke satu arah (di atap menara, saluran, dan depan pintu boss)                                  | Mata gergaji industri raksasa dan gerigi berputar di dinding, lantai tengah berupa ban berjalan |
-| Fire  | **Fire Totem**: patung batu yang memuntahkan 2 bola api melengkung                                 | **Bola magma**: melompat keluar dari lava secara berkala                                                                  | Air terjun lava dan retakan magma, semburan api dari lantai                                     |
+| Cut   | **Blader**: kepala gunting terbang yang menukik ke arahmu                                          | **Mesin press** yang menghantam dari langit-langit (berguncang dulu sebagai peringatan) dan **ban berjalan**              | Mata gergaji industri raksasa dan gerigi berputar di dinding, lantai tengah berupa ban berjalan |
+| Fire  | **Fire Totem**: patung batu yang memuntahkan 2 bola api melengkung                                 | **Lava naik** di saluran kawah, dan **bola magma** yang melompat keluar dari lava                                         | Air terjun lava dan retakan magma, semburan api dari lantai                                     |
 | Elec  | **Watcher**: mata listrik yang menyesuaikan tinggi lalu menembak ke dua arah saat sejajar denganmu | **Blok energi**: menyala bergantian di atas jurang, berkedip sebelum hilang                                               | Tesla coil dengan busur listrik, sinar listrik dari langit-langit                               |
 | Snow  | **Snowman**: melempar bola salju melengkung                                                        | **Badai angin**: setelah tenang dan peringatan, angin mendorong kamu (saat naik gunung, di jurang beku, dan di lantai es) | Kepingan salju raksasa dan kristal es, lantai es licin                                          |
-| Earth | **Mole**: menggali di bawah tanah mengikuti kamu, lalu menyembul tepat di bawahmu                  | **Pasir hisap**: kamu tenggelam pelan dan berjalan lambat; lompat keluar sebelum kepala tenggelam                         | Penyangga tambang dan permata di dinding batu                                                   |
+| Earth | **Mole**: menggali di bawah tanah mengikuti kamu, lalu menyembul tepat di bawahmu                  | **Kereta tambang**, dan **pasir hisap**: kamu tenggelam pelan; lompat keluar sebelum kepala tenggelam                     | Penyangga tambang dan permata di dinding batu                                                   |
 | Wind  | **Fanbot**: kipas melayang yang meniupmu mundur saat kamu di depannya                              | **Pad angin**: menginjaknya melontarkanmu sekitar 8 tile ke atas                                                          | Jendela langit, pilar marmer, dan awan melayang yang bisa dipijak                               |
 
 ### Benua Vespera
 
-| Stage  | Bagian naik                                        | Bagian bawah tanah                                     | Rintangan khas                                                  |
-| ------ | -------------------------------------------------- | ------------------------------------------------------ | --------------------------------------------------------------- |
-| Hydro  | Menara air dengan arus di atap, lift ke puncak dam | Gorong-gorong banjir di bawah ladang bulu babi         | Kanal dangkal, arus, tetesan air dari pipa                      |
-| Toxic  | Gunungan limbah, pilar karat di atas lautan lumpur | Terowongan pengolahan lewat cerobong                   | Lumpur racun, ventilasi gas, terowongan gas                     |
-| Shadow | Undakan benteng, dua lift ke puncak menara         | Penjara bawah tanah dengan lantai rapuh di atas jurang | Gelap gulita (hanya obor, tembakan, dan dirimu yang bercahaya)  |
-| Sonic  | Drum ke aula konser, jembatan langit               | Sumur gema di dalam batu melayang, keluar lewat drum   | Panggung melayang di atas lautan awan, speaker                  |
-| Light  | Menara kristal dengan gerbang laser di atap        | Terowongan cermin, lubang prisma dengan lift           | Gerbang laser yang menyala-mati, laser di atas jurang duri      |
-| Time   | Undakan menara jam                                 | Ruang roda gigi lewat lubang menara                    | Bandul berayun, lantai roda gigi berjalan, roda putar di jurang |
+| Stage  | Alur                                                                                                                                                                                                                                                                                                                                    |
+| ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Hydro  | Kanal banjir (di bawah air lompatan jauh lebih tinggi; batu terapung di atas dasar penuh bulu babi) → gorong-gorong di bawah dam (arus melawan, bulu babi di lantai dan langit-langit) → naik 5 lantai di dalam dam, tetesan dari pipa → **waduk di atas dam: berenang dari batu ke batu** → pelimpah dengan arus air → ruang pompa     |
+| Toxic  | Pemadat (4 press di atas ban berjalan dan selokan asam) → sungai asam: naik drum yang hanyut → catwalk rapuh di atas tong asam dengan ventilasi di sela → **tangki banjir: asam naik saat kamu memanjat** → atap pabrik: ventilasi berderet, slime jatuh dari pipa                                                                      |
+| Shadow | **Aula besar: kapak berayun di atas lantai rapuh (tunggu di batu, atau slide di bawahnya)** → penjara bawah tanah: perangkap duri dan langit-langit yang jatuh dalam gelap → menara: lift dan pijakan, hantu tembus dinding → benteng yang runtuh: jembatan rapuh, menara jaga, lift di celah terlebar → lorong kapak menuju singgasana |
+| Sonic  | Menara drum (memantul ke panggung berikutnya, speaker menembakkan cincin saat kamu mendarat) → **lantai dansa: ubin menyala bergelombang mengikuti ketukan; menari bersamanya** (datar, zig-zag, tangga turun) → lorong speaker → panggung melayang, lift, dan turntable → rantai drum di atas duri                                     |
+| Light  | Aula laser (**laser di kaki: lompat; laser setinggi kepala: slide**) → menara prisma: tiap lantai disapu laser bergantian, tunggu di atas kristal → jembatan kristal rapuh dan lift yang melewati laser → gua kristal: lantai licin, lubang duri, laser → galeri laser di atas lantai kristal licin                                     |
+| Time   | Roda gigi berputar di atas jurang (lompat dari roda ke roda) → **muka jam raksasa: naiki keempat jarumnya yang berputar ke puncak menara** → sabuk roda gigi berjalan bolak-balik di antara celah paku → sumur bandul: turun melewati tiga bandul raksasa → roda terakhir di atas paku                                                  |
 
-| Stage  | Musuh khas                                                                         | Mekanik khas                                                                                                    | Ruang boss                                                              |
-| ------ | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Hydro  | **Jelly**: ubur-ubur yang naik turun sambil mendekat                               | **Air**: di dalam air kamu jatuh pelan dan lompat lebih tinggi                                                  | Lantai tergenang air                                                    |
-| Toxic  | **Slime**: menempel di langit-langit, jatuh saat kamu lewat, lalu merayap mengejar | **Ventilasi gas**: berkedip sebagai peringatan, lalu menyemburkan awan racun                                    | Dua ventilasi gas yang bergantian                                       |
-| Shadow | **Shade**: hantu tembus dinding yang samar-samar terlihat                          | **Kegelapan**: hanya sekitar dirimu, obor, tembakanmu, dan mata boss yang terang                                | Tiga obor di dinding yang menerangi ruangan gelap                       |
-| Sonic  | **Speakerbot**: speaker berjalan yang mengirim cincin suara ke dua arah            | **Drum & speaker**: drum melontarkanmu ke atas; speaker mengirim cincin suara yang bergulir di lantai (lompati) | Equalizer raksasa dan dua speaker yang bergantian                       |
-| Light  | **Prismo**: kristal yang mengisi daya lalu menembak 4 laser miring                 | **Gerbang laser**: laser pendek yang menyala-mati; lompati atau tunggu padam                                    | Laser horizontal melintang di tengah ruangan                            |
-| Time   | **Gearbot**: roda gigi yang berbalik arah di dinding dan tepi jurang               | **Roda putar**: platform yang berputar melingkar; naiki sampai puncak                                           | Jam raksasa dengan jarum berputar, dua platform yang berputar melingkar |
+| Stage  | Musuh khas                                                                         | Mekanik khas                                                                                                                       | Ruang boss                                                              |
+| ------ | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Hydro  | **Jelly**: ubur-ubur yang naik turun sambil mendekat                               | **Air**: di dalam air kamu jatuh pelan dan lompat jauh lebih tinggi; **arus** yang mendorong ke arah bulu babi                     | Lantai tergenang air                                                    |
+| Toxic  | **Slime**: menempel di langit-langit, jatuh saat kamu lewat, lalu merayap mengejar | **Asam naik** di tangki banjir, **mesin press**, dan **ventilasi gas** yang berkedip lalu menyemburkan awan racun                  | Dua ventilasi gas yang bergantian                                       |
+| Shadow | **Shade**: hantu tembus dinding yang samar-samar terlihat                          | **Kegelapan** (hanya sekitar dirimu, obor, tembakanmu, dan mata boss yang terang), **kapak berayun**, dan langit-langit yang jatuh | Tiga obor di dinding yang menerangi ruangan gelap                       |
+| Sonic  | **Speakerbot**: speaker berjalan yang mengirim cincin suara ke dua arah            | **Lantai dansa** yang menyala mengikuti ketukan, **drum** yang melontarkanmu, dan **speaker** yang mengirim cincin suara           | Equalizer raksasa dan dua speaker yang bergantian                       |
+| Light  | **Prismo**: kristal yang mengisi daya lalu menembak 4 laser miring                 | **Gerbang laser** di kaki (lompati) dan setinggi kepala (slide di bawahnya), dan lantai kristal yang licin                         | Laser horizontal melintang di tengah ruangan                            |
+| Time   | **Gearbot**: roda gigi yang berbalik arah di dinding dan tepi jurang               | **Muka jam** (roda empat platform) dan **roda gigi** yang berputar, **bandul** raksasa, sabuk roda gigi                            | Jam raksasa dengan jarum berputar, dua platform yang berputar melingkar |
 
 ## Boss & Senjata
 
@@ -117,7 +117,7 @@ Setiap stage juga punya musuh, mekanik, dan ruang boss yang hanya ada di stage i
 
 | Stage | Boss                                  | Senjata yang didapat | Lemah terhadap |
 | ----- | ------------------------------------- | -------------------- | -------------- |
-| Cut   | **SNIPTOR** — manusia gunting         | Rolling Cutter       | Frost Shard    |
+| Cut   | **SNIPTOR** — manusia pisau putar     | Rolling Cutter       | Frost Shard    |
 | Fire  | **MAGMARON** — manusia api            | Fire Storm           | Gale Shot      |
 | Elec  | **VOLTRAX** — manusia listrik & petir | Thunder Beam         | Rolling Cutter |
 | Snow  | **GLACIELLE** — wanita es             | Frost Shard          | Fire Storm     |
@@ -150,7 +150,7 @@ Tekan `C` di **Stage Select** untuk membuka layar **Kelemahan Boss**. Layar ini 
 
 Setiap senjata adalah kelemahan tepat satu boss di benuanya sendiri:
 
-- **Azura**: es membuat gunting rapuh, angin memadamkan api, gunting memotong kabel, api mencairkan es, petir menghancurkan batu, dan batu terlalu berat untuk diterbangkan angin.
+- **Azura**: es membuat pisau putar rapuh, angin memadamkan api, pisau putar memotong kabel, api mencairkan es, petir menghancurkan batu, dan batu terlalu berat untuk diterbangkan angin.
 - **Vespera**: racun mencemari air, bayangan menyelinap menembus kabut racun, cahaya mengusir bayangan, waktu yang berhenti membungkam suara, getaran suara memecahkan kristal cahaya, dan air membuat mesin jam berkarat.
 
 ### Tembakan biasa & charge shot
@@ -160,7 +160,7 @@ Tekan `X` untuk tembakan biasa. Tahan `X` sampai karakter berkedip dengan warna 
 | Senjata        | Tembakan biasa                                          | Charge shot                                                                                                                                                                                                                       |
 | -------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Neo Buster     | Peluru kecil (maks. 3 di layar)                         | Tahan sebentar: peluru sedang. Tahan penuh: peluru besar yang menembus musuh **+ Buster Storm**, ratusan peluru kecil yang datang dari belakang dan menyapu seluruh layar ke depan, mengenai semua musuh termasuk yang berlindung |
-| Rolling Cutter | Boomerang gunting yang menembus musuh dan kembali       | **Giant Shuriken** — shuriken baja raksasa 4 mata yang berputar, terbang jauh menembus musuh, lalu kembali                                                                                                                        |
+| Rolling Cutter | Pisau putar boomerang yang menembus musuh dan kembali   | **Giant Shuriken** — shuriken baja raksasa 4 mata yang berputar, terbang jauh menembus musuh, lalu kembali                                                                                                                        |
 | Fire Storm     | Bola api + perisai api yang berputar                    | **Fire Wave** — pilar api yang bergulir di tanah, menembus musuh dan membakar peluru musuh                                                                                                                                        |
 | Thunder Beam   | Sinar petir cepat yang menembus musuh                   | **Giga Thunder** — petir menyambar dari langit ke setiap musuh di layar, termasuk boss                                                                                                                                            |
 | Frost Shard    | 3 kristal es yang membekukan musuh                      | **Frost Nova** — cincin rapat 24 kristal es besar ke segala arah, menembus dan membekukan musuh                                                                                                                                   |
@@ -183,7 +183,7 @@ Setelah semua boss di semua benua dikalahkan, muncul layar ending.
 
 ## Peta Dunia & Menu Pause
 
-- **Peta Dunia** muncul setelah layar title. Setiap benua tampil sebagai pulau dengan 6 boss di sekelilingnya; boss yang sudah dikalahkan berganti bendera. Benua yang belum terbuka tampil gelap bertanda "?".
+- **Peta Dunia** muncul setelah layar title. Setiap benua tampil sebagai pulau alami (pantai, hutan, sungai, gunung) dengan landmark tiap stage; boss berdiri di landmark-nya, dan yang sudah dikalahkan berganti bendera. Benua yang belum terbuka tampil gelap di bawah awan, bertanda "?".
 - **Menu pause** (`Enter` / `Esc` di dalam stage) punya dua kolom:
   - **SENJATA**: grid ikon dengan satu baris untuk Neo Buster dan satu baris per benua. Slot yang belum didapat bertanda "?". Nama senjata dan charge shot-nya tampil di bawah grid.
   - **TOOLS**: part dari Shop yang bisa di-ON/OFF. Daftarnya bisa digulir.
@@ -211,7 +211,7 @@ Ultra attack setiap senjata:
 | Senjata        | Ultra attack                                                                                                                  |
 | -------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | Neo Buster     | **Hyper Beam**: laser raksasa sepanjang layar selama 1 detik                                                                  |
-| Rolling Cutter | **Cutter Tempest**: 8 gunting besar berputar menyebar mengelilingi kamu                                                       |
+| Rolling Cutter | **Cutter Tempest**: 8 pisau putar besar berputar menyebar mengelilingi kamu                                                   |
 | Fire Storm     | **Inferno**: pilar api meletus di sepanjang lantai, menjalar ke dua arah                                                      |
 | Thunder Beam   | **Thunder God**: petir terus menyambar musuh dan boss hampir 2 detik                                                          |
 | Frost Shard    | **Absolute Zero**: semua musuh di layar membeku dan terluka, peluru musuh pecah, boss membeku, dan duri es muncul dari lantai |
@@ -274,19 +274,32 @@ neobuster/
 ├── .prettierrc.json
 └── js/
     ├── engine.js   # versi, canvas, input, audio & musik, font pixel, sprite & glow
-    ├── art.js      # sprite robot, background parallax, tileset, ikon senjata (+ registry untuk file benua)
-    ├── hero-sprites.js  # sprite Nexo (hero) hasil konversi lembar karakternya
-    ├── hero-sprites-hd.js  # sprite Nexo versi HD (3 pixel per pixel game) untuk layar resolusi tinggi
+    ├── art.js      # palet, drawRobot, background parallax, tileset, ikon senjata (+ registry untuk file benua)
+    ├── chars.js    # sistem karakter native: kerangka, rasterisasi pixel art, outline, shading, lari, bagian bersama
+    ├── nexo.js     # Nexo (hero)
+    ├── sniptor.js  # Sniptor (boss)
+    ├── magmaron.js # Magmaron (boss)
+    ├── voltrax.js  # Voltrax (boss)
+    ├── glacielle.js    # Glacielle (boss)
+    ├── terralyn.js     # Terralyn (boss)
+    ├── winderwomen.js  # Winderwomen (boss)
+    ├── hydros.js   # Hydros (boss Benua Vespera)
+    ├── toxaris.js  # Toxaris (boss Benua Vespera)
+    ├── umbrion.js  # Umbrion (boss Benua Vespera)
+    ├── sonique.js  # Sonique (boss Benua Vespera)
+    ├── lumina.js   # Lumina (boss Benua Vespera)
+    ├── chronia.js  # Chronia (boss Benua Vespera)
     ├── levels.js   # data benua, stage & layout level Benua Azura
     ├── actors.js   # fisika (termasuk air), player, senjata, musuh, hazard, platform, boss Benua Azura
     ├── cheats.js   # cheat box (P + O) dan daftar cheat code
     ├── vespera.js  # Benua Vespera: 6 stage, boss, senjata, musuh, hazard, dan gambarnya dalam satu file
+    ├── worldmap.js # pulau-pulau di peta dunia: medan alami, hutan, sungai, gunung, dan landmark tiap stage
     └── main.js     # alur game (title, peta, select, stage, boss, ending), shop, render, save, validator konten, game loop
 ```
 
 Detail teknis:
 
-- Hero (Nexo) memakai sprite hasil konversi dari lembar karakternya (`js/hero-sprites.js`, dan `js/hero-sprites-hd.js` yang 1,5x lebih rapat untuk layar dengan 6 pixel layar per pixel game): pixel map per frame dengan palet tetap; rambut, sarung tangan, dan sepatu diwarnai ulang sesuai senjata. Boss dibuat dengan rig: bagian tubuh berupa bentuk sederhana (lingkaran, elips, kapsul, poligon) yang digerakkan lewat sudut sendi, lalu dirasterisasi tanpa anti-alias ke grid pixel kecil 48 × 48 dengan outline per bagian, dan disimpan sebagai bitmap. Logo dibuat dari huruf poligon yang dirasterisasi ke pixel kecil dengan efek krom, api, outline, dan ekstrusi.
+- Semua karakter (Nexo dan keduabelas boss) digambar native di kode (`js/chars.js`, satu file per karakter), dengan lembar karakter sebagai referensi desain: kerangka yang digerakkan lewat sudut sendi, diberi bentuk (rambut, helm, armor, sarung tangan, sepatu, senjata), lalu dirasterisasi tanpa anti-alias pada kerapatan layar (1, 2, atau 3 pixel kecil per satuan; tampilan 3x di layar judul, intro, dan ending memakai kerapatan 3), dengan outline 1 pixel per bagian dan cel shading dari kiri atas. Mata digambar pixel demi pixel, dan semua karakter memakai wajah bersama (satu untuk pria, satu untuk wanita) supaya wajahnya seragam. Kaki saat berlari diletakkan dengan inverse kinematics pada lintasan yang bergerak mundur persis secepat karakter berlari, jadi kaki yang menapak tidak meluncur. Rambut, sarung tangan, buster, dan sepatu Nexo diwarnai ulang sesuai senjata. Logo dibuat dari huruf poligon yang dirasterisasi ke pixel kecil dengan efek krom, api, outline, dan ekstrusi.
 - Tata letak memakai ruang logis **384 × 224**, tapi pixel art-nya 2x lebih rapat: satu pixel lama dipecah jadi 2×2 pixel kecil yang tetap tajam. Karakter punya outline 1 pixel kecil, sudut terpotong, dan shading berlapis; teks dan tile juga 2x lebih detail. Kanvas digambar di resolusi layar (kelipatan genap) agar setiap pixel kecil tetap pas di pixel layar.
 - Peta level digambar per potongan 32 kolom saat terlihat, supaya hemat memori.
 - Level berukuran **300 × 44 tile** (16 px). Kamera mengikuti player ke segala arah, kecuali di ruang boss.

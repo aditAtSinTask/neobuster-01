@@ -193,7 +193,7 @@ const WEAPONS = {
     short: 'R.CUTTER',
     pal: { B: '#5a5a6a', b: '#e0e0ec', S: SKIN },
     glow: '#e0e0ec',
-    desc: 'BOOMERANG GUNTING - MENEMBUS MUSUH',
+    desc: 'PISAU PUTAR BOOMERANG - TEMBUS MUSUH',
     charged: 'GIANT SHURIKEN',
     demo: { kind: 'cutter' },
   },
@@ -596,7 +596,7 @@ function fireUltra(p) {
           ultra: true,
         });
         break;
-      case 'cut': // cutter tempest: 8 big cutters spiralling out around the player
+      case 'cut': // cutter tempest: 8 big R. Cutters spiralling out around the player
         for (let i = 0; i < 8; i++)
           addShot({
             kind: 'tcutter',
@@ -1451,7 +1451,9 @@ function updatePlayer() {
   if (!inp.jump && p.vy < 0 && p.jumpT > 6 && !p.launched) p.vy = 0;
   if (moveX(p, p.vx) && onIce) p.vx = 0;
   applyGravity(p);
-  if (p.onGround && Math.abs(p.vx) > 0.1) p.anim++;
+  // the running cycle advances with the distance run (in 1.4 px steps, the running speed it was timed for), so the
+  // planted foot stays put at any speed: quicksand, speeding up on ice
+  if (p.onGround && Math.abs(p.vx) > 0.1) p.anim += Math.abs(p.vx) / 1.4;
   else if (!dir) p.anim = 0;
   handleShoot(p, true);
 }
@@ -2161,6 +2163,125 @@ function updateEnemies() {
 }
 
 // ================= HAZARDS & PLATFORMS =================
+// hazards shared by several stages (a continent's own are in its file)
+const CRUSHER_COLS = {
+  time: ['#b0743c', '#f0c040', '#4a2c18'],
+  toxic: ['#6e7a52', '#b4ee46', '#2e3420'],
+  shadow: ['#5a4e78', '#c878ff', '#1e1830'],
+};
+Object.assign(HAZARD_KINDS, {
+  // a press: a heavy head on a piston that slams down from the ceiling (its top at row y) until it rests on row y1,
+  // w tiles wide; up for 60 frames, shaking for 24, a fast slam, down for 30, then a slow climb back. Being under it
+  // when it comes down hurts badly
+  crusher: {
+    make: d => {
+      const top = d.y * TILE,
+        low = d.y1 * TILE - 26,
+        slam = Math.max(4, Math.round(Math.sqrt((low - top) / 4.5))),
+        rise = Math.ceil((low - top) / 1.4);
+      return {
+        x: d.x * TILE,
+        y: top,
+        w: (d.w || 2) * TILE,
+        h: 26,
+        top,
+        low,
+        slam,
+        rise,
+        period: Math.max(d.period || 0, 84 + slam + 30 + rise + 20),
+        phase: d.phase || 0,
+        state: 'up',
+      };
+    },
+    update(h, p) {
+      const t = (frameCount + h.phase) % h.period,
+        s1 = 84 + h.slam,
+        s2 = s1 + 30,
+        was = h.state;
+      if (t < 60) {
+        h.state = 'up';
+        h.y = h.top;
+      } else if (t < 84) {
+        h.state = 'warn';
+        h.y = h.top + ((t >> 1) & 1);
+      } else if (t < s1) {
+        h.state = 'slam';
+        h.y = h.top + (h.low - h.top) * ((t - 84) / h.slam) ** 2;
+      } else if (t < s2) {
+        h.state = 'down';
+        h.y = h.low;
+      } else {
+        h.state = 'rise';
+        h.y = Math.max(h.top, h.low - (t - s2) * 1.4);
+      }
+      if (h.state === 'down' && was === 'slam' && onScreen(h.x + h.w / 2, h.low, 0)) {
+        game.shake = Math.max(game.shake, 4);
+        sfx.land();
+        dust(h.x + h.w / 2, h.low + h.h, 4);
+      }
+      if (alive(p) && overlap(h, p)) damagePlayer(h.state === 'slam' || h.state === 'down' ? 8 : 3);
+    },
+    draw(h) {
+      const [c, stripe, dark] = CRUSHER_COLS[level.theme] || ['#8a92a8', '#f8c838', '#2a2c36'],
+        x = h.x - camX,
+        y = Math.round(h.y) - camY,
+        top = h.top - camY,
+        mid = x + h.w / 2;
+      // the piston rod down from the ceiling
+      R(mid - 3, top, 6, y - top + 1, dark);
+      R(mid - 2, top, 2, y - top, shade(c, 0.3));
+      // the head: steel with hazard stripes and teeth along its foot
+      R(x - 1, y - 1, h.w + 2, h.h + 2, '#0a0a12');
+      R(x, y, h.w, h.h, c);
+      R(x, y, h.w, 2, shade(c, 0.4));
+      R(x, y + h.h - 7, h.w, 3, stripe);
+      for (let i = 0; i < h.w; i += 6) R(x + i, y + h.h - 7, 3, 3, dark);
+      for (let i = 1; i < h.w - 2; i += 4) R(x + i, y + h.h - 4, 2, 4, shade(c, -0.35));
+      if (h.state === 'warn' && frameCount & 4) R(x, y + h.h, h.w, 1, 'rgba(255,255,255,0.5)');
+    },
+  },
+  // a liquid (lava, or acid in Toxaris's stage) that rises up a shaft once the player has climbed out of its pool:
+  // columns x..x1, from its pool at row y up to row y1 at `speed` pixels a frame, starting `delay` frames after the
+  // player leaves the pool (it rumbles meanwhile); touching it is death
+  rising: {
+    make: d => ({
+      x0: d.x * TILE,
+      x1: (d.x1 + 1) * TILE,
+      start: (d.y + 1) * TILE,
+      surface: (d.y + 1) * TILE,
+      top: d.y1 * TILE,
+      speed: d.speed || 0.4,
+      wait: d.delay || 0,
+      on: false,
+    }),
+    update(h, p) {
+      const inside = alive(p) && pcx() > h.x0 && pcx() < h.x1;
+      if (!h.on && inside && p.y + p.h < h.start - TILE) {
+        h.on = true;
+        sfx.rumble();
+        game.shake = Math.max(game.shake, 6);
+      }
+      if (h.on && h.wait > 0) h.wait--;
+      else if (h.on && h.surface > h.top) {
+        h.surface = Math.max(h.top, h.surface - h.speed);
+        if (frameCount % 50 === 0 && inside) sfx.rumble();
+      }
+      if (inside && p.y + p.h > h.surface + 5 && !hasPart('armor')) killPlayer(true);
+    },
+    draw(h) {
+      const [base, crest, foam] = LIQUID[level.theme] || ['#c83000', '#f8a800', '#f86018'],
+        x = h.x0 - camX,
+        w = h.x1 - h.x0,
+        y = Math.round(h.surface) - camY,
+        bot = h.start + TILE - camY;
+      if (y > VH || bot < 0) return;
+      R(x, y, w, bot - y, base);
+      for (let i = 0; i < w; i += 4) R(x + i, y + Math.round(Math.sin((frameCount + i * 3) * 0.12)), 4, 2, crest);
+      for (let i = 2; i < w; i += 9) R(x + i, y + 4 + (((frameCount >> 3) + i) % 6), 2, 2, foam);
+      glow(x + w / 2, y, w * 0.6, crest, 0.35);
+    },
+  },
+});
 function makeHazard(d) {
   if (HAZARD_KINDS[d.type]) return Object.assign({ kind: d.type }, HAZARD_KINDS[d.type].make(d));
   switch (d.type) {
@@ -2535,8 +2656,9 @@ function updateEnemyShots() {
             s.dead = true;
             break;
           }
-          const tx = s.back ? o.x + o.w / 2 : s.tx,
-            ty = s.back ? o.y + 6 : s.ty;
+          // it flies back to his throwing hand
+          const tx = s.back ? o.x + o.w / 2 + o.facing * 12 : s.tx,
+            ty = s.back ? o.y + 10 : s.ty;
           const dx = tx - (s.x + 7),
             dy = ty - (s.y + 7),
             d = Math.hypot(dx, dy) || 1,
@@ -2645,13 +2767,39 @@ function airborne(b) {
   physics(b);
 }
 
+// Voltrax's Volt Rush leaves an electric trail on the floor where he has dashed past (live only when he is enraged)
+Object.assign(ESHOT_KINDS, {
+  vtrail: {
+    pierce: true,
+    update(s) {
+      if (--s.life <= 0) s.dead = true;
+    },
+    draw(s, x, y) {
+      if (s.life < 8 && frameCount & 1) return; // flickering out
+      for (let i = 0; i < 2; i++)
+        drawBolt(
+          x + 1 + i * 5,
+          y + s.h,
+          x + 6 + i * 5,
+          y + 1 + ((frameCount + i) % 3),
+          frameCount + s.x + i * 5,
+          '#78d8fc',
+          1,
+          4,
+        );
+      glow(x + s.w / 2, y + s.h, 8, '#58b8f8', 0.35);
+    },
+  },
+});
+
 const BOSSES = {
   cut: {
     name: 'SNIPTOR',
     style: 'cut',
-    pal: { B: '#c83010', b: '#f8a878', S: SKIN },
+    pal: { B: '#a8183c', b: '#f8c858', S: SKIN },
     weapon: 'cut',
     weak: 'snow',
+    pose: (b, pose) => (b.state === 'stagger' ? 'hurt' : pose),
     update(b, enr) {
       switch (b.state) {
         case 'idle':
@@ -2673,8 +2821,8 @@ const BOSSES = {
             b.arm = 14;
             eshots.push({
               kind: 'bcutter',
-              x: bcx(b) - 7,
-              y: b.y - 6,
+              x: bcx(b) + b.facing * 12 - 7,
+              y: b.y + 3,
               w: 14,
               h: 14,
               tx: pcx(),
@@ -2708,8 +2856,8 @@ const BOSSES = {
             b.arm = 14;
             eshots.push({
               kind: 'bcutter',
-              x: bcx(b) - 7,
-              y: b.y - 6,
+              x: bcx(b) + b.facing * 12 - 7,
+              y: b.y + 3,
               w: 14,
               h: 14,
               tx: pcx(),
@@ -2730,9 +2878,10 @@ const BOSSES = {
   fire: {
     name: 'MAGMARON',
     style: 'fire',
-    pal: { B: '#c82800', b: '#f8f0e0', S: SKIN },
+    pal: { B: '#8c2c24', b: '#f8b040', S: SKIN },
     weapon: 'fire',
     weak: 'wind',
+    pose: (b, pose) => (b.state === 'stagger' ? 'hurt' : pose),
     update(b, enr) {
       const F = ROOM().floor;
       physics(b);
@@ -2826,13 +2975,71 @@ const BOSSES = {
     pal: { B: '#e89800', b: '#f8e070', S: SKIN },
     weapon: 'elec',
     weak: 'cut',
+    pose: (b, pose) => (b.state === 'stagger' ? 'hurt' : pose),
     update(b, enr) {
       const Rm = ROOM();
+      if (b.landT > 0) b.landT--; // the landing crouch after a leap
       switch (b.state) {
         case 'idle':
           faceP(b);
           physics(b);
-          if (b.t > (enr ? 16 : 30)) pick(b, ['beam', 'strike', 'leap']);
+          if (b.t > (enr ? 16 : 30)) pick(b, ['beam', 'strike', 'leap', 'slide']);
+          break;
+        case 'slide': // volt rush: crouches charging, then dashes low along the floor, leaving a live electric trail
+          if (b.t === 1) {
+            faceP(b);
+            sfx.rumble();
+          }
+          if (b.t < 22) {
+            if (b.t % 3 === 0) spark(bcx(b) + (Math.random() - 0.5) * 24, b.y + 8 + Math.random() * 14);
+            physics(b);
+            break;
+          }
+          if (b.t === 22) {
+            b.y += 10;
+            b.h = 14;
+            sfx.zap();
+          }
+          b.vx = b.facing * (enr ? 5 : 4.2);
+          if (b.t % 5 === 0)
+            eshots.push({
+              kind: 'vtrail',
+              x: bcx(b) - 6,
+              y: Rm.floor - 6,
+              w: 12,
+              h: 6,
+              // only live when he is enraged, and briefly: jumping over the dash must still be a safe dodge
+              harmless: !enr,
+              life: enr ? 26 : 18,
+              dmg: 2,
+              t: 0,
+              delay: 0,
+              big: true,
+            });
+          if (moveX(b, b.vx) || b.t > 130) {
+            b.y -= 10;
+            b.h = 24;
+            game.shake = 6;
+            sfx.land();
+            // enraged, the crash against the wall sends a ground spark back along the floor
+            if (enr)
+              eshots.push({
+                kind: 'gspark',
+                x: bcx(b) - 6 - b.facing * 12,
+                y: Rm.floor - 16,
+                w: 12,
+                h: 16,
+                vx: -b.facing * 3.2,
+                vy: 0,
+                dmg: 3,
+                t: 0,
+                delay: 0,
+                big: true,
+              });
+            bossToIdle(b);
+            break;
+          }
+          physics(b);
           break;
         case 'beam': // thunder beam: three bolts fanning upward so jumping over them is not a free escape
           physics(b);
@@ -2938,6 +3145,7 @@ const BOSSES = {
                   big: true,
                 });
             }
+            b.landT = 12;
             bossToIdle(b);
           }
           break;
@@ -2950,6 +3158,7 @@ const BOSSES = {
     pal: { B: '#2868d8', b: '#c8ecfc', S: SKIN },
     weapon: 'snow',
     weak: 'fire',
+    pose: (b, pose) => (b.state === 'stagger' ? 'hurt' : pose),
     update(b, enr) {
       const Rm = ROOM();
       switch (b.state) {
@@ -3048,8 +3257,10 @@ const BOSSES = {
     pal: { B: '#20a878', b: '#e8fcf4', S: SKIN },
     weapon: 'wind',
     weak: 'earth',
+    pose: (b, pose) => (b.state === 'stagger' ? 'hurt' : pose),
     update(b, enr) {
       const Rm = ROOM();
+      if (b.landT > 0) b.landT--; // the gust bursting out round her where she landed
       switch (b.state) {
         case 'idle':
           faceP(b);
@@ -3138,6 +3349,7 @@ const BOSSES = {
               game.shake = 6;
               sfx.land();
               dust(bcx(b), b.y + b.h, 4);
+              b.landT = 12;
               bossToIdle(b);
             }
           }
@@ -3151,8 +3363,10 @@ const BOSSES = {
     pal: { B: '#7a4a20', b: '#d8b070', S: SKIN },
     weapon: 'earth',
     weak: 'elec',
+    pose: (b, pose) => (b.state === 'stagger' ? 'hurt' : pose),
     update(b, enr) {
       const Rm = ROOM();
+      if (b.landT > 0) b.landT--; // the rock spikes bursting up where she landed
       switch (b.state) {
         case 'idle':
           faceP(b);
@@ -3181,6 +3395,7 @@ const BOSSES = {
                 delay: 0,
                 big: true,
               });
+            b.landT = 14;
             bossToIdle(b);
           }
           break;
@@ -3190,10 +3405,11 @@ const BOSSES = {
           if (b.t === 14) {
             b.arm = 14;
             sfx.rock();
+            // hurled from her rock fist
             eshots.push({
               kind: 'boulder',
-              x: bcx(b) - 8,
-              y: b.y - 10,
+              x: bcx(b) + b.facing * 14 - 8,
+              y: b.y + 2,
               w: 16,
               h: 16,
               vx: clamp((pcx() - bcx(b)) / 45, -3, 3),

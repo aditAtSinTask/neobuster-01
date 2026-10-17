@@ -2,7 +2,7 @@
 // NEOBUSTER — core: canvas, helpers, input, audio, music, text, sprite + glow primitives.
 
 // bump on every change (and add an entry to CHANGELOG.md)
-const VERSION = '1.13.1';
+const VERSION = '1.13.2';
 document.title = 'Neobuster v' + VERSION;
 
 const TILE = 16,
@@ -266,7 +266,8 @@ const GP_BTN = {
 };
 const kHeld = {},
   kLatch = {},
-  tHeld = {}; // held on the touch buttons
+  tHeld = {}, // held on the touch buttons
+  tLatch = {}; // pressed on the touch buttons since the last step (a press shorter than a frame still counts)
 const inp = {},
   hit = {},
   rel = {},
@@ -302,7 +303,7 @@ function pollInput() {
         break;
       }
   for (const a of ACTIONS) {
-    let v = !!(kHeld[a] || kLatch[a] || tHeld[a]);
+    let v = !!(kHeld[a] || kLatch[a]);
     if (gp) {
       for (const i of GP_BTN[a] || []) if (gp.buttons[i] && gp.buttons[i].pressed) v = true;
       const ax = gp.axes;
@@ -311,11 +312,15 @@ function pollInput() {
       if (a === 'up' && ax[1] < -0.5) v = true;
       if (a === 'down' && ax[1] > 0.5) v = true;
     }
+    // down on a keyboard or a gamepad only: jump while holding it slides (actors.js), but not with the touch d-pad,
+    // where a running thumb drifts down without meaning to (the touch screen has its own SLIDE button)
+    if (a === 'down') inp.downKey = v;
+    v = v || !!(tHeld[a] || tLatch[a]);
     hit[a] = v && !prevInp[a];
     rel[a] = !v && !!prevInp[a];
     inp[a] = v;
     prevInp[a] = v;
-    kLatch[a] = false;
+    kLatch[a] = tLatch[a] = false;
   }
 }
 

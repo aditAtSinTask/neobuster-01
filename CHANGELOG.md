@@ -2,6 +2,14 @@
 
 Semua perubahan NEOBUSTER, versi terbaru di atas. Versi ditulis di konstanta `VERSION` di `js/core/engine.js`.
 
+## 1.13.2
+
+- **Perbaikan: di HP, JUMP kadang malah menjadi slide.**
+  - Penyebab: di game ini, lompat sambil menahan bawah berarti slide (kombinasi keyboard ala Mega Man X). D-pad sentuh membagi 8 arah sama lebar (45°), jadi ibu jari yang menahan kanan sedikit miring ke bawah (lebih dari 22,5°) terbaca kanan + bawah, dan JUMP berubah menjadi slide.
+  - Sekarang kombinasi bawah + lompat untuk slide hanya berlaku di keyboard dan gamepad. Di layar sentuh JUMP selalu melompat, dan slide lewat tombol SLIDE.
+  - Arah kiri dan kanan di D-pad diperlebar menjadi 70° (atas dan bawah 50°, diagonal 30°), jadi ibu jari yang miring sedikit saat berlari tetap terbaca kiri atau kanan saja.
+  - Tombol bulat JUMP, SHOOT, dan SLIDE dibaca sesuai lingkarannya, bukan kotaknya. Ibu jari yang menekan sebuah tombol tetap dihitung di tombol itu sampai benar-benar bergeser keluar (16 px dari tepinya), jadi tidak berpindah ke SLIDE saat menekan JUMP.
+
 ## 1.13.1
 
 - **Harga Shop disesuaikan lagi**, supaya part yang paling memudahkan permainan jadi tujuan jangka panjang:

@@ -1449,7 +1449,7 @@ function updatePlayer() {
       applyGravity(p);
       handleShoot(p, false);
       if (frameCount % 6 === 0) dust(p.x + p.w / 2 - p.facing * 6, p.y + p.h, 1);
-      if (p.jumpBuf > 0 && !inp.down && headroom(p) && p.onGround) {
+      if (p.jumpBuf > 0 && !inp.downKey && headroom(p) && p.onGround) {
         standUp(p);
         p.state = 'normal';
         doJump();
@@ -1539,7 +1539,8 @@ function updatePlayer() {
   }
   if (dir) p.facing = dir;
   runTo(dir * (sand ? 0.6 : 1.4), 0.05);
-  if (p.onGround && !sand && (hit.slide || (p.jumpBuf > 0 && inp.down))) {
+  // a slide: the slide button, or jump while holding down on a keyboard or a gamepad (not the touch d-pad)
+  if (p.onGround && !sand && (hit.slide || (p.jumpBuf > 0 && inp.downKey))) {
     p.jumpBuf = 0;
     startSlide(p);
     return;

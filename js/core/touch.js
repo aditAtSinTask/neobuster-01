@@ -5,7 +5,8 @@
 // on the game's screens still read right. Several fingers work at once, the d-pad has 8 directions, and a thumb can
 // slide from one button to the next. On a phone held upright the game sits at the top and the buttons below it. A key
 // on a real keyboard hides the buttons again; the next touch brings them back. The Cloud Save form types through the
-// phone's own keyboard: tapping a field focuses a hidden text box.
+// phone's own keyboard: tapping a field focuses a hidden text box. Down on the d-pad never turns a jump into a slide
+// (that is the keyboard's down + jump; here SLIDE has its own button).
 
 const TOUCH_BUTTONS = [
   { a: 'jump', label: 'JUMP', key: 'Z', cls: 'big jump' },
@@ -164,29 +165,37 @@ function touchShow(on) {
   }
 }
 
+// a finger at (x, y) on a button, or up to `slack` pixels past its edge: the round buttons (JUMP, SHOOT, SLIDE) by
+// their circle, so a press in the corner between two of them belongs to neither
+function touchInside(el, x, y, slack) {
+  const q = el.getBoundingClientRect();
+  if (el.classList.contains('big') || el.classList.contains('mid')) {
+    const r = q.width / 2;
+    return Math.hypot(x - (q.left + r), y - (q.top + r)) <= r + slack;
+  }
+  return x >= q.left - slack && x <= q.right + slack && y >= q.top - slack && y <= q.bottom + slack;
+}
 // what a finger at (x, y) is on: a button, an extra (mute, full screen), the d-pad (a little past its rim), or nothing
 function touchZone(x, y) {
-  const inside = el => {
-    const q = el.getBoundingClientRect();
-    return x >= q.left - 6 && x <= q.right + 6 && y >= q.top - 6 && y <= q.bottom + 6;
-  };
+  const inside = el => touchInside(el, x, y, 6);
   const b = touchUI.buttons.find(b => inside(b.el)) || touchUI.extras.find(b => inside(b.el));
   if (b) return b;
   const d = touchUI.dpad.getBoundingClientRect(),
     r = d.width / 2;
   return Math.hypot(x - (d.left + r), y - (d.top + r)) <= r * 1.12 ? 'dpad' : null;
 }
-// the d-pad's directions for a finger at (x, y): 8 sectors of 45 degrees round its centre, none in the middle
+// the d-pad's directions for a finger at (x, y), none in the middle: left and right take 70 degrees each, since a
+// thumb running on the d-pad drifts up or down without meaning to; up and down take 50, the four diagonals 30
 function touchDirs(x, y) {
   const d = touchUI.dpad.getBoundingClientRect(),
     r = d.width / 2,
     dx = x - (d.left + r),
     dy = y - (d.top + r);
   if (Math.hypot(dx, dy) < r * 0.18) return {};
-  const m = ((Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) % 8) + 8) % 8; // 0 right, 2 down, 4 left, 6 up
-  return { right: m === 7 || m <= 1, down: m >= 1 && m <= 3, left: m >= 3 && m <= 5, up: m >= 5 && m <= 7 };
+  const a = (Math.atan2(dy, dx) * 180) / Math.PI; // 0 right, 90 down, 180 or -180 left, -90 up
+  return { right: Math.abs(a) < 65, left: Math.abs(a) > 115, down: a > 35 && a < 145, up: a < -35 && a > -145 };
 }
-// the actions every finger holds: into tHeld (a press shorter than a frame still counts, through kLatch)
+// the actions every finger holds: into tHeld (a press shorter than a frame still counts, through tLatch)
 function touchUpdate() {
   const now = {};
   for (const T of touchUI.touches.values()) {
@@ -194,7 +203,7 @@ function touchUpdate() {
     else if (T.zone && T.zone.a) now[T.zone.a] = true;
   }
   for (const a of ACTIONS) {
-    if (now[a] && !tHeld[a]) kLatch[a] = true;
+    if (now[a] && !tHeld[a]) tLatch[a] = true;
     tHeld[a] = !!now[a];
   }
   for (const b of touchUI.buttons) b.el.classList.toggle('on', !!now[b.a]);
@@ -229,8 +238,9 @@ document.addEventListener(
       used = true;
       T.x = t.clientX;
       T.y = t.clientY;
-      // a finger on the d-pad keeps steering it; one on a button can slide onto the next button
-      if (T.zone !== 'dpad') {
+      // a finger on the d-pad keeps steering it; one on a button stays on it until it is well off it (a thumb rolls a
+      // little as it presses), and can then slide onto the next button
+      if (T.zone !== 'dpad' && !(T.zone && touchInside(T.zone.el, T.x, T.y, 16))) {
         const z = touchZone(T.x, T.y);
         T.zone = z && z !== 'dpad' && z.a ? z : null;
       }

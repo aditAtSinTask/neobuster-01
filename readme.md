@@ -2,7 +2,7 @@
 
 > Game action-platformer 2D bergaya **Mega Man** untuk browser — pixel art dengan kepadatan pixel 2x yang detail, tapi tetap ringan dan optimal untuk web.
 
-**Versi saat ini: `1.13.1`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
+**Versi saat ini: `1.13.2`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
 
 ---
 
@@ -79,6 +79,9 @@ Game mendeteksi layar sentuh dengan sendirinya: di HP dan tablet muncul tombol s
 - **Landscape**: game memenuhi tinggi layar; D-pad di kiri bawah, JUMP / SHOOT / SLIDE di kanan bawah, ganti senjata, BACK, START, MUTE, dan FULL (layar penuh, kalau browser mendukung) di sisi kiri dan kanan.
 - **Portrait**: game di atas dan tombol di bawahnya, seperti konsol genggam.
 - Beberapa jari bisa dipakai bersamaan, D-pad membaca 8 arah, dan ibu jari bisa digeser dari satu tombol ke tombol lain (misalnya dari SHOOT ke JUMP).
+  - Arah kiri dan kanan di D-pad lebih lebar (70°) daripada atas dan bawah, jadi ibu jari yang sedikit turun atau naik saat berlari tetap terbaca kiri atau kanan saja.
+  - Di layar sentuh, slide hanya lewat tombol SLIDE: menekan JUMP selalu melompat, walaupun D-pad sedang tertekan ke bawah. Kombinasi `↓` + lompat untuk slide hanya berlaku di keyboard dan gamepad.
+  - Tombol bulat (JUMP, SHOOT, SLIDE) dibaca sesuai lingkarannya, dan ibu jari yang sedikit bergeser saat menekan tetap dihitung di tombol yang sama.
 - **Cloud Save** di HP: ketuk kolom USERNAME atau PASSWORD untuk memunculkan keyboard HP, lalu START untuk masuk dan BACK untuk kembali.
 - Menekan tombol di keyboard fisik menyembunyikan tombol sentuh; sentuhan berikutnya memunculkannya lagi.
 - Cheat box (`P` + `O`) hanya bisa dibuka dengan keyboard.

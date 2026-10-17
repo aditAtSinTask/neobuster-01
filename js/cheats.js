@@ -29,6 +29,13 @@ const CHEATS = {
     sfx.oneup();
     return [true, was ? 'ILMU KEBAL SUDAH AKTIF - HP PENUH!' : 'ILMU KEBAL! HP X10 + HP PENUH'];
   },
+  AKUABADI() {
+    // unlimited lives until back to the title: dying goes back to the checkpoint without losing a life
+    const was = game.infLives;
+    game.infLives = true;
+    sfx.oneup();
+    return [true, was ? 'AKU ABADI SUDAH AKTIF' : 'AKU ABADI! LIFE TAK TERBATAS'];
+  },
   INGATANKUAT() {
     saveSnapshot();
     sfx.confirm();

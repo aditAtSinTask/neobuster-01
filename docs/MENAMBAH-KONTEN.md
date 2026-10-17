@@ -39,12 +39,12 @@ File benua cukup mengisi tabel dan **registry** yang sudah ada dengan `Object.as
 
 ### Data stage (`js/levels.js`)
 
-| Tabel             | Isi                                                                          |
-| ----------------- | ---------------------------------------------------------------------------- |
-| `STAGES[k]`       | `name`, `title`, `theme`, `music`, `ambient`, `color`                        |
-| `LAYOUTS[k](B)`   | layout level 300 × 44 tile, diakhiri `bossRoom(B, DOOR_COL, theme)`          |
-| `ENEMY_COLORS[k]` | warna musuh umum (met, flyer, hopper, turret) di stage ini                   |
-| `BOSS_ROOMS[k]`   | opsional: gimmick ruang boss, `(B, dc) => { ... }` (`dc` = kolom pintu boss) |
+| Tabel             | Isi                                                                                                                                                                                                                                   |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `STAGES[k]`       | `name` (nama boss), `place` (tempat stage, paling banyak 18 huruf, tampil di Stage Select), `intro` (kalimat perkenalan boss tanpa menyebut gender, tampil di layar intro dan saat boss muncul), `theme`, `music`, `ambient`, `color` |
+| `LAYOUTS[k](B)`   | layout level 300 × 44 tile, diakhiri `bossRoom(B, DOOR_COL, theme)`                                                                                                                                                                   |
+| `ENEMY_COLORS[k]` | warna musuh umum (met, flyer, hopper, turret) di stage ini                                                                                                                                                                            |
+| `BOSS_ROOMS[k]`   | opsional: gimmick ruang boss, `(B, dc) => { ... }` (`dc` = kolom pintu boss)                                                                                                                                                          |
 
 ### Gambar (`js/art.js`, karakter di `js/chars.js`)
 
@@ -64,14 +64,14 @@ File benua cukup mengisi tabel dan **registry** yang sudah ada dengan `Object.as
 
 ### Senjata, boss, musuh (`js/actors.js`)
 
-| Tabel / registry     | Isi                                                                                                                                                                  |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `WEAPONS[k]`         | `name`, `short`, `pal`, `glow`, `desc`, `charged`, `demo`, plus `fire(p)`, `charge(p)` (kembalikan `false` kalau tidak bisa menembak), dan `ultra(p)`                |
-| `SHOT_KINDS[kind]`   | proyektil pemain: `update(s)`, `draw(s, x, y)`, opsional `offscreen: true` (tidak dihapus saat keluar layar)                                                         |
-| `BOSSES[k]`          | `name`, `style`, `pal`, `weapon: k`, `weak`, `update(b, enraged)`, opsional `tick(b)`, `pose(b, pose)`, `draw(b, sx, sy)`, `drawBehind(b, sx, sy)`                   |
-| `ESHOT_KINDS[kind]`  | proyektil musuh/boss: opsional `update(s)` (tanpa ini bergerak lurus dengan `vx`/`vy`), `draw(s, x, y)`, opsional `pierce: true` (tidak hilang saat mengenai pemain) |
-| `HAZARD_KINDS[type]` | hazard: `make(d)`, `update(h, p)`, `draw(h)`; pasang di layout dengan `B.add(type, x, y, {...})`                                                                     |
-| `EN[name]`           | musuh (lihat [Menambah musuh](#menambah-musuh))                                                                                                                      |
+| Tabel / registry     | Isi                                                                                                                                                                                                                                                    |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `WEAPONS[k]`         | `name`, `short`, `pal`, `glow`, `desc`, `charged`, `demo`, opsional `lit: true` (senjata bercahaya: tembakannya menerangi stage gelap dengan warna `glow`), plus `fire(p)`, `charge(p)` (kembalikan `false` kalau tidak bisa menembak), dan `ultra(p)` |
+| `SHOT_KINDS[kind]`   | proyektil pemain: `update(s)`, `draw(s, x, y)`, opsional `offscreen: true` (tidak dihapus saat keluar layar)                                                                                                                                           |
+| `BOSSES[k]`          | `name`, `style`, `pal`, `weapon: k`, `weak`, `update(b, enraged)`, opsional `tick(b)`, `pose(b, pose)`, `draw(b, sx, sy)`, `drawBehind(b, sx, sy)`                                                                                                     |
+| `ESHOT_KINDS[kind]`  | proyektil musuh/boss: opsional `update(s)` (tanpa ini bergerak lurus dengan `vx`/`vy`), `draw(s, x, y)`, opsional `pierce: true` (tidak hilang saat mengenai pemain)                                                                                   |
+| `HAZARD_KINDS[type]` | hazard: `make(d)`, `update(h, p)`, `draw(h)`; pasang di layout dengan `B.add(type, x, y, {...})`                                                                                                                                                       |
+| `EN[name]`           | musuh (lihat [Menambah musuh](#menambah-musuh))                                                                                                                                                                                                        |
 
 ### Lagu (`js/engine.js`)
 

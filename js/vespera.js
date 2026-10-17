@@ -7,7 +7,8 @@
 Object.assign(STAGES, {
   hydro: {
     name: 'HYDROS',
-    title: 'MANUSIA AIR',
+    place: 'BENDUNGAN',
+    intro: 'MENGENDALIKAN ARUS DAN GELOMBANG',
     theme: 'hydro',
     music: 'hydro',
     ambient: 'droplets',
@@ -15,7 +16,8 @@ Object.assign(STAGES, {
   },
   toxic: {
     name: 'TOXARIS',
-    title: 'MANUSIA RACUN',
+    place: 'PABRIK LIMBAH',
+    intro: 'MENYEBARKAN RACUN DARI PABRIKNYA',
     theme: 'toxic',
     music: 'toxic',
     ambient: 'spores',
@@ -23,22 +25,40 @@ Object.assign(STAGES, {
   },
   shadow: {
     name: 'UMBRION',
-    title: 'MANUSIA BAYANGAN',
+    place: 'BENTENG GELAP',
+    intro: 'BERSEMBUNYI DI BALIK KEGELAPAN',
     theme: 'shadow',
     music: 'shadow',
     ambient: 'motes',
     color: '#a878e8',
   },
-  sonic: { name: 'SONIQUE', title: 'WANITA SUARA', theme: 'sonic', music: 'sonic', ambient: 'notes', color: '#f878c8' },
+  sonic: {
+    name: 'SONIQUE',
+    place: 'PANGGUNG AWAN',
+    intro: 'SUARANYA MENGGETARKAN PANGGUNG',
+    theme: 'sonic',
+    music: 'sonic',
+    ambient: 'notes',
+    color: '#f878c8',
+  },
   light: {
     name: 'LUMINA',
-    title: 'WANITA CAHAYA',
+    place: 'ISTANA KRISTAL',
+    intro: 'MEMECAH CAHAYA MENJADI LASER',
     theme: 'light',
     music: 'light',
     ambient: 'sparkle',
     color: '#fcf0a8',
   },
-  time: { name: 'CHRONIA', title: 'WANITA WAKTU', theme: 'time', music: 'time', ambient: 'dust', color: '#e8b868' },
+  time: {
+    name: 'CHRONIA',
+    place: 'MENARA JAM',
+    intro: 'MENGHENTIKAN WAKTU SESUKANYA',
+    theme: 'time',
+    music: 'time',
+    ambient: 'dust',
+    color: '#e8b868',
+  },
 });
 Object.assign(ENEMY_COLORS, {
   hydro: {
@@ -948,15 +968,38 @@ Object.assign(AMBIENTS, {
 });
 
 // ================= DARKNESS (Umbrion's castle) =================
-// Everything is dark except a pool of light around the player, burning torches and the player's own shots.
+// Everything is dark except a pool of light around the player, burning torches and the player's own shots. Light
+// weapons (WEAPONS[k].lit: Fire Storm, Thunder Beam, Prism Laser) light up much more: holding one widens the player's
+// light (more while charging and right after a shot), their shots light up the dark around them in their own colour,
+// and the supernova floods the whole castle with light.
 let _dark = null;
+// the lights a player shot gives: [x, y, radius, colour] in the world
+function shotLights(s) {
+  const w = WEAPONS[s.weapon];
+  if (s.delay > 0) return [];
+  if (!(w && w.lit)) return [[s.x + s.w / 2, s.y + s.h / 2, 26]];
+  const col = s.col || w.glow;
+  if (s.kind === 'supernova') return [[s.x, s.y, s.r + 60, col]];
+  if (!s.w || !s.h) return []; // the thunder god only aims, its bolts give the light
+  // a long shot (a beam, a pillar, a bolt from the sky) is lit all along its length
+  const long = Math.max(s.w, s.h),
+    r = (40 + Math.min(s.w, s.h) / 2 + Math.min(long, 40) / 2) * (s.ultra ? 1.5 : s.charged ? 1.25 : 1),
+    n = Math.max(1, Math.round(long / 40)),
+    out = [];
+  for (let i = 0; i < n; i++) {
+    const t = (i + 0.5) / n;
+    out.push(s.w >= s.h ? [s.x + s.w * t, s.y + s.h / 2, r, col] : [s.x + s.w / 2, s.y + s.h * t, r, col]);
+  }
+  return out;
+}
 POST_FX.shadow = () => {
   if (!_dark) _dark = makeCanvas(VW * 2, VH * 2);
-  const g = _dark.getContext('2d');
+  const g = _dark.getContext('2d'),
+    flood = Math.max(0, ...pshots.filter(s => s.kind === 'supernova').map(s => Math.min(1, s.life / 20)));
   g.setTransform(2, 0, 0, 2, 0, 0);
   g.globalCompositeOperation = 'source-over';
   g.clearRect(0, 0, VW, VH);
-  g.fillStyle = 'rgba(4,2,12,0.9)';
+  g.fillStyle = `rgba(4,2,12,${0.9 * (1 - flood * 0.8)})`;
   g.fillRect(0, 0, VW, VH);
   g.globalCompositeOperation = 'destination-out';
   const hole = (x, y, r) => {
@@ -968,12 +1011,26 @@ POST_FX.shadow = () => {
     g.arc(x, y, r, 0, 7);
     g.fill();
   };
-  if (alive(player)) hole(pcx() - camX, pcy() - camY, 70 + Math.sin(frameCount * 0.1) * 3);
+  const tints = [], // coloured light on top: [x, y, radius, colour] on screen
+    w = WEAPONS[player.weapon];
+  if (alive(player)) {
+    let r = 70 + Math.sin(frameCount * 0.1) * 3;
+    if (w.lit) {
+      r += 20 + Math.min(player.charge || 0, 75) * 0.4 + (player.shootT > 0 ? 14 : 0);
+      tints.push([pcx() - camX, pcy() - camY, r * 0.8, w.glow]);
+    }
+    hole(pcx() - camX, pcy() - camY, r);
+  }
   for (const h of hazards)
     if (h.kind === 'torch') hole(h.x - camX, h.y - camY, 64 + Math.sin(frameCount * 0.2 + h.x) * 4);
-  for (const s of pshots) hole(s.x + s.w / 2 - camX, s.y + s.h / 2 - camY, 26);
+  for (const s of pshots)
+    for (const [x, y, r, col] of shotLights(s)) {
+      hole(x - camX, y - camY, r);
+      if (col) tints.push([x - camX, y - camY, r * 0.7, col]);
+    }
   if (boss && boss.hp > 0) hole(bcx(boss) - camX, boss.y + 12 - camY, 34); // the boss's violet eyes give it away
   ctx.drawImage(_dark, 0, 0, VW, VH);
+  for (const [x, y, r, col] of tints) glow(x, y, Math.max(8, Math.round(r / 8) * 8), col, 0.2);
 };
 
 // ================= HAZARDS =================
@@ -1730,6 +1787,7 @@ Object.assign(WEAPONS, {
     short: 'P.LASER',
     pal: { B: '#e8c848', b: '#fcf8e0', S: SKIN },
     glow: '#fcf0a8',
+    lit: true,
     desc: 'LASER YANG MEMANTUL DI DINDING',
     charged: 'SPECTRUM',
     demo: { kind: 'prism', w: 12, h: 4, vx: 1 },

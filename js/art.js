@@ -86,14 +86,29 @@ function drawWeaponIcon(kind, x, y, s = 1) {
     case 'buster':
       sprite(0, 0, 1, 10, [[1, 2, 8, 6, '#3cbcfc']], [[3, 3, 4, 3, '#fcfcfc']]);
       break;
-    case 'cut': {
-      // a still R. Cutter (main.js)
-      const sm = ctx.imageSmoothingEnabled;
-      ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(cutterBitmap(Math.round(10 * s * 2), 0), 0, 0, 10, 10);
-      ctx.imageSmoothingEnabled = sm;
+    case 'cut': // the R. Cutter: four crimson blades turning round a silver hub, gold on their tips
+      sprite(
+        0,
+        0,
+        1,
+        10,
+        [
+          [4, 0, 4, 3, '#c81840'],
+          [7, 4, 3, 4, '#c81840'],
+          [2, 7, 4, 3, '#c81840'],
+          [0, 2, 3, 4, '#c81840'],
+          [3, 3, 4, 4, '#c8ccd8'],
+        ],
+        [
+          [6, 0, 2, 1, '#f8c858'],
+          [9, 6, 1, 2, '#f8c858'],
+          [2, 9, 2, 1, '#f8c858'],
+          [0, 2, 1, 2, '#f8c858'],
+          [4, 4, 2, 2, '#f8c858'],
+          [4, 4, 1, 1, '#fcfcfc'],
+        ],
+      );
       break;
-    }
     case 'fire':
       sprite(
         0,

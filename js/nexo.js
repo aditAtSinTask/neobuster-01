@@ -58,6 +58,9 @@ const NEXO_POSES = {
   jumpF: { legs: { b: [-8, -24, -15], f: [34, 4, -5] }, arms: { b: [-72, -42], f: [96, 120] }, air: true },
   // the dash: low and leaning far forward, the back leg stretched out behind
   slide: { legs: { b: [-74, -96, -20], f: [78, 6, 0] }, arms: { b: [-60, -20], f: [40, 90] }, lean: 30, dx: 1 },
+  // the air dash (shop part): flying level and leaning far forward, the back leg stretched out behind, the front knee
+  // tucked up, the arms swept back
+  dash: { legs: { b: [-66, -92, -24], f: [84, 20, 6] }, arms: { b: [-90, -70], f: [-60, -30] }, lean: 36, air: true },
   // knocked back: arched, arms flung out
   hurt: {
     legs: { b: [-30, -8, 10], f: [26, 36, 10] },
@@ -88,6 +91,7 @@ function nexoFrame(pose, fr, arm, big) {
   if (pose === 'action' || (big && arm)) return nexoPose('action', () => P.action);
   if (pose === 'hurt') return nexoPose('hurt', () => P.hurt);
   if (pose === 'slide') return arm ? nexoPose('slideG', () => withGun(P.slide)) : nexoPose('slide', () => P.slide);
+  if (pose === 'dash') return arm ? nexoPose('dashG', () => withGun(P.dash)) : nexoPose('dash', () => P.dash);
   if (pose === 'climb') {
     if (arm) return nexoPose('climbG', () => Object.assign({}, P.shoot, { legs: { b: [-6, -2, 0], f: [56, -10, 0] } }));
     const i = fr % 4;

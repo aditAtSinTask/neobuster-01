@@ -2,6 +2,16 @@
 
 Semua perubahan NEOBUSTER, versi terbaru di atas. Versi ditulis di konstanta `VERSION` di `js/engine.js`.
 
+## 1.5.0
+
+- **Perkenalan boss tanpa gender**: label seperti "Manusia Air" atau "Wanita Bayangan" diganti. Stage Select menampilkan nama tempat stage (mis. BENDUNGAN, BENTENG GELAP), dan layar intro stage serta saat boss muncul menampilkan kalimat perkenalan boss (mis. HYDROS: "MENGENDALIKAN ARUS DAN GELOMBANG").
+- **Ikon R. Cutter digambar ulang** dengan gaya kotak-kotak yang sama dengan ikon senjata lain: empat bilah merah berputar di poros perak dengan ujung emas.
+- **Cheat `AKUABADI`**: life tak terbatas. Mati tidak mengurangi life (kembali ke checkpoint), dan HUD serta menu pause menampilkan **LIFE ∞**. Aktif sampai kembali ke title.
+- **Senjata bercahaya menerangi benteng gelap Umbrion**: memegang Fire Storm, Thunder Beam, atau Prism Laser memperluas cahaya di sekitarmu (makin terang saat charge dan sesaat setelah menembak). Tembakannya menerangi sekitarnya dengan warnanya sendiri (bola dan pilar api oranye, petir kuning, laser pelangi), dan Supernova menerangi seluruh benteng selama cincinnya meluas.
+- **Part baru di Shop (tab GERAK)**:
+  - **Air Dash** (12.000 POIN): tekan slide saat di udara untuk dash mendatar, sekali per lompatan. Nexo condong ke depan dengan semburan jet dari sepatunya dan dua bayangan yang mengikuti. Bisa sambil menembak; dash berhenti di dinding atau saat kamu menekan arah sebaliknya.
+  - **Turbo** (9.000 POIN): slide dan Air Dash 3x lebih lama.
+
 ## 1.4.0
 
 - **Peta dunia dengan pulau yang alami**: setiap benua sekarang pulau sungguhan dengan garis pantai yang berlekuk (teluk dan tanjung), air dangkal dan ombak yang bergerak di sepanjang pantai, pasir, padang rumput dengan rumput dan bunga, hutan, sungai yang mengalir dari pegunungan, gunung bersalju, dan landmark tiap stage di tempat boss-nya berdiri.

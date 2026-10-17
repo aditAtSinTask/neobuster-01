@@ -31,6 +31,9 @@ const continentUnlocked = i => i === 0 || continentCleared(i - 1);
 const IN_STAGE = ['ready', 'play', 'pause', 'door', 'bossintro'];
 const IN_GAME = ['map', 'select', 'intro', ...IN_STAGE, 'clear', 'weaponget'];
 
+// the lives shown in the HUD and the pause menu (cheat AKUABADI: unlimited)
+const livesText = () => (game.infLives ? '\u221e' : String(Math.max(0, game.lives)));
+
 // save point (cheat INGATANKUAT): lives, score, weapon and, inside a stage, the stage + checkpoint
 function saveSnapshot() {
   const inStage = IN_STAGE.includes(game.state);
@@ -134,6 +137,8 @@ function restartFromCheckpoint() {
     shieldAng: 0,
     anim: 0,
     slideT: 0,
+    dashT: 0,
+    airDashed: false,
     hurtT: 0,
     plat: null,
     jumpBuf: 0,
@@ -235,7 +240,7 @@ function updatePlay() {
 
   if (!alive(player)) {
     if (++game.deadT > 210) {
-      game.lives--;
+      if (!game.infLives) game.lives--; // cheat AKUABADI: no life is lost
       if (game.lives < 0) {
         game.state = 'gameover';
         game.t = 0;
@@ -329,6 +334,14 @@ const SHOP = [
   { key: 'boots', cat: 'move', name: 'BOOTS ANTI DURI', price: 8000, desc: 'JALAN DI ATAS DURI TANPA MATI' },
   { key: 'jet', cat: 'move', name: 'JETPACK', price: 10000, desc: 'LOMPAT 1.6X LEBIH TINGGI' },
   { key: 'windproof', cat: 'move', name: 'ANTI ANGIN', price: 10000, desc: 'TIDAK TERDORONG BADAI, FANBOT, ATAU BOSS' },
+  {
+    key: 'airdash',
+    cat: 'move',
+    name: 'AIR DASH',
+    price: 12000,
+    desc: 'TEKAN SLIDE DI UDARA: DASH SEKALI PER LOMPATAN',
+  },
+  { key: 'turbo', cat: 'move', name: 'TURBO', price: 9000, desc: 'SLIDE DAN AIR DASH 3X LEBIH LAMA' },
   { key: 'armor', cat: 'guard', name: 'ARMOR ANTI API', price: 8000, desc: 'MASUK DAN JALAN DI LAVA TANPA MATI' },
   { key: 'core', cat: 'guard', name: 'CORE', price: 6000, desc: 'KEBAL 5X LEBIH LAMA SETELAH KENA HIT' },
   { key: 'shield', cat: 'guard', name: 'SHIELD', price: 12000, desc: '2 PERISAI - YANG KENA HIT HILANG 10 DETIK' },
@@ -443,7 +456,7 @@ function step() {
       }
       if (go) {
         sfx.confirm();
-        game.tough = false;
+        game.tough = game.infLives = false;
         if (save.snap && game.menu === 0) continueGame();
         else {
           game.lives = 2;
@@ -1615,6 +1628,7 @@ function drawPlayer() {
   let pose = 'stand',
     fr = 0;
   if (p.state === 'slide' || p.h < 22) pose = 'slide';
+  else if (p.state === 'dash') pose = 'dash';
   else if (p.state === 'climb') {
     pose = 'climb';
     fr = (p.anim >> 3) & 3; // four climbing frames
@@ -1637,16 +1651,34 @@ function drawPlayer() {
   else if (p.charge >= 75) pal = (frameCount >> 2) & 1 ? (special ? w.full : PAL_FULL) : wp;
   else if (p.charge >= 30) pal = (frameCount >> 3) & 1 ? (special ? w.full : PAL_MID) : wp;
 
+  if (pose === 'dash') {
+    // the air dash: two afterimages trail behind (once there is room for them) and a jet roars out of the back boot
+    const ox = sx + p.w / 2 - 12,
+      oy = sy + p.h - 24,
+      run = (dashTime(DASH_T) - p.dashT) * 2.6;
+    ctx.globalAlpha = 0.3;
+    for (let i = 2; i >= 1; i--)
+      if (run >= i * 10) drawRobot(ox - p.facing * i * 10, oy, p.facing, 'dash', 0, false, wp);
+    ctx.globalAlpha = 1;
+    const len = 5 + (frameCount & 3),
+      hx = p.facing > 0 ? ox + 2 : ox + 22,
+      fy = oy + 17;
+    R(p.facing > 0 ? hx - len : hx, fy - 1, len, 3, '#3cbcfc');
+    R(p.facing > 0 ? hx - len + 2 : hx, fy, len - 2, 1, '#fcfcfc');
+    glow(hx - p.facing * 3, fy, 10, '#3cbcfc', 0.7);
+  }
   if (hasPart('jet') && pose !== 'slide') {
-    // jetpack on the back, flaming while rising
-    const bx = p.facing > 0 ? sx - 3 : sx + 9;
-    R(bx, sy + 7, 6, 10, '#0a0a16');
-    R(bx + 1, sy + 8, 4, 8, '#8a8a9a');
-    R(bx + 1, sy + 8, 1, 8, '#c8c8d8');
+    // jetpack on the back, flaming while rising (in the air dash it follows the back leaning forward)
+    const lean = pose === 'dash' ? 2 : 0,
+      bx = (p.facing > 0 ? sx - 3 : sx + 9) + p.facing * lean,
+      by = sy + lean;
+    R(bx, by + 7, 6, 10, '#0a0a16');
+    R(bx + 1, by + 8, 4, 8, '#8a8a9a');
+    R(bx + 1, by + 8, 1, 8, '#c8c8d8');
     if (!p.onGround && p.vy < 0) {
-      R(bx + 1, sy + 17, 4, 3 + (frameCount & 2), '#f8a800');
-      R(bx + 2, sy + 17, 2, 2, '#fcf8c0');
-      glow(bx + 3, sy + 19, 8, '#f86000', 0.6);
+      R(bx + 1, by + 17, 4, 3 + (frameCount & 2), '#f8a800');
+      R(bx + 2, by + 17, 2, 2, '#fcf8c0');
+      glow(bx + 3, by + 19, 8, '#f86000', 0.6);
     }
   }
   drawRobot(
@@ -1839,7 +1871,7 @@ function drawHUD() {
   if (game.bossLocked) drawBar(26, 12, boss ? (game.state === 'bossintro' ? game.bossBar : boss.hp) : 0, '#f87858');
   if (game.bossLocked && boss && boss.hp > 0) drawWeakness();
   text(String(game.score).padStart(7, '0'), VW - 8, 8, '#fcfcfc', 1, 'right');
-  text('LIFE ' + Math.max(0, game.lives), VW - 8, 20, '#a8c8f8', 1, 'right');
+  text('LIFE ' + livesText(), VW - 8, 20, game.infLives ? '#f8d800' : '#a8c8f8', 1, 'right');
   SHOP.filter(it => hasPart(it.key))
     .slice(0, 14)
     .forEach((it, i) => drawPartIcon(it.key, VW - 22 - i * 16, 32));
@@ -2383,7 +2415,7 @@ function drawSelect() {
     text(st.name, px + 44, py + 16, cleared ? '#888898' : '#fcfcfc');
     drawWeaponIcon(k, px + 44, py + 30);
     text(WEAPONS[k].short, px + 58, py + 32, cleared ? '#686878' : '#a8a8b8');
-    text(st.title, px + PW / 2, py + 56, cleared ? '#686878' : st.color, 1, 'center');
+    text(st.place, px + PW / 2, py + 56, cleared ? '#686878' : st.color, 1, 'center');
     if (cleared) text('CLEAR', px + PW - 4, py + 4, '#f8d800', 1, 'right');
     if (game.sel === i && (frameCount >> 3) & 1) {
       ctx.strokeStyle = '#f8d800';
@@ -2515,6 +2547,53 @@ function drawPartIcon(key, x, y) {
         [
           [6, 1, 2, 1, '#1a1c24'],
           [6, 3, 1, 7, '#c8d4ec'],
+        ],
+      );
+      break;
+    case 'airdash': // a winged boot
+      sprite(
+        x,
+        y,
+        1,
+        14,
+        [
+          [6, 1, 5, 7, '#2878d8'],
+          [6, 7, 8, 4, '#2878d8'],
+          [1, 2, 5, 2, '#d8e8fc'],
+          [0, 4, 6, 2, '#d8e8fc'],
+          [2, 6, 4, 2, '#d8e8fc'],
+        ],
+        [
+          [6, 10, 8, 1, '#f2c23c'],
+          [6, 1, 5, 1, '#f2c23c'],
+          [2, 3, 3, 1, '#a8c0e8'],
+          [1, 5, 4, 1, '#a8c0e8'],
+          [3, 7, 2, 1, '#a8c0e8'],
+          [0, 10, 4, 1, '#3cbcfc'],
+          [1, 12, 4, 1, '#3cbcfc'],
+          [8, 3, 2, 3, '#78b0f8'],
+        ],
+      );
+      break;
+    case 'turbo': // a stopwatch with speed lines
+      sprite(
+        x,
+        y,
+        1,
+        14,
+        [
+          [6, 0, 2, 2, '#c8c8d8'],
+          [4, 2, 6, 10, '#f8a800'],
+          [3, 3, 8, 8, '#f8a800'],
+        ],
+        [
+          [5, 4, 4, 6, '#fcf8e0'],
+          [4, 5, 6, 4, '#fcf8e0'],
+          [7, 4, 1, 3, '#0a0a16'],
+          [7, 7, 2, 1, '#0a0a16'],
+          [0, 5, 2, 1, '#3cbcfc'],
+          [0, 7, 2, 1, '#3cbcfc'],
+          [0, 9, 2, 1, '#3cbcfc'],
         ],
       );
       break;
@@ -2699,7 +2778,7 @@ function drawIntro() {
   if (t > 50) {
     const n = Math.min(def.name.length, (t - 50) >> 2);
     text(def.name.slice(0, n), 150, VH / 2 - 18, '#fcfcfc', 3);
-    if (t > 50 + def.name.length * 4 + 10) text(st.title, 150, VH / 2 + 14, st.color, 1);
+    if (t > 50 + def.name.length * 4 + 10) text(st.intro, 150, VH / 2 + 14, st.color, 1);
   }
 }
 
@@ -2836,7 +2915,7 @@ function drawPause() {
     text(STATE_TEXT[st], 366, y, STATE_COL[st], 1, 'right');
   });
   drawScrollMarks(376, 46, TOOL_ROWS * 16 - 6, tfirst > 0, tfirst + TOOL_ROWS < tools.length);
-  text('LIFE ' + game.lives + '   POIN ' + save.points, VW / 2, 192, '#a8c8f8', 1, 'center');
+  text('LIFE ' + livesText() + '   POIN ' + save.points, VW / 2, 192, '#a8c8f8', 1, 'center');
   text('ARAH PILIH  ENTER PAKAI / ON-OFF  ESC LANJUT', VW / 2, 206, '#686878', 1, 'center');
   drawVersion();
 }
@@ -2875,7 +2954,7 @@ function render() {
   if (game.state === 'bossintro' && boss && boss.state === 'pose') {
     const def = BOSSES[boss.type];
     text(def.name, VW / 2, 60, def.pal.b, 2, 'center');
-    text(STAGES[boss.type].title, VW / 2, 80, '#fcfcfc', 1, 'center');
+    text(STAGES[boss.type].intro, VW / 2, 80, '#fcfcfc', 1, 'center');
   }
   if (game.state === 'pause') drawPause();
   if (game.state === 'clear' && game.t > 100) text('STAGE CLEAR!', VW / 2, 90, '#f8d800', 2, 'center');

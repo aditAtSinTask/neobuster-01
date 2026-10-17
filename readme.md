@@ -2,7 +2,7 @@
 
 > Game action-platformer 2D bergaya **Mega Man** untuk browser — pixel art dengan kepadatan pixel 2x yang detail, tapi tetap ringan dan optimal untuk web.
 
-**Versi saat ini: `1.4.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
+**Versi saat ini: `1.5.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
 
 ---
 
@@ -55,7 +55,7 @@ Tidak perlu build atau install apa pun — cukup HTML + JavaScript murni.
 | Lompat                                           | `Z` / `J` / `Space`                                                             | A                   |
 | Tembak                                           | `X` / `K`                                                                       | X / B               |
 | Charge shot (semua senjata)                      | Tahan `X` lalu lepas                                                            | Tahan tombol tembak |
-| Slide                                            | `C` / `L` (atau `↓` + lompat)                                                   | RT / Y              |
+| Slide (di udara: Air Dash, part Shop)            | `C` / `L` (atau `↓` + lompat)                                                   | RT / Y              |
 | Ganti senjata                                    | `Q` / `E`                                                                       | LB / RB             |
 | Pause: ganti senjata & ON/OFF tools              | `Enter` / `Esc`; panah untuk bergerak di grid senjata dan pindah ke kolom tools | Start               |
 | Mute                                             | `M`                                                                             | —                   |
@@ -102,38 +102,40 @@ Setiap stage juga punya musuh, mekanik, dan ruang boss yang hanya ada di stage i
 | Light  | Aula laser (**laser di kaki: lompat; laser setinggi kepala: slide**) → menara prisma: tiap lantai disapu laser bergantian, tunggu di atas kristal → jembatan kristal rapuh dan lift yang melewati laser → gua kristal: lantai licin, lubang duri, laser → galeri laser di atas lantai kristal licin                                     |
 | Time   | Roda gigi berputar di atas jurang (lompat dari roda ke roda) → **muka jam raksasa: naiki keempat jarumnya yang berputar ke puncak menara** → sabuk roda gigi berjalan bolak-balik di antara celah paku → sumur bandul: turun melewati tiga bandul raksasa → roda terakhir di atas paku                                                  |
 
-| Stage  | Musuh khas                                                                         | Mekanik khas                                                                                                                       | Ruang boss                                                              |
-| ------ | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Hydro  | **Jelly**: ubur-ubur yang naik turun sambil mendekat                               | **Air**: di dalam air kamu jatuh pelan dan lompat jauh lebih tinggi; **arus** yang mendorong ke arah bulu babi                     | Lantai tergenang air                                                    |
-| Toxic  | **Slime**: menempel di langit-langit, jatuh saat kamu lewat, lalu merayap mengejar | **Asam naik** di tangki banjir, **mesin press**, dan **ventilasi gas** yang berkedip lalu menyemburkan awan racun                  | Dua ventilasi gas yang bergantian                                       |
-| Shadow | **Shade**: hantu tembus dinding yang samar-samar terlihat                          | **Kegelapan** (hanya sekitar dirimu, obor, tembakanmu, dan mata boss yang terang), **kapak berayun**, dan langit-langit yang jatuh | Tiga obor di dinding yang menerangi ruangan gelap                       |
-| Sonic  | **Speakerbot**: speaker berjalan yang mengirim cincin suara ke dua arah            | **Lantai dansa** yang menyala mengikuti ketukan, **drum** yang melontarkanmu, dan **speaker** yang mengirim cincin suara           | Equalizer raksasa dan dua speaker yang bergantian                       |
-| Light  | **Prismo**: kristal yang mengisi daya lalu menembak 4 laser miring                 | **Gerbang laser** di kaki (lompati) dan setinggi kepala (slide di bawahnya), dan lantai kristal yang licin                         | Laser horizontal melintang di tengah ruangan                            |
-| Time   | **Gearbot**: roda gigi yang berbalik arah di dinding dan tepi jurang               | **Muka jam** (roda empat platform) dan **roda gigi** yang berputar, **bandul** raksasa, sabuk roda gigi                            | Jam raksasa dengan jarum berputar, dua platform yang berputar melingkar |
+| Stage  | Musuh khas                                                                         | Mekanik khas                                                                                                                                                                                                                 | Ruang boss                                                              |
+| ------ | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Hydro  | **Jelly**: ubur-ubur yang naik turun sambil mendekat                               | **Air**: di dalam air kamu jatuh pelan dan lompat jauh lebih tinggi; **arus** yang mendorong ke arah bulu babi                                                                                                               | Lantai tergenang air                                                    |
+| Toxic  | **Slime**: menempel di langit-langit, jatuh saat kamu lewat, lalu merayap mengejar | **Asam naik** di tangki banjir, **mesin press**, dan **ventilasi gas** yang berkedip lalu menyemburkan awan racun                                                                                                            | Dua ventilasi gas yang bergantian                                       |
+| Shadow | **Shade**: hantu tembus dinding yang samar-samar terlihat                          | **Kegelapan** (hanya sekitar dirimu, obor, tembakanmu, dan mata boss yang terang; senjata bercahaya seperti Fire Storm, Thunder Beam, dan Prism Laser menerangi sekitarnya), **kapak berayun**, dan langit-langit yang jatuh | Tiga obor di dinding yang menerangi ruangan gelap                       |
+| Sonic  | **Speakerbot**: speaker berjalan yang mengirim cincin suara ke dua arah            | **Lantai dansa** yang menyala mengikuti ketukan, **drum** yang melontarkanmu, dan **speaker** yang mengirim cincin suara                                                                                                     | Equalizer raksasa dan dua speaker yang bergantian                       |
+| Light  | **Prismo**: kristal yang mengisi daya lalu menembak 4 laser miring                 | **Gerbang laser** di kaki (lompati) dan setinggi kepala (slide di bawahnya), dan lantai kristal yang licin                                                                                                                   | Laser horizontal melintang di tengah ruangan                            |
+| Time   | **Gearbot**: roda gigi yang berbalik arah di dinding dan tepi jurang               | **Muka jam** (roda empat platform) dan **roda gigi** yang berputar, **bandul** raksasa, sabuk roda gigi                                                                                                                      | Jam raksasa dengan jarum berputar, dua platform yang berputar melingkar |
 
 ## Boss & Senjata
 
 ### Benua Azura
 
-| Stage | Boss                                  | Senjata yang didapat | Lemah terhadap |
-| ----- | ------------------------------------- | -------------------- | -------------- |
-| Cut   | **SNIPTOR** — manusia pisau putar     | Rolling Cutter       | Frost Shard    |
-| Fire  | **MAGMARON** — manusia api            | Fire Storm           | Gale Shot      |
-| Elec  | **VOLTRAX** — manusia listrik & petir | Thunder Beam         | Rolling Cutter |
-| Snow  | **GLACIELLE** — wanita es             | Frost Shard          | Fire Storm     |
-| Earth | **TERRALYN** — wanita tanah & batu    | Rock Breaker         | Thunder Beam   |
-| Wind  | **WINDERWOMEN** — wanita angin        | Gale Shot            | Rock Breaker   |
+| Stage | Tempat             | Boss                                             | Senjata yang didapat | Lemah terhadap |
+| ----- | ------------------ | ------------------------------------------------ | -------------------- | -------------- |
+| Cut   | Pabrik Gergaji     | **SNIPTOR** — pisau putarnya memotong apa saja   | Rolling Cutter       | Frost Shard    |
+| Fire  | Gunung Berapi      | **MAGMARON** — penjaga kawah yang membara        | Fire Storm           | Gale Shot      |
+| Elec  | Pembangkit Listrik | **VOLTRAX** — memanggil petir dari badai         | Thunder Beam         | Rolling Cutter |
+| Snow  | Gunung Es          | **GLACIELLE** — membekukan segala yang mendekat  | Frost Shard          | Fire Storm     |
+| Earth | Tambang Batu       | **TERRALYN** — mengguncang bumi dengan tinjunya  | Rock Breaker         | Thunder Beam   |
+| Wind  | Benteng Langit     | **WINDERWOMEN** — menunggangi angin di atas awan | Gale Shot            | Rock Breaker   |
 
 ### Benua Vespera
 
-| Stage  | Boss                           | Senjata yang didapat | Lemah terhadap |
-| ------ | ------------------------------ | -------------------- | -------------- |
-| Hydro  | **HYDROS** — manusia air       | Hydro Blast          | Venom Drip     |
-| Toxic  | **TOXARIS** — manusia racun    | Venom Drip           | Shadow Clone   |
-| Shadow | **UMBRION** — manusia bayangan | Shadow Clone         | Prism Laser    |
-| Sonic  | **SONIQUE** — wanita suara     | Sonic Boom           | Time Stopper   |
-| Light  | **LUMINA** — wanita cahaya     | Prism Laser          | Sonic Boom     |
-| Time   | **CHRONIA** — wanita waktu     | Time Stopper         | Hydro Blast    |
+| Stage  | Tempat         | Boss                                           | Senjata yang didapat | Lemah terhadap |
+| ------ | -------------- | ---------------------------------------------- | -------------------- | -------------- |
+| Hydro  | Bendungan      | **HYDROS** — mengendalikan arus dan gelombang  | Hydro Blast          | Venom Drip     |
+| Toxic  | Pabrik Limbah  | **TOXARIS** — menyebarkan racun dari pabriknya | Venom Drip           | Shadow Clone   |
+| Shadow | Benteng Gelap  | **UMBRION** — bersembunyi di balik kegelapan   | Shadow Clone         | Prism Laser    |
+| Sonic  | Panggung Awan  | **SONIQUE** — suaranya menggetarkan panggung   | Sonic Boom           | Time Stopper   |
+| Light  | Istana Kristal | **LUMINA** — memecah cahaya menjadi laser      | Prism Laser          | Sonic Boom     |
+| Time   | Menara Jam     | **CHRONIA** — menghentikan waktu sesukanya     | Time Stopper         | Hydro Blast    |
+
+Nama tempat tampil di Stage Select, dan kalimat perkenalan boss tampil di layar intro stage dan saat boss muncul.
 
 Serangan boss Vespera:
 
@@ -205,6 +207,8 @@ Tekan `X` di **Stage Select** untuk membuka Shop. Part dikelompokkan dalam tab *
 | Shield          | 12.000 | 2 orb perisai mengorbit di sekitarmu. Orb yang terkena musuh atau peluru musuh menangkisnya (musuh kena damage, peluru kecil hancur), lalu hilang 10 detik sebelum muncul lagi                                                                                                                                         |
 | Anti Angin      | 10.000 | Kebal terhadap semua dorongan angin: badai di stage Glacielle, tiupan Fanbot, dan serangan Gust Winderwomen. Pad angin tetap berfungsi karena dibutuhkan untuk menyelesaikan stage Winderwomen                                                                                                                         |
 | Omega Booster   | 40.000 | Harus punya Ultra Booster. Setiap tembakan langsung jadi ultra attack tanpa menahan tombol (kalau ultra sebelumnya masih berjalan, keluar charge shot). Selama Omega ON, Super Booster dan Ultra Booster berstatus **DISABLED**: tidak bisa diubah, dan setelan ON/OFF-nya kembali seperti semula saat Omega dimatikan |
+| Air Dash        | 12.000 | Tekan slide saat di udara untuk dash mendatar, sekali per lompatan (kembali setelah mendarat atau memanjat tangga). Bisa sambil menembak. Dash berhenti di dinding atau saat kamu menekan arah sebaliknya                                                                                                              |
+| Turbo           | 9.000  | Slide dan Air Dash 3x lebih lama                                                                                                                                                                                                                                                                                       |
 
 Ultra attack setiap senjata:
 
@@ -246,6 +250,7 @@ Tekan **`P` + `O` bersamaan** untuk membuka cheat box. Ketik kode, tekan `Enter`
 | `MAUKUAT`     | HP penuh                                                                                                                                                                                                                                                            | Di dalam stage, saat karakter masih hidup                 |
 | `AWETMUDA`    | Life +1 (maks. 99)                                                                                                                                                                                                                                                  | Selama permainan berjalan                                 |
 | `ILMUKEBAL`   | HP 10x lebih tebal (semua damage dibagi 10) + HP penuh. Bar HP berubah emas dan berkilau, badge **X10** muncul di atas bar, dan sisa HP tampil sebagai angka (mis. 276/280). Aktif sampai game over atau kembali ke title. Duri dan jurang tetap mematikan seketika | Selama permainan berjalan (HP penuh hanya di dalam stage) |
+| `AKUABADI`    | Life tak terbatas: mati tidak mengurangi life, kamu kembali ke checkpoint. HUD dan menu pause menampilkan **LIFE ∞**. Aktif sampai kembali ke title                                                                                                                 | Selama permainan berjalan                                 |
 | `INGATANKUAT` | Simpan progress saat ini (lihat [Progress & Save](#progress--save))                                                                                                                                                                                                 | Selama permainan berjalan                                 |
 
 Cheat tidak bisa dipakai di layar title, game over, atau ending.

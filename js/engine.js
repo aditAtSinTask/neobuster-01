@@ -2,7 +2,7 @@
 // NEOBUSTER — core: canvas, helpers, input, audio, music, text, sprite + glow primitives.
 
 // bump on every change (and add an entry to CHANGELOG.md)
-const VERSION = '1.4.0';
+const VERSION = '1.5.0';
 document.title = 'Neobuster v' + VERSION;
 
 const TILE = 16,
@@ -460,6 +460,10 @@ const sfx = {
       0.08,
     ),
   jet: () => noise(0.18, 0.1, 0, 3500),
+  dash: () => {
+    noise(0.22, 0.12, 0, 2800);
+    tone(420, 1200, 0.14, 'sawtooth', 0.06);
+  },
   whoosh: () => {
     noise(0.35, 0.16, 0, 1800);
     tone(300, 900, 0.3, 'triangle', 0.06);

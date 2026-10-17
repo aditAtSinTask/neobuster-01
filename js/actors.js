@@ -28,7 +28,8 @@ const game = {
   menu: 0,
   sel: 0,
   popup: 0,
-  tough: false,
+  tough: false, // cheat ILMUKEBAL
+  infLives: false, // cheat AKUABADI
 };
 const door = { open: 0, solid: true, phase: '' };
 const player = { weapon: 'buster' };
@@ -202,6 +203,7 @@ const WEAPONS = {
     short: 'F.STORM',
     pal: { B: '#d83000', b: '#f8b830', S: SKIN },
     glow: '#f86000',
+    lit: true, // lights up the dark (Umbrion's castle)
     desc: 'BOLA API + PERISAI API',
     charged: 'FIRE WAVE',
     demo: { kind: 'fireball', vx: 1 },
@@ -220,6 +222,7 @@ const WEAPONS = {
     short: 'T.BEAM',
     pal: { B: '#c88800', b: '#f8f080', S: SKIN },
     glow: '#f8f058',
+    lit: true,
     desc: 'SINAR PETIR - MENEMBUS MUSUH',
     charged: 'GIGA THUNDER',
     demo: { kind: 'tbeam', w: 24, h: 8, seed: 1 },
@@ -1176,14 +1179,30 @@ function standUp(p) {
   p.h = 22;
   return true;
 }
+// how long the slide and the air dash (shop part AIR DASH) last, in frames; the TURBO part makes both 3x longer
+const SLIDE_T = 26,
+  DASH_T = 20;
+const dashTime = t => (hasPart('turbo') ? t * 3 : t);
 function startSlide(p) {
   p.state = 'slide';
-  p.slideT = 26;
+  p.slideT = dashTime(SLIDE_T);
   if (p.h === 22) {
     p.y += 10;
     p.h = 12;
   }
   dust(p.x + p.w / 2 - p.facing * 6, p.y + p.h, 3);
+}
+// the air dash: once per jump, flying level for a moment (holding a direction picks it)
+function startAirDash(p, dir) {
+  if (dir) p.facing = dir;
+  p.state = 'dash';
+  p.dashT = dashTime(DASH_T);
+  p.airDashed = true;
+  p.vy = 0;
+  p.launched = false;
+  p.jumpBuf = 0;
+  sfx.dash();
+  dust(p.x + p.w / 2 - p.facing * 8, p.y + p.h - 6, 2);
 }
 // standing on an updraft pad
 function padUnder(e) {
@@ -1303,6 +1322,7 @@ function updatePlayer() {
   if (p.stun > 0 && alive(p)) {
     // frozen in time by a boss: no control for a moment
     p.stun--;
+    if (p.state === 'dash') p.state = 'normal';
     p.vx = 0;
     if (p.state !== 'climb') applyGravity(p);
     return;
@@ -1316,6 +1336,7 @@ function updatePlayer() {
   // coyote time: a few frames of grace after walking off a ledge
   if (p.onGround) p.coyote = 6;
   else if (p.coyote > 0) p.coyote--;
+  if (p.onGround || p.state === 'climb') p.airDashed = false; // the air dash comes back on landing
   p.jumpT++;
   const sand = inSand(p);
   const jet = hasPart('jet'); // Jetpack: higher jumps
@@ -1382,6 +1403,19 @@ function updatePlayer() {
       }
       return;
     }
+    case 'dash': {
+      // flying level: ends after its time, at a wall, or when the player pushes the other way
+      p.dashT--;
+      p.vx = p.facing * 2.6;
+      p.vy = 0;
+      const wall = moveX(p, p.vx);
+      handleShoot(p, true);
+      if (p.dashT <= 0 || wall || dir === -p.facing) {
+        p.state = 'normal';
+        if (dir) p.facing = dir;
+      }
+      return;
+    }
     case 'climb': {
       if (dir) p.facing = dir;
       handleShoot(p, true);
@@ -1445,6 +1479,10 @@ function updatePlayer() {
     startSlide(p);
     return;
   }
+  if (!p.onGround && hit.slide && !p.airDashed && hasPart('airdash')) {
+    startAirDash(p, dir);
+    return;
+  }
   if (p.jumpBuf > 0 && (p.onGround || p.coyote > 0) && p.vy >= 0) doJump();
   // releasing jump cuts the jump short, but only after a minimum hop so quick taps still jump
   if (p.vy >= 0) p.launched = false;
@@ -1460,7 +1498,7 @@ function updatePlayer() {
 
 function damagePlayer(dmg) {
   const p = player;
-  if (!dmg || p.inv > 0 || !['normal', 'climb', 'slide'].includes(p.state)) return;
+  if (!dmg || p.inv > 0 || !['normal', 'climb', 'slide', 'dash'].includes(p.state)) return;
   p.hp -= game.tough ? dmg / 10 : dmg; // cheat ILMUKEBAL: 10x thicker HP
   sfx.hurt();
   if (p.hp <= 1e-6) {

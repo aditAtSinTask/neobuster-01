@@ -545,6 +545,94 @@ const cloudSummary = s => [
   ['PART', String(Object.keys(s.parts || {}).length)],
   ['TRAINING', 'WAVE ' + ((s.train && s.train.wave) || 0)],
 ];
+// ---------- the account badge ----------
+// the colour of a player's avatar, picked from their name
+const CLOUD_AVATAR = ['#3cbcfc', '#f87858', '#58c878', '#f8b800', '#c878f8', '#38b8a8', '#f878b8', '#7898f8'];
+const cloudAvatarColor = name =>
+  CLOUD_AVATAR[[...name].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7) % CLOUD_AVATAR.length];
+// what the badge shows: a short label, its colour, and the sign on the cloud icon
+function cloudBadge() {
+  if (cloud.conflict) return { label: 'PILIH SAVE', color: '#f8d800', sign: '?' };
+  if (cloud.state === 'saving' || cloud.timer) return { label: 'MENYIMPAN', color: '#f8d800', sign: 'up' };
+  if (cloud.state === 'error')
+    return {
+      label: /KONEKSI/.test(cloud.error) ? 'OFFLINE' : /JAM/.test(cloud.error) ? 'JAM SALAH' : 'GAGAL',
+      color: '#f87858',
+      sign: '!',
+    };
+  return { label: 'TERSIMPAN', color: '#b8f818', sign: 'ok' };
+}
+// a pixel cloud 13 x 9 (times s) with a sign on it: ok (a tick), up (an arrow going up), ! or ?
+function drawCloudIcon(x, y, sign, s = 1) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(s, s);
+  const body = sign === '!' ? '#a8acbc' : '#e8f0fc';
+  for (const [c, d] of [
+    ['#0a0a16', 1],
+    [body, 0],
+  ]) {
+    circle(3.5, 5.5, 2.5 + d, c);
+    circle(6.5, 4, 3.5 + d, c);
+    circle(10, 5.5, 2.5 + d, c);
+    R(3.5 - d, 5.5, 7 + 2 * d, 3 + d, c);
+  }
+  circle(5.5, 3, 1.2, '#ffffff');
+  R(3, 7.5, 7.5, 1, sign === '!' ? '#8a8e9e' : '#b8c8e0');
+  const P = (px, py, c) => R(px, py, 1, 1, c);
+  if (sign === 'ok')
+    [
+      [8, 3],
+      [7, 4],
+      [4, 5],
+      [6, 5],
+      [5, 6],
+    ].forEach(([px, py]) => P(px, py, '#209820'));
+  else if (sign === 'up') {
+    const dy = (frameCount >> 3) & 1;
+    R(6, 3 + dy, 1, 4, '#1860c8');
+    R(5, 4 + dy, 3, 1, '#1860c8');
+    P(6, 2 + dy, '#1860c8');
+  } else if (sign === '!') {
+    R(6, 2, 1, 4, '#d82020');
+    P(6, 7, '#d82020');
+  } else if (sign === '?')
+    [
+      [5, 2],
+      [6, 2],
+      [7, 2],
+      [8, 3],
+      [7, 4],
+      [6, 5],
+      [6, 7],
+    ].forEach(([px, py]) => P(px, py, '#b88800'));
+  ctx.restore();
+}
+// a round avatar with the name's first letter, centred at (cx, cy)
+function drawCloudAvatar(cx, cy, r, size = 1) {
+  circle(cx, cy, r + 1, '#0a0a16');
+  circle(cx, cy, r, cloudAvatarColor(cloud.name));
+  circle(cx - r * 0.3, cy - r * 0.35, r * 0.4, 'rgba(255,255,255,0.22)');
+  text(cloud.name[0] || '?', cx + 0.5, cy - 3.5 * size, '#fcfcfc', size, 'center');
+}
+// the account badge on the title screen and the map: avatar, name, and the cloud's state (right: x is its right edge)
+function drawCloudBadge(x, y, right = false) {
+  if (!cloud.id) return;
+  const b = cloudBadge(),
+    name = cloud.name.length > 10 ? cloud.name.slice(0, 9) + '.' : cloud.name,
+    w = Math.max(textWidth(name), textWidth(b.label) + 15) + 24,
+    h = 21,
+    x0 = right ? x - w : x;
+  R(x0, y, w, h, 'rgba(4,8,22,0.86)');
+  R(x0, y, w, 1, '#2a3a6a');
+  R(x0, y + h - 1, w, 1, '#2a3a6a');
+  R(x0 + w - 1, y, 1, h, '#2a3a6a');
+  R(x0, y, 2, h, b.color);
+  drawCloudAvatar(x0 + 10, y + 10.5, 6);
+  text(name, x0 + 20, y + 3, '#fcfcfc');
+  drawCloudIcon(x0 + 19, y + 10.5, b.sign);
+  text(b.label, x0 + 34, y + 12, b.color);
+}
 function drawCloudScreen() {
   const g = ctx.createLinearGradient(0, 0, 0, VH);
   g.addColorStop(0, '#0a1430');
@@ -552,7 +640,8 @@ function drawCloudScreen() {
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, VW, VH);
   for (let x = -(frameCount % 16); x < VW; x += 16) R(x, 0, 1, VH, 'rgba(80,140,220,0.08)');
-  text('CLOUD SAVE', VW / 2, 8, '#fcfcfc', 2, 'center');
+  text('CLOUD SAVE', VW / 2 + 12, 8, '#fcfcfc', 2, 'center');
+  drawCloudIcon(VW / 2 - 84, 6, null, 2);
   const U = cloudUI,
     blink = (frameCount >> 4) & 1;
   if (U.mode === 'form') {
@@ -608,19 +697,39 @@ function drawCloudScreen() {
     });
     text('KIRI/KANAN PILIH  ENTER PAKAI  ESC KELUAR AKUN', VW / 2, 206, '#8888a0', 1, 'center');
   } else {
-    const st = cloudStatusLine();
-    text('MASUK SEBAGAI ' + cloud.name, VW / 2, 36, '#fcfcfc', 1, 'center');
-    if (st) text(st[0].slice(st[0].indexOf(' - ') + 3), VW / 2, 50, st[1], 1, 'center');
-    if (cloud.syncedAt) text('TERAKHIR TERSIMPAN ' + cloudTime(cloud.syncedAt), VW / 2, 62, '#686878', 1, 'center');
+    // the account card: a big avatar, the name, the cloud's state and the last save
+    const b = cloudBadge(),
+      x0 = VW / 2 - 124;
+    R(x0, 32, 248, 52, 'rgba(4,8,22,0.86)');
+    R(x0, 32, 248, 1, '#2a3a6a');
+    R(x0, 83, 248, 1, '#2a3a6a');
+    R(x0 + 247, 32, 1, 52, '#2a3a6a');
+    R(x0, 32, 3, 52, b.color);
+    drawCloudAvatar(x0 + 28, 58, 16, 2);
+    text(cloud.name, x0 + 54, 39, '#fcfcfc', 2);
+    drawCloudIcon(x0 + 54, 59, b.sign);
+    text(b.label, x0 + 71, 61, b.color);
+    if (b.sign === 'ok') text(cloudTime(cloud.syncedAt), x0 + 77 + textWidth(b.label), 61, '#8888a0');
+    // and a line about it: what went wrong, the last save, or that it syncs by itself
+    const [detail, col] =
+      b.sign === '!'
+        ? [textWidth(cloud.error + ' - DICOBA LAGI') <= 188 ? cloud.error + ' - DICOBA LAGI' : cloud.error, '#c87868']
+        : b.sign === '?'
+          ? ['CLOUD DAN PERANGKAT INI BERBEDA', '#a8a888']
+          : b.sign === 'up'
+            ? ['TERAKHIR DISIMPAN ' + cloudTime(cloud.syncedAt), '#686878']
+            : ['TERSINKRON OTOMATIS', '#686878'];
+    text(detail, x0 + 54, 73, col);
     ['SIMPAN SEKARANG', U.loadArm ? 'MUAT DARI CLOUD? ENTER LAGI' : 'MUAT DARI CLOUD', 'KELUAR AKUN'].forEach(
       (o, i) => {
-        const y = 86 + i * 20,
+        const y = 98 + i * 20,
           on = U.sel === i;
         R(VW / 2 - 90, y - 4, 180, 16, on ? 'rgba(60,188,252,0.25)' : 'rgba(255,255,255,0.05)');
+        if (on) R(VW / 2 - 90, y - 4, 2, 16, '#f8d800');
         text(o, VW / 2, y, on ? '#f8d800' : '#fcfcfc', 1, 'center');
       },
     );
-    text('PROGRESS TERSIMPAN OTOMATIS KE CLOUD SETIAP ADA PERUBAHAN.', VW / 2, 160, '#686878', 1, 'center');
+    text('PROGRESS TERSIMPAN OTOMATIS KE CLOUD SETIAP ADA PERUBAHAN.', VW / 2, 164, '#686878', 1, 'center');
     text('ATAS/BAWAH PILIH  ENTER  ESC KEMBALI', VW / 2, 206, '#8888a0', 1, 'center');
   }
   if (U.msg) text(U.msg[0], VW / 2, 178, U.msg[1] ? '#b8f818' : '#f87858', 1, 'center');

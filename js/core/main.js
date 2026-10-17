@@ -2441,13 +2441,13 @@ function drawTitle() {
   if (game.resetArm > 0)
     text('R LAGI: HAPUS SEMUA PROGRESS' + (cloud.id ? ' (JUGA DI CLOUD)' : ''), VW / 2, 212, '#f87858', 1, 'center');
   else if (cloudHasProgress(save)) text('R: RESET PROGRESS', VW / 2, 212, '#686878', 1, 'center');
-  drawCloudStatus(4, 3);
+  drawCloudStatus(VW - 4, 4, true);
   drawVersion();
 }
-// the cloud save's state in a corner of the title screen and the map (and a note after an update from the cloud)
-function drawCloudStatus(x, y) {
-  const st = cloudStatusLine();
-  if (st) text(st[0], x, y, st[1]);
+// the cloud save's account badge in a corner of the title screen and the map (and a note after an update from the
+// cloud)
+function drawCloudStatus(x, y, right = false) {
+  drawCloudBadge(x, y, right);
   const n = cloudUI.note;
   if (n && performance.now() < n.until) {
     const w = textWidth(n.text);
@@ -2483,7 +2483,7 @@ function drawMap() {
     for (let x = ((y * 7 + frameCount * 0.3) % 40) - 40; x < VW; x += 40) R(x, y, 6, HP, 'rgba(168,220,252,0.25)');
   text('PETA DUNIA', VW / 2, 8, '#fcfcfc', 2, 'center');
   text('POIN ' + save.points, VW - 10, 12, '#f8d800', 1, 'right');
-  drawCloudStatus(6, 28);
+  drawCloudStatus(4, 4);
   for (let i = 0; i <= CONTINENTS.length + 1; i++) {
     const cx = Math.round(VW / 2 + i * MAP_SLOT - game.mapX);
     if (cx < -120 || cx > VW + 120) continue;

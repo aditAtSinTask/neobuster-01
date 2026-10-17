@@ -2,6 +2,19 @@
 
 Semua perubahan NEOBUSTER, versi terbaru di atas. Versi ditulis di konstanta `VERSION` di `js/engine.js`.
 
+## 1.10.1
+
+- **Badge akun Cloud Save** menggantikan baris teks status. Badge ini tampil di pojok kanan atas title dan pojok kiri atas peta, berisi avatar bulat dengan huruf pertama nama (warnanya khas untuk setiap nama), nama, dan ikon awan pixel yang menunjukkan status:
+
+  - centang hijau: TERSIMPAN;
+  - panah naik yang bergerak: MENYIMPAN;
+  - tanda seru merah: OFFLINE, JAM SALAH, atau GAGAL;
+  - tanda tanya kuning: PILIH SAVE.
+
+  Garis aksen di sisi badge ikut berwarna sesuai status.
+
+- Layar Cloud Save: judul diberi ikon awan, dan saat sudah masuk tampil kartu akun besar (avatar, nama, status dengan waktu simpan terakhir, dan penjelasan kalau gagal). Pilihan menu yang aktif diberi penanda di sisinya.
+
 ## 1.10.0
 
 - **Penanda armor di Stage Select**: pojok kiri atas setiap panel boss menunjukkan armor ruang rahasia stage itu. Ikon armor menyala dan berkilau kalau sudah diambil, dan berupa siluet gelap kalau belum. Jumlah armor yang ditemukan di benua itu tampil di pojok kiri atas layar (mis. ARMOR 3/6).

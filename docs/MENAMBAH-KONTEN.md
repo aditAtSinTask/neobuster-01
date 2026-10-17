@@ -4,7 +4,47 @@ Panduan untuk menambah benua, boss, part shop, atau musuh tanpa merusak yang sud
 
 Semua konten disimpan di tabel yang dikunci dengan **key** yang sama. Satu stage, boss-nya, dan senjata yang didapat dari boss itu memakai satu key (misalnya `hydro`). Karena itu save (`save.cleared`), daftar senjata, menu pause, layar kelemahan, peta dunia, dan ending otomatis ikut bertambah begitu tabelnya diisi.
 
+Ringkasan aturan kerja dan aturan konten untuk developer lain dan AI coding agent ada di [AGENTS.md](../AGENTS.md).
+
 Setelah menambah apa pun, buka game lalu lihat **console browser**. `validateContent()` (di `js/core/main.js`) mencetak peringatan `[neobuster] ...` untuk setiap bagian yang belum lengkap. Kalau console bersih, datanya sudah lengkap.
+
+## Aturan wajib untuk benua, stage, dan boss baru
+
+Setiap benua, stage, dan boss baru harus memenuhi semua aturan ini:
+
+1. **Setiap stage unik dan menantang.**
+   - Area dan alurnya sendiri, yang tidak dipakai stage lain (menara, gua, sumur, rute langit, kendaraan, bawah air, dan sebagainya).
+   - Rintangan dan mekanik khas temanya.
+   - Platform dan rute yang berbeda dari semua stage yang sudah ada; jangan menyalin geometri stage lain.
+   - Musuh khasnya sendiri di samping musuh umum.
+   - Ukuran 300 × 44 tile, dengan bagian naik dan bagian bawah tanah, dan checkpoint di antaranya.
+2. **Setiap stage punya satu ruang rahasia dengan armor** (`B.secret`, lihat [Mekanik bawaan](#mekanik-bawaan-yang-bisa-dipakai)).
+   - Dinding segelnya hanya hancur oleh senjata boss lain, tidak pernah oleh senjata stage itu sendiri.
+   - Ruangannya tampak seperti batu sampai segelnya hancur, dan letaknya di samping jalur utama.
+   - Armor di dalamnya membuat HP pemain 1x lebih tebal.
+   - Senjata baru perlu tampilan dinding segel di `SEAL_LOOKS`.
+3. **Boss digambar native**, bukan potongan lembar karakter (lihat [ART-STYLE.md](ART-STYLE.md)).
+   - Wajahnya memakai wajah bersama (`ncManFace` / `ncWomanFace`).
+   - Ciri khasnya kuat: bentuk tubuh, efek yang selalu bergerak, dan efek di setiap serangan.
+   - Serangannya berbeda dari boss lain.
+   - Kelemahannya berantai: setiap senjata benua itu menjadi kelemahan tepat satu boss di benua yang sama.
+4. **Teks tanpa gender.**
+   - `STAGES[k].place` (nama tempat, paling banyak 18 huruf) dan `STAGES[k].intro` (kalimat perkenalan) tidak menyebut pria, wanita, manusia, dan sejenisnya.
+   - Di layar, benua cukup ditulis dengan namanya, tanpa kata "Benua".
+5. **HP boss naik setiap benua**: `bossHp` benua baru harus lebih besar dari benua sebelumnya (Azura 3, Vespera 5, berikutnya misalnya 7).
+6. **Senjata lengkap.**
+   - Ikon bergaya kotak-kotak seperti ikon senjata lain.
+   - Tembakan biasa, charge shot, dan ultra attack.
+   - `lit: true` kalau senjatanya bercahaya, supaya menerangi stage gelap.
+7. **Pulau alami di peta dunia** (`MAP_ISLANDS`), dengan landmark untuk setiap stage.
+8. **Musuh baru masuk Training Ground** (`TRAIN_POOL`), kecuali musuh yang butuh medan khusus (air, langit-langit).
+9. **Diuji sebelum selesai.**
+   - Tes jangkauan dengan [tools/reach.js](../tools/reach.js) (tempel isinya di console browser saat game terbuka, jalankan `reachAll()`, lalu muat ulang halaman): setiap checkpoint dan pintu boss bisa dicapai dari awal; armor tidak terjangkau sebelum segel dibuka, dan terjangkau setelah segel dibuka.
+   - Bagian yang bergantung waktu (press, laser, blok energi, cairan naik) dimainkan langsung.
+   - Console bebas peringatan `[neobuster]`.
+   - `VERSION` dinaikkan dan `CHANGELOG.md` diisi.
+
+Validator (`validateContent()`) memeriksa yang bisa diperiksa otomatis: ruang rahasia di setiap stage, senjata segelnya, kelemahan berantai, `bossHp` yang naik, dan tabel yang belum lengkap. Keunikan stage dan boss harus dipastikan saat merancang.
 
 ## Menambah benua baru
 
@@ -18,7 +58,7 @@ Satu benua = **6 boss** dalam **satu file** sendiri, misalnya `js/continents/bor
 
    - `name` paling banyak 7 huruf (dipakai juga sebagai label baris di menu pause).
    - `color` dipakai untuk teks benua di peta.
-   - `bossHp`: kelipatan HP boss di benua ini dari 28 (Azura 3, Vespera 5). Bar HP boss tetap 28 kotak dan menampilkan HP secara proporsional.
+   - `bossHp`: kelipatan HP boss di benua ini dari 28 (Azura 3, Vespera 5), harus lebih besar dari benua sebelumnya. Bar HP boss tetap 28 kotak dan menampilkan HP secara proporsional.
    - Pulaunya di peta dunia: tambahkan entri di `MAP_ISLANDS` (`js/world/worldmap.js`) dengan `seed`, `biome` (`meadow`, `twilight`, atau biome baru di `MAP_BIOMES`), `lobes` (elips yang membentuk pulau), `bays` (teluk, opsional), `ranges` dan `peaks` (pegunungan), `rivers` (mata air sungai), dan `landmarks` (landmark tiap stage dan posisi boss-nya). Tanpa entri, pulaunya dibuat otomatis dan boss-nya berdiri melingkar.
 
 2. Buat file benua di `js/continents/`, lalu muat di `index.html` di bagian continents, **tepat setelah `js/continents/vespera.js`** (sebelum `js/world/` dan `js/core/main.js`):
@@ -101,7 +141,7 @@ File benua cukup mengisi tabel dan **registry** yang sudah ada dengan `Object.as
 - Pad lontar (`U`) naik sekitar 8 tile.
 - Buat alur yang khas untuk setiap stage (menara, gua, sumur, rute langit, kendaraan) dengan mekanik stage itu sendiri, jangan menyalin geometri stage lain.
 - Semua aturan tile dan helper builder (`ground`, `pillar`, `solid`, `cave`, `shaft`, `pit`, `pool`, `ledge`, `belt`, `flood`, dan lainnya) dijelaskan di `js/stages/levels.js`.
-- Uji setiap stage dengan tes jangkauan (setiap checkpoint dan pintu boss bisa dicapai dari awal), lalu cek bagian yang bergantung pada waktu (press, laser, blok energi, cairan naik) dengan memainkannya.
+- Uji setiap stage dengan tes jangkauan ([tools/reach.js](../tools/reach.js): setiap checkpoint dan pintu boss bisa dicapai dari awal), lalu cek bagian yang bergantung pada waktu (press, laser, blok energi, cairan naik) dengan memainkannya.
 
 ## Training Ground
 

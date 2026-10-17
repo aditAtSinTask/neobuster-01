@@ -2,6 +2,13 @@
 
 Semua perubahan NEOBUSTER, versi terbaru di atas. Versi ditulis di konstanta `VERSION` di `js/engine.js`.
 
+## 1.8.3
+
+- **Aturan wajib konten baru dicatat** di [docs/MENAMBAH-KONTEN.md](docs/MENAMBAH-KONTEN.md), dalam satu daftar: stage yang unik dan menantang, ruang rahasia dengan armor di setiap stage, boss native dengan wajah bersama dan ciri khas, teks tanpa gender, HP boss yang naik setiap benua, senjata lengkap, pulau di peta, musuh baru di Training Ground, dan pengujian.
+- Validator sekarang juga memperingatkan kalau `bossHp` sebuah benua tidak lebih besar dari benua sebelumnya.
+- **`AGENTS.md`** (dan `CLAUDE.md` yang memuatnya) di root proyek: aturan kerja, aturan konten baru, dan cara menguji untuk developer lain dan AI coding agent mereka. File ini dibaca otomatis oleh Claude Code, Codex, Cursor, Copilot, dan agent lain.
+- **`tools/reach.js`**: tes jangkauan stage yang bisa dijalankan siapa saja. Tempel isinya di console browser saat game terbuka, lalu jalankan `reachAll()`. Hasilnya tabel per stage: pintu boss dan checkpoint terjangkau, armor tidak terjangkau selama segelnya utuh, dan terjangkau setelah segelnya hancur. Save (boss yang sudah kalah, armor) tidak ikut berubah.
+
 ## 1.8.2
 
 - **Perbaikan: musuh kadang tidak bisa mati walau terkena tembakan.** Ultra attack yang bekerja di seluruh layar (Thunder God, Plague, Eclipse, Supersonic, Supernova, Chrono Break, termasuk lewat Omega Booster) punya titik pengendali tak terlihat di tengah badan pemain. Musuh yang sedang menempel di pemain ikut "terkena" titik itu tanpa nilai damage, sehingga HP-nya rusak dan musuh itu tidak bisa mati lagi. Sekarang titik pengendali itu tidak pernah mengenai musuh atau boss secara langsung (serangannya tetap bekerja seperti biasa), setiap tembakan tanpa nilai damage dihitung 1, dan HP yang rusak langsung dianggap habis.

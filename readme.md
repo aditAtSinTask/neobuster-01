@@ -2,7 +2,7 @@
 
 > Game action-platformer 2D bergaya **Mega Man** untuk browser — pixel art dengan kepadatan pixel 2x yang detail, tapi tetap ringan dan optimal untuk web.
 
-**Versi saat ini: `1.8.2`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
+**Versi saat ini: `1.8.3`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
 
 ---
 
@@ -309,9 +309,13 @@ neobuster/
 ├── index.html      # canvas + urutan pemuatan script
 ├── readme.md
 ├── CHANGELOG.md
+├── AGENTS.md       # aturan kerja & aturan konten untuk developer dan AI agent
+├── CLAUDE.md       # memuat AGENTS.md untuk Claude Code
 ├── docs/
-│   ├── MENAMBAH-KONTEN.md  # panduan menambah benua, boss, part, musuh
+│   ├── MENAMBAH-KONTEN.md  # aturan wajib dan panduan menambah benua, boss, part, musuh
 │   └── ART-STYLE.md        # panduan gaya karakter anime
+├── tools/
+│   └── reach.js    # tes jangkauan stage (dijalankan di console browser)
 ├── package.json    # script yarn format / format:check (Prettier)
 ├── .prettierrc.json
 └── js/                 # dikelompokkan per fungsi; urutan pemuatannya ada di index.html
@@ -348,7 +352,9 @@ Detail teknis:
 
 ## Menambah Konten
 
-Panduan menambah benua, boss, part shop, dan musuh ada di [docs/MENAMBAH-KONTEN.md](docs/MENAMBAH-KONTEN.md). Patokan gaya karakter anime (proporsi wajah, mata, rambut, outline, palet) ada di [docs/ART-STYLE.md](docs/ART-STYLE.md). Saat game dimuat, validator konten memberi peringatan di console browser kalau ada data yang belum lengkap.
+Panduan menambah benua, boss, part shop, dan musuh ada di [docs/MENAMBAH-KONTEN.md](docs/MENAMBAH-KONTEN.md), diawali **aturan wajib** untuk benua, stage, dan boss baru: setiap stage unik dan menantang, satu ruang rahasia dengan armor di setiap stage, boss native dengan ciri khas, teks tanpa gender, dan HP boss yang naik setiap benua. Patokan gaya karakter anime (proporsi wajah, mata, rambut, outline, palet) ada di [docs/ART-STYLE.md](docs/ART-STYLE.md). Saat game dimuat, validator konten memberi peringatan di console browser kalau ada data yang belum lengkap.
+
+**Untuk developer lain dan AI coding agent:** aturan kerja, aturan konten, dan cara menguji dirangkum di [AGENTS.md](AGENTS.md). `CLAUDE.md` memuat file yang sama untuk Claude Code. Tes jangkauan stage ada di [tools/reach.js](tools/reach.js): tempel isinya di console browser saat game terbuka, lalu jalankan `reachAll()`.
 
 ## Versi
 

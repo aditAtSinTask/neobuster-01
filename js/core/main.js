@@ -3178,6 +3178,9 @@ function validateContent() {
       }
     }
     if (!(c.bossHp >= 1)) warn(`benua ${c.name}: bossHp (kelipatan HP boss) belum diisi`);
+    const prev = CONTINENTS[CONTINENTS.indexOf(c) - 1];
+    if (prev && !(c.bossHp > prev.bossHp))
+      warn(`benua ${c.name}: bossHp ${c.bossHp} harus lebih besar dari ${prev.name} (${prev.bossHp})`);
     // every weapon of a continent should be the weakness of exactly one of its bosses
     for (const k of c.stages) {
       const n = c.stages.filter(b => BOSSES[b] && BOSSES[b].weak === k).length;

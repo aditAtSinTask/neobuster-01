@@ -10,6 +10,8 @@ function normalizeSave(s) {
   s.parts = s.parts || {}; // shop wallet and bought parts ('on' / 'off')
   s.armors = s.armors || {}; // armors found in the secret rooms, by stage
   s.train = s.train || { wave: 0, kills: 0 }; // best training ground run
+  const lv = v => clamp(Math.floor(+v) || 1, 1, STAT_MAX);
+  s.stats = { atk: lv(s.stats && s.stats.atk), def: lv(s.stats && s.stats.def) }; // Attack / Defense levels (shop)
   return s;
 }
 function loadSave() {
@@ -150,6 +152,10 @@ function restartFromCheckpoint() {
     stun: 0,
     shieldCd: [0, 0],
     shieldAng: 0,
+    aura: AURA_HITS, // Aura Shield: hits it still takes, frames until it forms again, cover after a hit, flash
+    auraCd: 0,
+    auraT: 0,
+    auraFx: 0,
     anim: 0,
     slideT: 0,
     dashT: 0,
@@ -351,24 +357,27 @@ const SHOP_TABS = [
   { key: 'move', name: 'GERAK' },
   { key: 'guard', name: 'PERTAHANAN' },
   { key: 'attack', name: 'SERANGAN' },
+  { key: 'level', name: 'LEVEL' },
 ];
+// Prices: three times the first ones, and more for the parts that make the game easiest (passing spikes, lava and
+// pits without trying, ultra attacks without a wait)
 const SHOP = [
-  { key: 'boots', cat: 'move', name: 'BOOTS ANTI DURI', price: 8000, desc: 'JALAN DI ATAS DURI TANPA MATI' },
-  { key: 'jet', cat: 'move', name: 'JETPACK', price: 10000, desc: 'LOMPAT 1.6X LEBIH TINGGI' },
-  { key: 'windproof', cat: 'move', name: 'ANTI ANGIN', price: 10000, desc: 'TIDAK TERDORONG BADAI, FANBOT, ATAU BOSS' },
+  { key: 'boots', cat: 'move', name: 'BOOTS ANTI DURI', price: 40000, desc: 'JALAN DI ATAS DURI TANPA MATI' },
+  { key: 'jet', cat: 'move', name: 'JETPACK', price: 40000, desc: 'LOMPAT 1.6X LEBIH TINGGI' },
+  { key: 'windproof', cat: 'move', name: 'ANTI ANGIN', price: 30000, desc: 'TIDAK TERDORONG BADAI, FANBOT, ATAU BOSS' },
   {
     key: 'airdash',
     cat: 'move',
     name: 'AIR DASH',
-    price: 12000,
+    price: 36000,
     desc: 'TEKAN SLIDE DI UDARA: DASH SEKALI PER LOMPATAN',
   },
-  { key: 'turbo', cat: 'move', name: 'TURBO', price: 9000, desc: 'SLIDE DAN AIR DASH 3X LEBIH LAMA' },
+  { key: 'turbo', cat: 'move', name: 'TURBO', price: 27000, desc: 'SLIDE DAN AIR DASH 3X LEBIH LAMA' },
   {
     key: 'unlimited',
     cat: 'move',
     name: 'UNLIMITED DASH',
-    price: 100000,
+    price: 450000,
     needs: 'turbo',
     desc: 'AIR DASH TANPA BATAS, SLIDE/DASH SELAMA DITAHAN',
   },
@@ -376,24 +385,31 @@ const SHOP = [
     key: 'stepjump',
     cat: 'move',
     name: 'STEP JUMP',
-    price: 100000,
+    price: 450000,
     desc: 'TEKAN LOMPAT DI UDARA: LOMPAT LAGI TANPA BATAS',
   },
-  { key: 'armor', cat: 'guard', name: 'ARMOR ANTI API', price: 8000, desc: 'MASUK DAN JALAN DI LAVA TANPA MATI' },
-  { key: 'core', cat: 'guard', name: 'CORE', price: 6000, desc: 'KEBAL 5X LEBIH LAMA SETELAH KENA HIT' },
-  { key: 'shield', cat: 'guard', name: 'SHIELD', price: 12000, desc: '2 PERISAI - YANG KENA HIT HILANG 10 DETIK' },
+  { key: 'armor', cat: 'guard', name: 'ARMOR ANTI API', price: 40000, desc: 'MASUK DAN JALAN DI LAVA TANPA MATI' },
+  { key: 'core', cat: 'guard', name: 'CORE', price: 18000, desc: 'KEBAL 5X LEBIH LAMA SETELAH KENA HIT' },
+  { key: 'shield', cat: 'guard', name: 'SHIELD', price: 48000, desc: '2 PERISAI - YANG KENA HIT HILANG 10 DETIK' },
+  {
+    key: 'aura',
+    cat: 'guard',
+    name: 'AURA SHIELD',
+    price: 400000,
+    desc: 'GELEMBUNG EMAS: TAHAN 3 HIT, LALU HILANG 15 DETIK',
+  },
   {
     key: 'super',
     cat: 'attack',
     name: 'SUPER BOOSTER',
-    price: 15000,
+    price: 45000,
     desc: 'TEMBAKAN BIASA LANGSUNG JADI CHARGE SHOT',
   },
   {
     key: 'ultra',
     cat: 'attack',
     name: 'ULTRA BOOSTER',
-    price: 25000,
+    price: 75000,
     needs: 'super',
     desc: 'TAHAN TEMBAK 2.5 DETIK: ULTRA ATTACK',
   },
@@ -401,13 +417,26 @@ const SHOP = [
     key: 'omega',
     cat: 'attack',
     name: 'OMEGA BOOSTER',
-    price: 40000,
+    price: 200000,
     needs: 'ultra',
     desc: 'ULTRA ATTACK TANPA DELAY, SUPER/ULTRA DISABLED',
   },
 ];
+// the LEVEL tab: Attack and Defense levels (their effect and price in actors.js, statCost)
+const STATS = [
+  { key: 'atk', cat: 'level', name: 'ATTACK', stat: true },
+  { key: 'def', cat: 'level', name: 'DEFENSE', stat: true },
+];
+// what a level gives, as the shop shows it, now and at the next level: Attack +1% damage a level, Defense HP 1%
+// thicker a level
+const statDesc = (k, lv) => {
+  const f = n => '+' + (n - 1) + '%';
+  return (k === 'atk' ? 'DAMAGE ' : 'HP LEBIH TEBAL ') + f(lv) + (lv < STAT_MAX ? ' > ' + f(lv + 1) : '');
+};
+// points with a dot every three digits (450.000)
+const fmtNum = n => String(Math.floor(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 const SHOP_ROWS = 7;
-const shopItems = () => SHOP.filter(it => it.cat === SHOP_TABS[game.shopTab].key);
+const shopItems = () => [...SHOP, ...STATS].filter(it => it.cat === SHOP_TABS[game.shopTab].key);
 // first visible row of a scrolling list of n rows showing `rows` at a time, keeping `sel` in view
 const scrollStart = (sel, n, rows) => clamp(sel - (rows >> 1), 0, Math.max(0, n - rows));
 // a part's state for menus: undefined (not bought), 'on', 'off' or 'disabled' (overridden by Omega Booster)
@@ -419,8 +448,30 @@ function shopMsg(text, ok) {
   game.shopOk = ok;
   game.shopMsgT = 120;
 }
+// buy the next Attack / Defense level; quiet: a repeat while the button is held (a tick instead of the buy jingle)
+function buyStat(it, quiet = false) {
+  const lv = statLv(it.key),
+    cost = statCost(lv);
+  if (lv >= STAT_MAX) {
+    shopMsg(it.name + ' SUDAH LEVEL MAKS', false);
+    sfx.deflect();
+    return false;
+  }
+  if (save.points < cost) {
+    shopMsg('POIN TIDAK CUKUP', false);
+    sfx.deflect();
+    return false;
+  }
+  save.points -= cost;
+  save.stats[it.key] = lv + 1;
+  writeSave();
+  (quiet ? sfx.tick : sfx.buy)();
+  shopMsg(it.name + ' NAIK KE LV ' + (lv + 1) + '!', true);
+  return true;
+}
 // buy the part, or switch an owned part on/off
 function shopAction(it) {
+  if (it.stat) return buyStat(it);
   const own = save.parts[it.key];
   if (own && partDisabled(it.key)) {
     shopMsg('DISABLED SELAMA OMEGA BOOSTER ON', false);
@@ -493,7 +544,9 @@ function step() {
           save.points ||
           Object.keys(save.parts).length ||
           Object.keys(save.armors).length ||
-          save.train.wave)
+          save.train.wave ||
+          save.stats.atk > 1 ||
+          save.stats.def > 1)
       ) {
         save.cleared = {};
         delete save.snap;
@@ -501,6 +554,7 @@ function step() {
         save.parts = {};
         save.armors = {};
         save.train = { wave: 0, kills: 0 };
+        save.stats = { atk: 1, def: 1 };
         writeSave();
         player.weapon = 'buster';
         game.resetArm = 0;
@@ -550,6 +604,7 @@ function step() {
         game.shopTab = game.shopTab || 0;
         game.shopSel = 0;
         game.shopMsg = '';
+        game.shopHold = 0;
         sfx.pause();
         break;
       }
@@ -619,7 +674,14 @@ function step() {
         sfx.pause();
         break;
       }
-      if (go && items.length) shopAction(items[game.shopSel]);
+      const cur = items[game.shopSel];
+      if (go && cur) shopAction(cur);
+      // holding the button on a level keeps buying after a moment (until the points run out), so a long climb
+      // needs no hundred presses
+      if (cur && cur.stat && (inp.start || inp.jump)) {
+        game.shopHold++;
+        if (game.shopHold > 30 && game.shopHold % 4 === 0 && !buyStat(cur, true)) game.shopHold = -Infinity;
+      } else game.shopHold = 0;
       break;
     }
     case 'map': {
@@ -1809,6 +1871,7 @@ function drawPlayer() {
       circle(ox, oy, 4, '#3cbcfc');
       circle(ox - 1, oy - 1, 2, '#fcfcfc');
     }
+  if (hasPart('aura')) drawAura(p, sx + p.w / 2, sy + p.h / 2 - 1);
   if (ultra) {
     glow(sx + p.w / 2, sy + p.h / 2, 32, '#f8d800', 0.45 + ((frameCount >> 1) & 1) * 0.25);
     for (let i = 0; i < 4; i++) {
@@ -1819,6 +1882,44 @@ function drawPlayer() {
     const col = special ? w.glow : p.charge >= 75 ? '#3cbcfc' : '#b8f818';
     glow(sx + p.w / 2, sy + p.h / 2, p.charge >= 75 ? 22 : 14, col, 0.35 + ((frameCount >> 2) & 1) * 0.2);
   }
+}
+
+// the Aura Shield: a golden bubble whose rim is three arcs, one for each hit it can still take (a spent arc stays
+// faint); it flashes when it takes a hit or forms again, and flickers in the last moment before it comes back
+function drawAura(p, cx, cy) {
+  if (!(p.aura > 0)) {
+    if (p.auraCd > 0 && p.auraCd < 90 && frameCount & 4) ring(cx, cy, 18, 0.5, 'rgba(248,216,0,0.6)');
+    return;
+  }
+  const fx = p.auraFx > 0,
+    r = 18 + (fx ? 1.5 : 0) + (Math.sin(frameCount * 0.1) > 0.6 ? 0.5 : 0);
+  glow(cx, cy, r + 8, '#f8b800', fx ? 0.55 : 0.12 + 0.05 * p.aura);
+  circle(cx, cy, r, fx ? 'rgba(252,248,192,0.22)' : 'rgba(248,200,40,0.09)');
+  for (let i = 0; i < AURA_HITS; i++) {
+    const a0 = -Math.PI / 2 + (i * 2 * Math.PI) / AURA_HITS + 0.12,
+      a1 = a0 + (2 * Math.PI) / AURA_HITS - 0.24;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r + 2, a0, a1);
+    ctx.closePath();
+    ctx.clip();
+    if (i < p.aura) {
+      ring(cx, cy, r, 1, fx ? '#fcfcfc' : '#f8d800');
+      ring(cx, cy, r - 1, 0.5, 'rgba(252,248,192,0.45)');
+    } else ring(cx, cy, r, 0.5, 'rgba(248,216,0,0.25)');
+    ctx.restore();
+  }
+  // a glint up on the left, and a shimmer that runs round the rim
+  const g = -2.4,
+    s = (frameCount * 0.04) % (Math.PI * 2);
+  for (const [a, col] of [
+    [g, '#fcfcfc'],
+    [g + 0.12, '#fcf8c0'],
+    [g - 0.12, '#fcf8c0'],
+    [s, 'rgba(252,252,252,0.7)'],
+  ])
+    R(cx + Math.cos(a) * (r - 1.5) - 0.5, cy + Math.sin(a) * (r - 1.5) - 0.5, 1, 1, col);
 }
 
 function drawBoss() {
@@ -2009,7 +2110,17 @@ function drawHUD() {
   if (game.train) drawTrainingHUD();
   SHOP.filter(it => hasPart(it.key))
     .slice(0, 14)
-    .forEach((it, i) => drawPartIcon(it.key, VW - 22 - i * 16, 32));
+    .forEach((it, i) => {
+      const x = VW - 22 - i * 16,
+        down = it.key === 'aura' && player.auraCd > 0; // the Aura Shield's bubble is gone: the time until it is back
+      if (down) ctx.globalAlpha = 0.35;
+      drawPartIcon(it.key, x, 32);
+      ctx.globalAlpha = 1;
+      if (down) {
+        R(x, 48, 14, 2, '#3a2a08');
+        R(x, 48, Math.round(14 * (1 - player.auraCd / AURA_DOWN)), 2, '#f8d800');
+      }
+    });
   if (game.popup > 0) text(WEAPONS[player.weapon].name, VW / 2, 14, WEAPONS[player.weapon].pal.b, 1, 'center');
   if (game.note && game.note.t > 0 && (game.note.t > 40 || (frameCount >> 2) & 1)) {
     const w = textWidth(game.note.text);
@@ -2492,7 +2603,7 @@ function drawMap() {
   for (let y = 40; y < VH; y += 12)
     for (let x = ((y * 7 + frameCount * 0.3) % 40) - 40; x < VW; x += 40) R(x, y, 6, HP, 'rgba(168,220,252,0.25)');
   text('PETA DUNIA', VW / 2, 8, '#fcfcfc', 2, 'center');
-  text('POIN ' + save.points, VW - 10, 12, '#f8d800', 1, 'right');
+  text('POIN ' + fmtNum(save.points), VW - 10, 12, '#f8d800', 1, 'right');
   drawCloudStatus(4, 4);
   for (let i = 0; i <= CONTINENTS.length + 1; i++) {
     const cx = Math.round(VW / 2 + i * MAP_SLOT - game.mapX);
@@ -2589,7 +2700,7 @@ function drawSelect() {
   const cont = CONTINENTS[game.continent],
     armors = cont.stages.filter(k => save.armors[k]).length;
   text(cont.name, VW / 2, 10, '#fcfcfc', 2, 'center');
-  text('POIN ' + save.points, VW - 10, 14, '#f8d800', 1, 'right');
+  text('POIN ' + fmtNum(save.points), VW - 10, 14, '#f8d800', 1, 'right');
   drawArmorIcon(10, 12, armors > 0);
   text('ARMOR ' + armors + '/' + cont.stages.length, 24, 14, armors ? '#78f8fc' : '#686878');
   cont.stages.forEach((k, i) => {
@@ -2750,6 +2861,49 @@ function drawPartIcon(key, x, y) {
           [5, 2, 4, 1, '#a8f0fc'],
           [5, 11, 4, 1, '#a8f0fc'],
           [6, 6, 2, 2, '#686878'],
+        ],
+      );
+      break;
+    case 'aura': // a golden bubble (no glow: the HUD dims this icon while the bubble is gone)
+      circle(x + 7, y + 7, 7, '#0a0a16');
+      circle(x + 7, y + 7, 6.5, '#f8d800');
+      circle(x + 7, y + 7, 5.5, '#6a4c0c');
+      circle(x + 7, y + 7, 4.5, '#a07818');
+      circle(x + 8, y + 8, 2.5, '#c89820');
+      R(x + 3, y + 3, 3, 1, '#fcf8c0');
+      R(x + 3, y + 4, 1, 2, '#fcf8c0');
+      break;
+    case 'atk': // the Attack level: a sword
+      sprite(
+        x,
+        y,
+        1,
+        14,
+        [
+          [6, 0, 2, 9, '#d8e0f0'],
+          [3, 9, 8, 2, '#f8b800'],
+          [6, 11, 2, 3, '#8a5a2a'],
+        ],
+        [
+          [6, 1, 1, 7, '#fcfcfc'],
+          [6, 12, 2, 1, '#5a3a1a'],
+        ],
+      );
+      break;
+    case 'def': // the Defense level: a shield
+      sprite(
+        x,
+        y,
+        1,
+        14,
+        [
+          [2, 1, 10, 8, '#3c78d8'],
+          [3, 9, 8, 2, '#3c78d8'],
+          [5, 11, 4, 2, '#3c78d8'],
+        ],
+        [
+          [6, 2, 2, 9, '#a8d8fc'],
+          [3, 5, 8, 2, '#a8d8fc'],
         ],
       );
       break;
@@ -2975,7 +3129,7 @@ function drawShop() {
   ctx.fillRect(0, 0, VW, VH);
   for (let x = -(frameCount % 16); x < VW; x += 16) R(x, 0, 1, VH, 'rgba(80,100,200,0.1)');
   text('SHOP', VW / 2, 6, '#fcfcfc', 2, 'center');
-  text('POIN ' + save.points, VW - 12, 10, '#f8d800', 1, 'right');
+  text('POIN ' + fmtNum(save.points), VW - 12, 10, '#f8d800', 1, 'right');
   let tx = 16; // tabs
   SHOP_TABS.forEach((t, i) => {
     const w = textWidth(t.name) + 12,
@@ -2990,20 +3144,37 @@ function drawShop() {
   items.slice(first, first + SHOP_ROWS).forEach((it, n) => {
     const i = first + n,
       y = 44 + n * 18,
-      sel = game.shopSel === i,
-      own = partState(it.key),
-      locked = !own && it.needs && !save.parts[it.needs];
+      sel = game.shopSel === i;
     R(12, y - 1, VW - 24, 17, sel ? 'rgba(60,188,252,0.22)' : 'rgba(255,255,255,0.04)');
     if (sel) R(12, y - 1, 2, 17, '#f8d800');
     drawPartIcon(it.key, 20, y);
+    if (it.stat) {
+      // a level: the level now, what it gives now and at the next level, and the next level's price
+      const lv = statLv(it.key),
+        cost = statCost(lv);
+      text(it.name + ' LV ' + lv, 42, y, sel ? '#f8d800' : '#fcfcfc');
+      text(statDesc(it.key, lv), 42, y + 9, '#8888a0');
+      if (lv >= STAT_MAX) text('MAKS', VW - 20, y, '#b8f818', 1, 'right');
+      else text(fmtNum(cost) + ' POIN', VW - 20, y, save.points >= cost ? '#fcfcfc' : '#f87858', 1, 'right');
+      return;
+    }
+    const own = partState(it.key),
+      locked = !own && it.needs && !save.parts[it.needs];
     text(it.name, 42, y, locked ? '#686878' : sel ? '#f8d800' : '#fcfcfc');
     text(it.desc, 42, y + 9, locked ? '#4a4a58' : '#8888a0');
-    const status = own ? STATE_TEXT[own] : locked ? 'TERKUNCI' : it.price + ' POIN';
+    const status = own ? STATE_TEXT[own] : locked ? 'TERKUNCI' : fmtNum(it.price) + ' POIN';
     const col = own ? STATE_COL[own] : locked ? '#686878' : save.points >= it.price ? '#fcfcfc' : '#f87858';
     text(status, VW - 20, y, col, 1, 'right');
   });
   drawScrollMarks(VW - 16, 44, SHOP_ROWS * 18, first > 0, first + SHOP_ROWS < items.length);
   if (!items.length) text('BELUM ADA PART DI TAB INI', VW / 2, 90, '#686878', 1, 'center');
+  if (SHOP_TABS[game.shopTab].key === 'level') {
+    const y = 44 + items.length * 18 + 10;
+    text('ATTACK: DAMAGE +1% SETIAP LEVEL', 20, y, '#a8c8f8');
+    text('DEFENSE: HP 1% LEBIH TEBAL SETIAP LEVEL', 20, y + 12, '#a8c8f8');
+    text('LEVEL MAKS ' + STAT_MAX + ', HARGA NAIK 3.5% SETIAP LEVEL', 20, y + 24, '#a8c8f8');
+    text('TAHAN ENTER UNTUK MEMBELI BERULANG', 20, y + 40, '#8888a0');
+  }
   if (game.shopMsgT > 0) text(game.shopMsg, VW / 2, 182, game.shopOk ? '#b8f818' : '#f87858', 1, 'center');
   text('KIRI/KANAN TAB  ATAS/BAWAH PILIH  ENTER BELI  X KEMBALI', VW / 2, 200, '#8888a0', 1, 'center');
   drawVersion();
@@ -3186,7 +3357,7 @@ function drawPause() {
     text(STATE_TEXT[st], 366, y, STATE_COL[st], 1, 'right');
   });
   drawScrollMarks(376, 46, TOOL_ROWS * 16 - 6, tfirst > 0, tfirst + TOOL_ROWS < tools.length);
-  text('LIFE ' + livesText() + '   POIN ' + save.points, VW / 2, 192, '#a8c8f8', 1, 'center');
+  text('LIFE ' + livesText() + '   POIN ' + fmtNum(save.points), VW / 2, 192, '#a8c8f8', 1, 'center');
   text('ARAH PILIH  ENTER PAKAI / ON-OFF  ESC LANJUT', VW / 2, 206, '#686878', 1, 'center');
   drawVersion();
 }

@@ -32,7 +32,7 @@ File ini untuk siapa pun yang melanjutkan NEOBUSTER, manusia maupun AI coding ag
 
 Setiap benua (pulau), stage, dan boss baru harus memenuhi checklist di [docs/MENAMBAH-KONTEN.md, bagian "Aturan wajib"](docs/MENAMBAH-KONTEN.md#aturan-wajib-untuk-benua-stage-dan-boss-baru). Ringkasnya:
 
-1. **Setiap stage unik dan menantang.** Area dan alurnya sendiri, rintangan dan mekanik khas temanya, platform dan rute yang berbeda dari semua stage lain (jangan menyalin geometri), dan musuh khasnya sendiri. Stage yang terasa seperti template tidak diterima.
+1. **Setiap stage unik dan menantang.** Area dan alurnya sendiri, rintangan dan mekanik khas temanya, platform dan rute yang berbeda dari semua stage lain (jangan menyalin geometri), dan musuh khasnya sendiri. Stage yang terasa seperti template tidak diterima. Panjangnya 450 kolom (pintu boss di kolom 426), dan 150 kolom terakhir sebelum pintu boss adalah bagian tersulitnya, dengan dua checkpoint sendiri.
 2. **Setiap stage punya satu ruang rahasia dengan armor (+1x HP)** (`B.secret`). Dinding segelnya hanya hancur oleh senjata boss lain, dan ruangannya tampak seperti batu sampai segelnya hancur.
 3. **Boss digambar native**, bukan dipotong dari lembar karakter. Wajahnya memakai wajah bersama, ciri khasnya kuat, serangannya berbeda dari boss lain, dan kelemahannya berantai. Lihat [docs/ART-STYLE.md](docs/ART-STYLE.md).
 4. **Teks tanpa gender.** Nama tempat (`place`) dan kalimat perkenalan (`intro`) saja; di layar tidak ada kata "Benua".
@@ -45,4 +45,5 @@ Setiap benua (pulau), stage, dan boss baru harus memenuhi checklist di [docs/MEN
 2. **Tes jangkauan** dengan [tools/reach.js](tools/reach.js): buka game, tempel isi file itu di console browser, jalankan `reachAll()`, lalu muat ulang halaman. Semua kolom harus `OK`: pintu boss dan setiap checkpoint terjangkau dari awal, armor tidak terjangkau selama segelnya utuh, dan terjangkau setelah segelnya hancur.
 3. Mainkan langsung bagian yang bergantung waktu (press, laser, blok energi, cairan naik), karena tes jangkauan tidak mensimulasikan waktu.
 4. Pastikan ruang rahasia bisa dibuka dengan senjata segelnya, dan tembakan senjata lain memantul.
-5. Kalau mengubah save atau Cloud Save: uji masuk akun baru (password diminta dua kali), masuk dari perangkat kosong (progress cloud termuat), perangkat dengan progress berbeda (diminta memilih), dan sinkron otomatis setelah ada perubahan. Pakai akun uji, bukan akun pemain.
+5. Cheat (`P` + `O`) selalu terbuka saat game dibuka dari file atau dari `localhost` / `127.0.0.1` (mode development), jadi bisa dipakai untuk menguji. Di hosting asli, cheat baru terbuka setelah rekor Training Ground mencapai wave 50.
+6. Kalau mengubah save atau Cloud Save: uji masuk akun baru (password diminta dua kali), masuk dari perangkat kosong (progress cloud termuat), perangkat dengan progress berbeda (diminta memilih), dan sinkron otomatis setelah ada perubahan. Pakai akun uji, bukan akun pemain.

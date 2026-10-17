@@ -2,6 +2,35 @@
 
 Semua perubahan NEOBUSTER, versi terbaru di atas. Versi ditulis di konstanta `VERSION` di `js/core/engine.js`.
 
+## 1.13.0
+
+- **Harga Shop naik**: semua part tiga kali lipat dari harga awalnya, dan lebih mahal lagi untuk part yang paling memudahkan permainan:
+  - Boots Anti Duri dan Armor Anti Api 40.000 (5x), Omega Booster 200.000 (5x).
+  - Jetpack 40.000 dan Shield 48.000 (4x).
+  - Unlimited Dash dan Step Jump 450.000 (4,5x).
+  - Harga dan POIN ditulis dengan titik ribuan (450.000).
+- **Part baru: Aura Shield** (400.000, tab PERTAHANAN). Gelembung emas yang menahan 3 hit: HP tidak berkurang dan kamu tidak terpental. Hit ketiga memecahkannya, dan gelembung terbentuk lagi 15 detik kemudian. Busur emasnya menunjukkan sisa hit; selama gelembung hilang, ikonnya di HUD meredup dengan bar waktu di bawahnya.
+- **Level ATTACK dan DEFENSE** di tab baru **LEVEL** di Shop, dari level 1 sampai 150:
+  - ATTACK: +1% damage setiap level. DEFENSE: HP 1% lebih tebal setiap level.
+  - Harga mulai 500 POIN dan naik 3,5% setiap level (level 150 sekitar 2,39 juta POIN per stat). Tahan Enter untuk membeli berulang.
+  - Tersimpan di save dan Cloud Save, tampil di ringkasan saat memilih save cloud, dan terhapus saat reset progress.
+- **Ultra G.SHOT dan H.BLAST tidak tertinggal lagi**: Hurricane dan Tsunami kini muncul dari posisi pemain (sebelumnya dari tepi layar di belakang) dan bergerak 4,5 px/frame (sebelumnya 3,2, hampir sama dengan dash). Pemain tidak lagi mendahului serangannya sendiri.
+- **Cheat terkunci sampai rekor Training Ground wave 50.** Sebelum itu, `P` + `O` hanya menampilkan pesan dengan rekor wave saat ini. Dalam mode development (game dibuka dari file, atau dari `localhost` / `127.0.0.1`), cheat selalu terbuka.
+- **Semua 12 stage lebih panjang dan lebih sulit**: dari 300 menjadi 450 tile, dan pintu boss pindah dari kolom 276 ke 426. Setiap stage mendapat 150 kolom baru sebelum pintu boss, dengan dua checkpoint baru, berisi rintangan khas temanya dalam bentuk baru:
+  - Cut: tumpukan kayu dengan gergaji di puncaknya, lift di pabrik melewati gergaji, deretan press di atas lantai duri, ban berjalan dengan gergaji.
+  - Fire: lereng bom vulkanik, tiang geyser, terowongan lava di bawah danau lava, punggung bukit dengan semburan api kembar.
+  - Elec: tumpukan kapasitor (naik di atas blok energi), kereta gantung di bawah sinar listrik, saluran kabel di bawah lantai bertegangan, halaman trafo.
+  - Snow: danau beku berlubang dalam badai, galeri es gantung, menara es licin, tebing salju yang runtuh.
+  - Earth: cekungan pasir hisap dengan batu pijakan rapuh, jalan tebing, ember crane di tambang terbuka, gerbang tambang.
+  - Wind: tangga pad angin, batu melayang naik-turun, tangga awan rapuh, gerbang langit.
+  - Hydro: menara banjir, kanal pintu air, jembatan pipa di atas lubang bulu babi, dermaga.
+  - Toxic: drum naik-turun di kolam asam, pipa besar dengan ventilasi, tangki luapan (asam naik saat kamu memanjat), halaman pembuangan.
+  - Shadow: katakombe di atas lantai duri, parit dengan rakit di bawah kapak berayun, tangga gelap di atas jurang, halaman patung.
+  - Sonic: lorong bass (drum dengan duri di atap), tiang mikrofon, tangga encore yang dikejar cincin speaker, panggung terakhir.
+  - Light: menara kristal dengan laser bergelombang, rel cahaya melewati gerbang laser, lembah prisma, jalan ke singgasana.
+  - Time: escapement di bawah bandul raksasa, menara roda gigi bertumpuk, tangga sabuk roda gigi, aula lonceng.
+- Dokumentasi: README (alur stage, Shop, level, Training Ground, cheat), docs/MENAMBAH-KONTEN.md (ukuran stage), AGENTS.md (ukuran stage, cheat dalam mode development).
+
 ## 1.12.0
 
 - **Bisa dipasang sebagai aplikasi (PWA)**: game punya manifest (`manifest.webmanifest`) dan service worker (`sw.js`).

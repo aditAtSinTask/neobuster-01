@@ -1624,14 +1624,15 @@ Object.assign(WEAPONS, {
       noise(0.5, 0.18, 0, 1500);
     },
     ultra(p) {
+      // a wall of water that bursts up around the player and rolls ahead of them
       addShot({
         kind: 'tsunami',
         weapon: 'hydro',
-        x: p.facing > 0 ? camX - 64 : camX + VW,
+        x: ultraFront(p.facing, 64),
         y: camY,
         w: 64,
         h: VH,
-        vx: p.facing * 3.2,
+        vx: p.facing * ULTRA_SWEEP,
         life: 170,
         dmg: 3,
         bossDmg: 3,
@@ -3195,6 +3196,62 @@ Object.assign(LAYOUTS, {
     B.add('jelly', 258, 16);
     B.add('E', 266);
     B.add('met', 270);
+    // --- the flooded stairwell: swim up the flooded tower (under water you jump far higher), urchins on the floor
+    // under the high landings
+    B.ground(276, 312);
+    B.solid(279, 0, 306, 21);
+    B.cave(280, 2, 305, 21);
+    B.cave(279, 18, 279, 21); // the way in
+    B.flood(279, 2, 305, 21);
+    for (const [x0, x1, y] of [
+      [289, 295, 18],
+      [282, 287, 14],
+      [290, 297, 10],
+      [299, 305, 6],
+    ])
+      B.ledge(x0, x1, y, '#');
+    B.spikes(297, 305);
+    B.cave(306, 3, 306, 5); // out at the top
+    B.add('jelly', 293, 15);
+    B.add('jelly', 286, 7);
+    B.add('jelly', 301, 13);
+    // --- the sluices: down into the flooded channel, where the sluice gates slam down to its bed; urchins between
+    B.pillar(307, 312, 6);
+    B.add('cp', 309, 5);
+    B.ground(313, 425);
+    B.solid(313, 10, 352, 12);
+    B.cave(313, 13, 351, 21);
+    B.cave(314, 10, 315, 12); // the way down into it
+    B.solid(352, 13, 352, 17);
+    B.flood(313, 13, 351, 21);
+    [319, 327, 335, 343].forEach((x, i) => B.add('crusher', x, 13, { y1: F, phase: i * 50 }));
+    B.spikes(323, 324);
+    B.spikes(339, 340);
+    B.add('jelly', 331, 16);
+    B.add('jelly', 347, 17);
+    // --- the pipe bridge: over the urchin pit on the pipes that slide back and forth, drips from the water main
+    B.add('cp', 355);
+    B.rect(358, F, 389, LEVEL_H - 1, '.');
+    B.spikes(358, 389, 30);
+    B.rect(358, 31, 389, 33, '#');
+    B.solid(358, 3, 389, 5); // the water main
+    B.add('plat', 359, 20, { x1: 365, y1: 20, speed: 1 });
+    B.add('plat', 368, 18, { x1: 374, y1: 18, speed: 1.2 });
+    B.pillar(377, 379, 18);
+    B.add('plat', 382, 19, { x1: 387, y1: 19, speed: 1.1 });
+    [361, 366, 371, 376, 381, 386].forEach((x, i) => B.add('drip', x, 6, { period: 75, phase: i * 13 }));
+    B.add('jelly', 372, 12);
+    // --- the dock: crates to climb, a turret on the tall one, jellies over them, drips from the crane
+    B.solid(396, 20, 398, 21);
+    B.solid(401, 18, 403, 21);
+    B.solid(406, 20, 408, 21);
+    B.add('turret', 402, 17);
+    B.solid(394, 6, 410, 7); // the crane
+    [397, 404, 409].forEach((x, i) => B.add('drip', x, 8, { period: 70, phase: i * 23 }));
+    B.add('jelly', 399, 13);
+    B.add('jelly', 412, 14);
+    B.add('E', 416);
+    B.add('met', 421);
     // --- the secret room: off the bottom floor inside the dam, behind a rusted grate (Venom Drip)
     B.secret(116, 23, 119, 25, 120, 'toxic', 117);
     bossRoom(B, DOOR_COL, 'hydro');
@@ -3287,6 +3344,65 @@ Object.assign(LAYOUTS, {
     B.add('E', 262);
     B.add('slime', 266);
     B.add('flyer', 270, 15);
+    // --- the drum lifts: drums bob up and down in the acid pit, vents puffing on the pipe stubs between them
+    B.lava(276, 306);
+    B.add('plat', 278, 20, { x1: 278, y1: 15, speed: 0.8 });
+    B.pillar(282, 283, 16);
+    B.add('vent', 282, 16, { phase: 0 });
+    B.add('plat', 286, 14, { x1: 286, y1: 19, speed: 0.9 });
+    B.pillar(290, 291, 15);
+    B.add('vent', 291, 15, { phase: 60 });
+    B.add('plat', 294, 19, { x1: 294, y1: 13, speed: 1 });
+    B.pillar(298, 300, 14);
+    B.add('slime', 299, 10);
+    B.add('plat', 303, 14, { x1: 303, y1: 20, speed: 1.1 });
+    B.add('flyer', 290, 6);
+    // --- the pipeline: along the top of the big pipe over the acid pond, vents puffing out of its joints, slimes on
+    // the pipes above
+    B.ground(307, 311);
+    B.rect(310, 20, 311, 21, '#');
+    B.add('cp', 308);
+    B.lava(312, 349);
+    B.ledge(312, 349, 18);
+    B.rect(327, 18, 328, 18, '.'); // a broken joint
+    [319, 334, 346].forEach(x => B.rect(x, 19, x, F, '='));
+    [316, 323, 331, 338, 344].forEach((x, i) => B.add('vent', x, 18, { phase: i * 34 }));
+    B.ledge(321, 329, 11);
+    B.ledge(337, 345, 11);
+    B.add('slime', 325, 10);
+    B.add('slime', 341, 10);
+    // --- the overflow tank: the acid floods the tank as soon as you climb its crates; up and out of the top before
+    // it reaches you
+    B.ground(350, 425);
+    B.add('cp', 352);
+    B.solid(354, 3, 390, 21);
+    B.cave(355, 5, 389, 21);
+    B.cave(354, 18, 354, 21); // the way in
+    for (const [x0, top] of [
+      [358, 20],
+      [363, 18],
+      [368, 16],
+      [373, 14],
+      [378, 12],
+      [383, 10],
+      [387, 8],
+    ])
+      B.rect(x0, top, x0 + 2, F - 1, '#');
+    B.cave(390, 5, 390, 7); // out at the top
+    B.add('rising', 355, 21, { x1: 389, y1: 6, speed: 0.25, delay: 40 });
+    B.add('slime', 369, 13);
+    B.add('slime', 379, 9);
+    B.ledge(391, 394, 8);
+    // --- the drain yard: acid gutters with vents between them, a slime on the pipe above, then the door
+    B.lava(399, 400);
+    B.add('vent', 404, F, { phase: 0 });
+    B.lava(407, 408);
+    B.add('vent', 411, F, { phase: 85 });
+    B.ledge(402, 412, 13);
+    B.add('slime', 406, 12);
+    B.add('E', 416);
+    B.add('met', 421);
+    B.add('flyer', 418, 12);
     // --- the secret room: at the foot of the smokestacks, behind a barricade of burning drums (Hydro Blast)
     B.secret(206, 18, 209, 21, 210, 'hydro', 207);
     bossRoom(B, DOOR_COL, 'toxic');
@@ -3385,6 +3501,67 @@ Object.assign(LAYOUTS, {
     [253, 260, 267, 274].forEach(x => B.add('torch', x, 16));
     B.add('E', 273);
     B.add('shade', 265, 14);
+    // --- the catacombs: over the coffins in the burial vault, the floor between them all spikes, two of the lids
+    // crumbling, ghosts in the dark
+    B.ground(276, 316);
+    B.solid(276, 6, 316, 11);
+    B.spikes(280, 314);
+    for (const [x0, top] of [
+      [281, 20],
+      [291, 20],
+      [296, 18],
+      [306, 20],
+      [311, 19],
+    ])
+      B.rect(x0, top, x0 + 2, F, '#');
+    B.ledge(286, 288, 19, 'C');
+    B.ledge(301, 303, 20, 'C');
+    [278, 298, 315].forEach(x => B.add('torch', x, 16));
+    B.add('shade', 289, 14);
+    B.add('shade', 304, 15);
+    B.add('h', 297, 17);
+    // --- the moat: over the black moat on the drifting rafts, axes swinging down from the arches above it
+    B.add('cp', 315);
+    B.solid(319, 6, 352, 8); // the arches
+    B.add('plat', 319, 20, { x1: 326, y1: 20, speed: 1 });
+    B.add('pendulum', 323, 9, { len: 10, amp: 0.7, phase: 0, axe: true });
+    B.pillar(329, 330, 18);
+    B.add('torch', 329, 15);
+    B.add('plat', 333, 18, { x1: 340, y1: 18, speed: 1.2 });
+    B.add('pendulum', 337, 9, { len: 8, amp: 0.75, phase: 2.2, axe: true });
+    B.pillar(343, 344, 19);
+    B.add('torch', 344, 16);
+    B.add('plat', 347, 20, { x1: 350, y1: 20, speed: 0.9 });
+    B.add('shade', 334, 12);
+    // --- the dark stair: up the broken stair over the abyss in the dark (no torches: only your shots light it), two
+    // of its steps crumbling, ghosts coming down at you
+    B.ground(353, 356);
+    B.add('cp', 355);
+    for (const [x0, top, c] of [
+      [358, 20, '#'],
+      [362, 18, '#'],
+      [366, 16, 'C'],
+      [370, 14, '#'],
+      [374, 12, '#'],
+      [378, 10, 'C'],
+      [382, 8, '#'],
+    ])
+      if (c === 'C') B.ledge(x0, x0 + 2, top, 'C');
+      else B.pillar(x0, x0 + 2, top);
+    B.pillar(386, 392, 8);
+    B.add('shade', 366, 9);
+    B.add('shade', 377, 4);
+    B.add('shade', 388, 2);
+    // --- the throne approach: statues with turrets on their plinths, ghosts, the last torches
+    B.ground(393, 425);
+    for (const x of [398, 408]) {
+      B.solid(x, 20, x + 2, 21);
+      B.add('turret', x + 1, 19);
+    }
+    [396, 404, 412, 420].forEach(x => B.add('torch', x, 17));
+    B.add('shade', 405, 13);
+    B.add('shade', 417, 14);
+    B.add('E', 414);
     // --- the secret room: at the foot of the shaft down to the dungeon, behind a wall of darkness (Prism Laser)
     B.secret(56, 34, 60, 37, 61, 'light', 58);
     bossRoom(B, DOOR_COL, 'shadow');
@@ -3455,6 +3632,59 @@ Object.assign(LAYOUTS, {
     B.add('speakerbot', 260);
     B.add('E', 265);
     B.add('flyer', 270, 14);
+    // --- the bass corridor: drums in the floor of a low hall, spikes in its roof over some of them: bounce only where
+    // the roof is clear (to clear the amp stacks), and jump the drums under the spikes
+    isle(276, 314);
+    B.solid(278, 6, 312, 12); // the roof
+    for (const [x, trap] of [
+      [281, true],
+      [285, false],
+      [292, true],
+      [296, false],
+      [303, true],
+      [307, false],
+    ]) {
+      drum(x, F);
+      if (trap) B.ledge(x - 1, x + 2, 13, '^');
+    }
+    [288, 299, 310].forEach(x => B.rect(x, 18, x + 1, F - 1, '#')); // the amp stacks
+    B.add('speakerbot', 291);
+    B.add('speakerbot', 302);
+    // --- the mic stands: the drums on top of the stands throw you from one stand up to the next, high over the void
+    B.add('cp', 313);
+    B.pillar(317, 318, 20);
+    drum(317, 20);
+    B.pillar(321, 323, 13);
+    B.add('speaker', 323, 12, { dir: -1, period: 120 });
+    B.pillar(327, 328, 16);
+    drum(327, 16);
+    B.pillar(331, 334, 9);
+    B.add('speakerbot', 333, 8);
+    B.pillar(338, 339, 14);
+    drum(338, 14);
+    B.pillar(342, 346, 7);
+    B.add('flyer', 336, 2);
+    // --- the encore stairs: down the stairs of stages while the speaker at the top sends rings bouncing down after you
+    isle(349, 354, 9, 1);
+    B.add('speaker', 349, 8, { dir: 1, period: 70 });
+    for (const [x0, top] of [
+      [357, 11],
+      [363, 13],
+      [369, 15],
+      [375, 17],
+      [381, 19],
+    ])
+      isle(x0, x0 + 3, top, 1);
+    B.add('speakerbot', 371, 14);
+    B.add('flyer', 378, 9);
+    // --- the finale: the boss's stage, a speaker sending rings over a spike strip at you, a speakerbot
+    isle(387, 425);
+    B.add('cp', 389);
+    B.spikes(398, 399);
+    B.add('speaker', 412, F - 1, { dir: -1, period: 75 });
+    B.add('speakerbot', 404);
+    B.add('E', 407);
+    B.add('flyer', 418, 13);
     // --- the secret room: in the tower under the last dance floor, behind a bank of cloud (Gale Shot)
     B.solid(87, 11, 93, 25);
     B.secret(88, 18, 92, 21, 93, 'wind', 90);
@@ -3558,6 +3788,69 @@ Object.assign(LAYOUTS, {
     B.solid(266, 20, 267, 21);
     B.add('turret', 266, 19);
     B.add('flyer', 271, 14);
+    // --- the crystal spires: slippery crystal spires over the spike field, a low laser sweeping the top of each one
+    // in a wave
+    B.ground(276, 315);
+    B.spikes(279, 312);
+    [
+      [280, 20],
+      [284, 18],
+      [288, 19],
+      [292, 17],
+      [296, 18],
+      [300, 16],
+      [304, 18],
+      [308, 19],
+    ].forEach(([x0, top], i) => {
+      B.pillar(x0, x0 + 1, top);
+      B.ledge(x0, x0 + 1, top, 'I');
+      laser('low', x0, x0 + 1, top, i * 22);
+    });
+    B.add('prismo', 314);
+    B.add('flyer', 296, 9);
+    // --- the beam rail: ride the crystal car over the void through the laser gates; jump the beams (and keep going
+    // the car's way while you are in the air)
+    B.add('cp', 313);
+    B.add('plat', 318, 20, { x1: 347, y1: 20, speed: 0.9 });
+    [
+      [324, 0],
+      [330, 50],
+      [336, 100],
+      [342, 25],
+    ].forEach(([x, phase]) => laser('low', x, x + 1, 20, phase));
+    B.ledge(329, 332, 13);
+    B.add('prismo', 331, 12);
+    B.add('flyer', 340, 8);
+    // --- the prism valley: down the steps into the valley under the beams at head height (slide), over the spikes
+    // at its bottom, and up the far side over the beams at the feet (jump)
+    B.ground(351, 356);
+    B.add('cp', 353);
+    for (const [x0, x1, top] of [
+      [357, 361, 24],
+      [362, 366, 26],
+      [367, 370, 28],
+      [373, 376, 28],
+      [377, 381, 26],
+      [382, 386, 24],
+    ])
+      B.pillar(x0, x1, top);
+    B.spikes(371, 372, 30);
+    B.rect(371, 31, 372, 33, '#');
+    laser('head', 358, 360, 24, 0);
+    laser('head', 363, 365, 26, 50);
+    laser('low', 378, 380, 26, 100);
+    laser('low', 383, 385, 24, 25);
+    B.add('prismo', 369, 27);
+    B.add('prismo', 374, 27);
+    // --- the throne approach: a crystal wall to slide under, prismos, a turret on a crystal block
+    B.ground(387, 425);
+    B.solid(396, 10, 400, 20); // slide under it
+    B.add('prismo', 405);
+    B.solid(410, 20, 411, 21);
+    B.add('turret', 410, 19);
+    B.add('E', 415);
+    B.add('prismo', 419);
+    B.add('flyer', 422, 13);
     // --- the secret room: at the far end of the crystal cave, behind a wall of light (Shadow Clone)
     B.secret(195, 34, 199, 37, 194, 'shadow', 197);
     bossRoom(B, DOOR_COL, 'light');
@@ -3638,6 +3931,56 @@ Object.assign(LAYOUTS, {
     B.add('E', 260);
     B.add('flyer', 266, 14);
     B.add('met', 270);
+    // --- the escapement: a narrow beam across the chasm, broken in places, under the great pendulums
+    B.ground(276, 279);
+    B.solid(281, 4, 312, 7); // the frame the pendulums hang from
+    B.ledge(280, 287, 20);
+    B.ledge(290, 297, 20);
+    B.ledge(300, 306, 20);
+    B.ledge(309, 312, 20);
+    [284, 293, 303].forEach((x, i) => B.add('pendulum', x, 8, { len: 11, amp: 0.5, phase: i * 2.1 }));
+    B.add('gearbot', 294, 19);
+    B.add('flyer', 300, 12);
+    // --- the gear tower: up the tower on the turning gear wheels, one above the other, out at the top
+    B.ground(313, 352);
+    B.add('cp', 314);
+    B.solid(316, 0, 350, 21);
+    B.cave(317, 2, 349, 21);
+    B.cave(316, 18, 316, 21); // the way in
+    B.add('plat', 323, 18, { r: 3, speed: 0.025 });
+    B.add('plat', 332, 12, { r: 3, speed: -0.03 });
+    B.add('plat', 323, 6, { r: 3, speed: 0.035, phase: Math.PI });
+    B.ledge(329, 349, 4);
+    B.cave(350, 1, 350, 3); // out at the top
+    B.add('gearbot', 340, 3);
+    B.add('flyer', 338, 9);
+    // --- the clockwork stairs: down a stair of gear belts over the void, one step's belt hurrying you off its edge,
+    // the next one's holding you back
+    B.pillar(351, 354, 4);
+    B.add('cp', 352, 3);
+    for (const [x0, top, dir] of [
+      [357, 6, 1],
+      [361, 8, -1],
+      [365, 10, 1],
+      [369, 12, -1],
+      [373, 14, 1],
+      [377, 16, -1],
+      [381, 18, 1],
+      [385, 20, -1],
+    ]) {
+      B.pillar(x0, x0 + 2, top);
+      B.belt(x0, x0 + 2, top, dir);
+    }
+    B.add('gearbot', 370, 11);
+    B.add('flyer', 379, 6);
+    // --- the chime hall: the last pendulum, gearbots, the throne door
+    B.ground(389, 425);
+    B.solid(396, 9, 404, 11);
+    B.add('pendulum', 400, 12, { len: 9, amp: 0.8, phase: 1 });
+    B.add('gearbot', 408);
+    B.add('E', 413);
+    B.add('gearbot', 417);
+    B.add('met', 421);
     // --- the secret room: off the bottom of the clock face, behind a door with an electric lock (Thunder Beam)
     B.secret(109, 18, 113, 21, 108, 'elec', 111);
     bossRoom(B, DOOR_COL, 'time');

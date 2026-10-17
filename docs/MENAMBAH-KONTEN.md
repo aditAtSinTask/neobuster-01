@@ -17,7 +17,8 @@ Setiap benua, stage, dan boss baru harus memenuhi semua aturan ini:
    - Rintangan dan mekanik khas temanya.
    - Platform dan rute yang berbeda dari semua stage yang sudah ada; jangan menyalin geometri stage lain.
    - Musuh khasnya sendiri di samping musuh umum.
-   - Ukuran 300 × 44 tile, dengan bagian naik dan bagian bawah tanah, dan checkpoint di antaranya.
+   - Ukuran 450 × 44 tile (pintu boss di kolom 426), dengan bagian naik dan bagian bawah tanah, dan checkpoint di antaranya.
+   - 150 kolom terakhir sebelum pintu boss (kolom 276–425) adalah bagian tersulit stage itu, dengan dua checkpoint sendiri.
 2. **Setiap stage punya satu ruang rahasia dengan armor** (`B.secret`, lihat [Mekanik bawaan](#mekanik-bawaan-yang-bisa-dipakai)).
    - Dinding segelnya hanya hancur oleh senjata boss lain, tidak pernah oleh senjata stage itu sendiri.
    - Ruangannya tampak seperti batu sampai segelnya hancur, dan letaknya di samping jalur utama.
@@ -86,7 +87,7 @@ File benua cukup mengisi tabel dan **registry** yang sudah ada dengan `Object.as
 | Tabel             | Isi                                                                                                                                                                                                                                   |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `STAGES[k]`       | `name` (nama boss), `place` (tempat stage, paling banyak 18 huruf, tampil di Stage Select), `intro` (kalimat perkenalan boss tanpa menyebut gender, tampil di layar intro dan saat boss muncul), `theme`, `music`, `ambient`, `color` |
-| `LAYOUTS[k](B)`   | layout level 300 × 44 tile dengan satu ruang rahasia (`B.secret`, lihat Mekanik bawaan), diakhiri `bossRoom(B, DOOR_COL, theme)`                                                                                                      |
+| `LAYOUTS[k](B)`   | layout level 450 × 44 tile dengan satu ruang rahasia (`B.secret`, lihat Mekanik bawaan), diakhiri `bossRoom(B, DOOR_COL, theme)`                                                                                                      |
 | `ENEMY_COLORS[k]` | warna musuh umum (met, flyer, hopper, turret) di stage ini                                                                                                                                                                            |
 | `BOSS_ROOMS[k]`   | opsional: gimmick ruang boss, `(B, dc) => { ... }` (`dc` = kolom pintu boss)                                                                                                                                                          |
 

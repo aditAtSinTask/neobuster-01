@@ -274,6 +274,19 @@ const hpMult = () => (game.tough ? 10 : 1) + armorCount();
 const partDisabled = k => (k === 'super' || k === 'ultra') && !!save.parts && save.parts.omega === 'on';
 const hasPart = k => !!(save.parts && save.parts[k] === 'on') && !partDisabled(k);
 const SHIELD_DOWN = 600; // frames a shield orb stays gone after it blocks something (10 s)
+// Aura Shield (shop part): a golden bubble round the player takes AURA_HITS hits in their place; the hit that pops it
+// leaves it gone for AURA_DOWN frames, then it forms again, whole
+const AURA_HITS = 3,
+  AURA_DOWN = 900; // 15 s
+// Attack and Defense levels (the shop's LEVEL tab), 1 to STAT_MAX: every Attack level adds 1% to the damage the
+// player deals, every Defense level makes the HP 1% thicker (the damage taken is divided by 1 + 1% a level), so level
+// 150 deals +149% damage and takes 60% less. The next level costs 500 points at level 1 and 3.5% more at every level
+// after it, so the first levels come quickly and the last ones are a long goal (see README, Shop).
+const STAT_MAX = 150;
+const statLv = k => (save.stats && save.stats[k]) || 1;
+const atkMult = () => 1 + (statLv('atk') - 1) / 100;
+const defMult = () => 1 + (statLv('def') - 1) / 100;
+const statCost = lv => Math.round((500 * Math.pow(1.035, lv - 1)) / 10) * 10;
 function addScore(n) {
   game.score += n;
   save.points = (save.points || 0) + n;
@@ -580,6 +593,10 @@ function fireCharged(p) {
 }
 
 // ================= ULTRA ATTACKS (Ultra Booster: hold for ULTRA_CHARGE frames) =================
+// a screen-high sweep (Hurricane, Tsunami) starts around the player, its front edge just ahead of them, and runs well
+// faster than a dash (2.6), so the player can never get ahead of it
+const ULTRA_SWEEP = 4.5;
+const ultraFront = (f, w) => (f > 0 ? pcx() + 16 - w : pcx() - 16);
 function fireUltra(p) {
   if (pshots.some(s => s.ultra)) return false; // one at a time
   const f = p.facing,
@@ -652,17 +669,17 @@ function fireUltra(p) {
       case 'snow':
         absoluteZero(p);
         break;
-      case 'wind': // hurricane: three screen-high tornadoes sweep the screen from behind the player
+      case 'wind': // hurricane: three screen-high tornadoes burst out of the player one after another and sweep ahead
         for (let i = 0; i < 3; i++)
           addShot({
             kind: 'hurricane',
             weapon: 'wind',
-            x: f > 0 ? camX - 56 : camX + VW,
+            x: ultraFront(f, 56),
             y: camY,
             w: 56,
             h: VH,
-            vx: f * 3.2,
-            delay: i * 22,
+            vx: f * ULTRA_SWEEP,
+            delay: i * 14,
             life: 170,
             dmg: 3,
             bossDmg: 3,
@@ -1004,7 +1021,10 @@ function updateShot(s) {
     case 'hurricane':
       if (s.delay > 0) {
         s.delay--;
-        if (!s.delay) sfx.whoosh();
+        if (!s.delay) {
+          s.x = ultraFront(Math.sign(s.vx), s.w); // the later tornadoes start where the player is by then
+          sfx.whoosh();
+        }
         return;
       }
       s.x += s.vx;
@@ -1076,7 +1096,7 @@ function hitEnemy(s, e) {
     sfx.deflect();
     return;
   }
-  e.hp -= s.dmg;
+  e.hp -= s.dmg * atkMult();
   e.flash = 8;
   if (!(e.hp > 0)) {
     killEnemy(e);
@@ -1115,7 +1135,7 @@ function hitBoss(s) {
     return;
   }
   const weak = s.weapon === def.weak;
-  b.hp -= weak ? (s.ultra ? 8 : s.charged ? 6 : 4) : s.kind === 'buster' ? s.dmg : s.bossDmg;
+  b.hp -= (weak ? (s.ultra ? 8 : s.charged ? 6 : 4) : s.kind === 'buster' ? s.dmg : s.bossDmg) * atkMult();
   b.inv = weak ? 40 : s.kind === 'storm' ? 8 : 24;
   if (weak) {
     sfx.weakHit();
@@ -1326,12 +1346,27 @@ function updateShield(p) {
   }
 }
 
+// Aura Shield: the cover after a blocked hit, the flash, and the bubble forming again AURA_DOWN frames after it popped
+function updateAura(p) {
+  if (p.auraT > 0) p.auraT--;
+  if (p.auraFx > 0) p.auraFx--;
+  if (!hasPart('aura') || !alive(p) || !(p.auraCd > 0) || --p.auraCd > 0) return;
+  p.aura = AURA_HITS;
+  p.auraFx = 20;
+  sfx.charge();
+  for (let i = 0; i < 12; i++) {
+    const a = (i * Math.PI) / 6;
+    part({ kind: 'spark', x: pcx() + Math.cos(a) * 20, y: pcy() + Math.sin(a) * 20, life: 10 });
+  }
+}
+
 function updatePlayer() {
   const p = player;
   if (p.inv > 0) p.inv--;
   if (p.shootT > 0) p.shootT--;
   updateStorm(p);
   updateShield(p);
+  updateAura(p);
   if (p.stun > 0 && alive(p)) {
     // frozen in time by a boss: no control for a moment
     p.stun--;
@@ -1529,8 +1564,22 @@ function updatePlayer() {
 
 function damagePlayer(dmg) {
   const p = player;
-  if (!dmg || p.inv > 0 || !['normal', 'climb', 'slide', 'dash'].includes(p.state)) return;
-  p.hp -= dmg / hpMult(); // armor from the secret rooms (+1x each) and cheat ILMUKEBAL (10x) make the HP thicker
+  if (!dmg || p.inv > 0 || p.auraT > 0 || !['normal', 'climb', 'slide', 'dash'].includes(p.state)) return;
+  if (hasPart('aura') && p.aura > 0) {
+    // the Aura Shield takes the hit; a moment of cover after it, so one touch costs the bubble only one hit
+    p.aura--;
+    p.auraT = 40;
+    p.auraFx = 14;
+    sfx.deflect();
+    if (!p.aura) {
+      p.auraCd = AURA_DOWN;
+      debris(pcx(), pcy(), '#f8d800', 12, 2.4);
+      sfx.shatter();
+    }
+    return;
+  }
+  // armor from the secret rooms (+1x each), cheat ILMUKEBAL (10x) and the Defense level make the HP thicker
+  p.hp -= dmg / hpMult() / defMult();
   sfx.hurt();
   if (p.hp <= 1e-6) {
     p.hp = 0;

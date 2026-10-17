@@ -248,7 +248,8 @@ const cloudHasProgress = s =>
     Object.keys(s.parts || {}).length ||
     Object.keys(s.armors || {}).length ||
     s.snap ||
-    (s.train && s.train.wave)
+    (s.train && s.train.wave) ||
+    (s.stats && (s.stats.atk > 1 || s.stats.def > 1))
   );
 
 // called by writeSave(): upload the save a few seconds after it changes
@@ -559,10 +560,11 @@ const cloudTime = t => {
 // a few lines about a save, for picking between two
 const cloudSummary = s => [
   ['BOSS', Object.keys(s.cleared || {}).filter(k => STAGE_ORDER.includes(k)).length + '/' + STAGE_ORDER.length],
-  ['POIN', String(s.points || 0)],
+  ['POIN', fmtNum(s.points || 0)],
   ['ARMOR', String(Object.keys(s.armors || {}).length)],
   ['PART', String(Object.keys(s.parts || {}).length)],
   ['TRAINING', 'WAVE ' + ((s.train && s.train.wave) || 0)],
+  ['LEVEL', 'ATK ' + ((s.stats && s.stats.atk) || 1) + ' DEF ' + ((s.stats && s.stats.def) || 1)],
 ];
 // ---------- the account badge ----------
 // the colour of a player's avatar, picked from their name
@@ -723,8 +725,8 @@ function drawCloudScreen() {
       if (on) R(x - 4, 60, 164, 1, '#f8d800');
       text(title, x + 78, 66, on ? '#f8d800' : '#fcfcfc', 1, 'center');
       cloudSummary(s).forEach(([k, v], j) => {
-        text(k, x + 4, 86 + j * 13, '#8888a0');
-        text(v, x + 152, 86 + j * 13, '#fcfcfc', 1, 'right');
+        text(k, x + 4, 82 + j * 11, '#8888a0');
+        text(v, x + 152, 82 + j * 11, '#fcfcfc', 1, 'right');
       });
       text('DISIMPAN ' + when, x + 78, 156, '#686878', 1, 'center');
     });

@@ -293,7 +293,7 @@ function drawTrainOver() {
     ['WAVE', String(T.wave)],
     ['MUSUH DIKALAHKAN', String(T.kills)],
     ['WAKTU', Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0')],
-    ['POIN DIDAPAT', String(save.points - T.points)],
+    ['POIN DIDAPAT', fmtNum(save.points - T.points)],
     ['REKOR WAVE', String(save.train.wave)],
   ];
   rows.forEach(([k, v], i) => {

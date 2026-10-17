@@ -1,6 +1,12 @@
 'use strict';
 // Cheat box: hold P and O together, type a code, Enter to apply (Esc cancels). The game is frozen while it is open.
+// The box only opens once the Training Ground record reaches CHEAT_WAVE, so the cheats cannot shortcut the game before
+// then; in development (the game opened as a local file, or served from this machine) it always opens.
 
+const CHEAT_WAVE = 50;
+const devMode = (loc = location) =>
+  loc.protocol === 'file:' || /^(localhost|127(\.\d{1,3}){3}|\[::1\])$|\.localhost$/.test(loc.hostname);
+const cheatsOpen = () => devMode() || (save.train.wave || 0) >= CHEAT_WAVE;
 const cheat = { open: false, buf: '', msg: '', ok: true, until: 0 };
 const chord = { KeyP: false, KeyO: false };
 
@@ -79,6 +85,16 @@ addEventListener(
       e.preventDefault();
       e.stopImmediatePropagation();
       ensureAudio();
+      if (!cheatsOpen()) {
+        // still locked: say what opens it
+        if (!e.repeat) {
+          sfx.deflect();
+          const msg =
+            'CHEAT TERKUNCI: CAPAI WAVE ' + CHEAT_WAVE + ' DI TRAINING GROUND (REKOR ' + save.train.wave + ')';
+          Object.assign(cheat, { ok: false, msg, until: performance.now() + 3000 });
+        }
+        return;
+      }
       cheat.open = true;
       cheat.buf = '';
       releaseGameKeys();

@@ -2,7 +2,7 @@
 // NEOBUSTER — core: canvas, helpers, input, audio, music, text, sprite + glow primitives.
 
 // bump on every change (and add an entry to CHANGELOG.md)
-const VERSION = '1.12.0';
+const VERSION = '1.13.0';
 document.title = 'Neobuster v' + VERSION;
 
 const TILE = 16,
@@ -54,6 +54,20 @@ function circle(x, y, r, c) {
   for (let dy = -r + HP / 2; dy < r; dy += HP) {
     const hw = Math.round(Math.sqrt(r * r - dy * dy) * 2) / 2;
     if (hw > 0) ctx.fillRect(x - hw, y + dy - HP / 2, hw * 2, HP);
+  }
+}
+// a ring th thick with outer radius r, built from rows of fine pixels like circle()
+function ring(x, y, r, th, c) {
+  ctx.fillStyle = c;
+  x = Math.round(x * 2) / 2;
+  y = Math.round(y * 2) / 2;
+  const ri = r - th;
+  for (let dy = -r + HP / 2; dy < r; dy += HP) {
+    const ho = Math.round(Math.sqrt(r * r - dy * dy) * 2) / 2,
+      hi = Math.abs(dy) < ri ? Math.round(Math.sqrt(ri * ri - dy * dy) * 2) / 2 : 0;
+    if (ho <= hi) continue;
+    ctx.fillRect(x - ho, y + dy - HP / 2, ho - hi, HP);
+    ctx.fillRect(x + hi, y + dy - HP / 2, ho - hi, HP);
   }
 }
 function mulberry(seed) {

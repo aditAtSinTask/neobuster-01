@@ -1,5 +1,5 @@
 'use strict';
-// Sonique, boss of the sound stage, drawn natively (see js/chars.js): a pop-idol robot in magenta and pink armour with
+// Sonique, boss of the sound stage, drawn natively (see js/characters/chars.js): a pop-idol robot in magenta and pink armour with
 // black accents and a short armoured skirt. Signature: big headphones with glowing speaker cones and a headset
 // microphone, long magenta twin-tails, speaker-cone shoulder pads and speakers on her boots; the speakers pulse to a
 // beat and musical notes float up round her. Every sonic boom bursts in a ring from her palm, sound waves ripple out of

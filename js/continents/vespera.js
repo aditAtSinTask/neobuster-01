@@ -201,8 +201,8 @@ Object.assign(BOSS_ROOMS, {
 });
 
 // ================= LOOKS =================
-// the bosses are native characters: js/hydros.js, js/toxaris.js, js/umbrion.js, js/sonique.js, js/lumina.js and
-// js/chronia.js (see js/chars.js)
+// the bosses are native characters: js/characters/vespera/hydros.js, js/characters/vespera/toxaris.js, js/characters/vespera/umbrion.js, js/characters/vespera/sonique.js, js/characters/vespera/lumina.js and
+// js/characters/vespera/chronia.js (see js/characters/chars.js)
 Object.assign(WEAPON_ICONS, {
   hydro: () =>
     sprite(
@@ -1029,6 +1029,13 @@ POST_FX.shadow = () => {
       if (col) tints.push([x - camX, y - camY, r * 0.7, col]);
     }
   if (boss && boss.hp > 0) hole(bcx(boss) - camX, boss.y + 12 - camY, 34); // the boss's violet eyes give it away
+  // a secret room's armor glows once its wall is broken
+  if (!hazards.some(h => h.kind === 'seal' && !h.broken))
+    for (const k of pickups)
+      if (k.kind === 'A') {
+        hole(k.x + 8 - camX, k.y + 8 - camY, 48);
+        tints.push([k.x + 8 - camX, k.y + 8 - camY, 32, '#78f8fc']);
+      }
   ctx.drawImage(_dark, 0, 0, VW, VH);
   for (const [x, y, r, col] of tints) glow(x, y, Math.max(8, Math.round(r / 8) * 8), col, 0.2);
 };
@@ -2699,7 +2706,7 @@ Object.assign(BOSSES, {
         : (b.state === 'pillars' && b.t < 40) || (b.state === 'flash' && b.t < 26)
           ? 'raise'
           : pose,
-    draw: (b, sx, sy) => glow(sx + b.w / 2, sy + 12, 18, '#fcf0a8', 0.2), // her radiance (the halo is hers, js/lumina.js)
+    draw: (b, sx, sy) => glow(sx + b.w / 2, sy + 12, 18, '#fcf0a8', 0.2), // her radiance (the halo is hers, js/characters/vespera/lumina.js)
   },
   time: {
     name: 'CHRONIA',
@@ -3188,6 +3195,8 @@ Object.assign(LAYOUTS, {
     B.add('jelly', 258, 16);
     B.add('E', 266);
     B.add('met', 270);
+    // --- the secret room: off the bottom floor inside the dam, behind a rusted grate (Venom Drip)
+    B.secret(116, 23, 119, 25, 120, 'toxic', 117);
     bossRoom(B, DOOR_COL, 'hydro');
   },
 
@@ -3278,6 +3287,8 @@ Object.assign(LAYOUTS, {
     B.add('E', 262);
     B.add('slime', 266);
     B.add('flyer', 270, 15);
+    // --- the secret room: at the foot of the smokestacks, behind a barricade of burning drums (Hydro Blast)
+    B.secret(206, 18, 209, 21, 210, 'hydro', 207);
     bossRoom(B, DOOR_COL, 'toxic');
   },
 
@@ -3374,6 +3385,8 @@ Object.assign(LAYOUTS, {
     [253, 260, 267, 274].forEach(x => B.add('torch', x, 16));
     B.add('E', 273);
     B.add('shade', 265, 14);
+    // --- the secret room: at the foot of the shaft down to the dungeon, behind a wall of darkness (Prism Laser)
+    B.secret(56, 34, 60, 37, 61, 'light', 58);
     bossRoom(B, DOOR_COL, 'shadow');
   },
 
@@ -3406,7 +3419,7 @@ Object.assign(LAYOUTS, {
     isle(70, 74, 5, 1);
     B.add('h', 72, 4);
     [75, 77, 79, 81, 83, 85].forEach((x, i) => B.add('eblock', x, 5 + i, { idx: i, n: 6, step: 24 })); // a staircase down
-    isle(87, 92, 11, 1);
+    isle(87, 93, 11, 1);
     B.add('flyer', 84, 1);
     // --- the speaker gauntlet: rings roll at you along each stage and drop off the edges
     isle(94, 113);
@@ -3442,6 +3455,9 @@ Object.assign(LAYOUTS, {
     B.add('speakerbot', 260);
     B.add('E', 265);
     B.add('flyer', 270, 14);
+    // --- the secret room: in the tower under the last dance floor, behind a bank of cloud (Gale Shot)
+    B.solid(87, 11, 93, 25);
+    B.secret(88, 18, 92, 21, 93, 'wind', 90);
     bossRoom(B, DOOR_COL, 'sonic');
   },
 
@@ -3542,6 +3558,8 @@ Object.assign(LAYOUTS, {
     B.solid(266, 20, 267, 21);
     B.add('turret', 266, 19);
     B.add('flyer', 271, 14);
+    // --- the secret room: at the far end of the crystal cave, behind a wall of light (Shadow Clone)
+    B.secret(195, 34, 199, 37, 194, 'shadow', 197);
     bossRoom(B, DOOR_COL, 'light');
   },
 
@@ -3620,6 +3638,8 @@ Object.assign(LAYOUTS, {
     B.add('E', 260);
     B.add('flyer', 266, 14);
     B.add('met', 270);
+    // --- the secret room: off the bottom of the clock face, behind a door with an electric lock (Thunder Beam)
+    B.secret(109, 18, 113, 21, 108, 'elec', 111);
     bossRoom(B, DOOR_COL, 'time');
   },
 });

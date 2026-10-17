@@ -1,5 +1,5 @@
 'use strict';
-// Chronia, boss of the time stage, drawn natively (see js/chars.js): a clockwork lady in bronze and cream armour with
+// Chronia, boss of the time stage, drawn natively (see js/characters/chars.js): a clockwork lady in bronze and cream armour with
 // gold gears and a long armoured skirt. Signature: a clock on her chest whose hands really turn (the long hand steps
 // round once a minute, the short hand once an hour of its own), a clock-hand crest on her hair bun, gear shoulder pads
 // with turning gears, a pendulum swinging at her waist, and a big clock hand she holds and throws. A great clock dial

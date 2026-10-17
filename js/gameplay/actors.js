@@ -59,8 +59,8 @@ const EC = () => ENEMY_COLORS[level.theme];
 // ================= TILES & PHYSICS =================
 const tileAt = (tx, ty) => (ty < 0 || ty >= LH ? '.' : tx < 0 || tx >= LW ? '#' : map[ty][tx]);
 // < > conveyor belts, Y energy block (switched on and off by its hazard), Q quicksand (not solid: you sink into it),
-// U updraft pad (landing on it launches you high into the air)
-const isSolidTile = t => '#=^IC<>YU'.includes(t) || (t === 'D' && door.solid);
+// U updraft pad (landing on it launches you high into the air), Z sealed wall (drawn by its 'seal' hazard)
+const isSolidTile = t => '#=^IC<>YUZ'.includes(t) || (t === 'D' && door.solid);
 const solidPx = (x, y) => isSolidTile(tileAt(Math.floor(x / TILE), Math.floor(y / TILE)));
 const isLadder = (tx, ty) => tileAt(tx, ty) === 'H';
 const ladderTop = (tx, ty) => isLadder(tx, ty) && !isLadder(tx, ty - 1);
@@ -258,7 +258,7 @@ const SHOT_KINDS = {},
 const ownedWeapons = () => WEAPON_ORDER.filter(w => w === 'buster' || save.cleared[w]);
 
 function addShot(o) {
-  const s = Object.assign({ vx: 0, vy: 0, t: 0, dead: false, pierce: false, level: 0, grav: 0, bossDmg: 1 }, o);
+  const s = Object.assign({ vx: 0, vy: 0, t: 0, dead: false, pierce: false, level: 0, grav: 0, dmg: 1, bossDmg: 1 }, o);
   if (s.pierce) s.hits = new Set();
   pshots.push(s);
   return s;
@@ -266,6 +266,10 @@ function addShot(o) {
 // ---- shop parts & points ----
 // a bought part is 'on' or 'off' in save.parts; points are the score you earn, kept to spend in the shop
 // Omega Booster overrides the Super and Ultra Boosters: while it is on they are disabled (their own on/off is kept)
+// how many times thicker the player's HP is: 1x, +1x for each armor found in a stage's secret room, and 10x instead
+// of 1x under cheat ILMUKEBAL (so 11x with one armor, and so on)
+const armorCount = () => Object.keys(save.armors || {}).length;
+const hpMult = () => (game.tough ? 10 : 1) + armorCount();
 const partDisabled = k => (k === 'super' || k === 'ultra') && !!save.parts && save.parts.omega === 'on';
 const hasPart = k => !!(save.parts && save.parts[k] === 'on') && !partDisabled(k);
 const SHIELD_DOWN = 600; // frames a shield orb stays gone after it blocks something (10 s)
@@ -691,6 +695,7 @@ function fireUltra(p) {
 }
 // absolute zero: every enemy on screen takes damage and freezes solid, bullets shatter, ice spikes erupt
 function absoluteZero(p) {
+  breakSealsInView('snow');
   for (const e of enemies) {
     if (e.dead || e.hidden || !onScreen(e.x + e.w / 2, e.y + e.h / 2, 0)) continue;
     hitEnemy({ kind: 'zero', weapon: 'snow', x: e.x, y: e.y, w: e.w, h: e.h, dmg: 3 }, e);
@@ -1072,7 +1077,7 @@ function hitEnemy(s, e) {
   }
   e.hp -= s.dmg;
   e.flash = 8;
-  if (e.hp <= 0) {
+  if (!(e.hp > 0)) {
     killEnemy(e);
     if (s.kind === 'buster' && s.level === 2) return;
   } else {
@@ -1124,14 +1129,19 @@ function hitBoss(s) {
   } else sfx.bossHit();
   if (isRock(s)) shatterRock(s);
   else if (!s.pierce) s.dead = true;
-  if (b.hp <= 0) defeatBoss();
+  if (!(b.hp > 0)) defeatBoss();
 }
 
 function updatePlayerShots() {
   for (const s of pshots) {
     if (s.dead) continue;
+    if (!s.deflected && !(s.delay > 0)) hitSeals(s, true);
+    if (s.dead) continue;
     updateShot(s);
     if (s.dead || s.deflected || s.delay > 0) continue;
+    hitSeals(s, false);
+    // an ultra over the whole screen (no size: it sits on the player) hurts through its own update, never by touching
+    if (s.dead || s.deflected || !s.w || !s.h) continue;
     for (const e of enemies) {
       if (e.dead || e.hidden || !overlap(s, e) || (s.hits && s.hits.has(e))) continue;
       hitEnemy(s, e);
@@ -1179,7 +1189,9 @@ function standUp(p) {
   p.h = 22;
   return true;
 }
-// how long the slide and the air dash (shop part AIR DASH) last, in frames; the TURBO part makes both 3x longer
+// how long the slide and the air dash (shop part AIR DASH) last, in frames; the TURBO part makes both 3x longer, and
+// UNLIMITED DASH keeps them going for as long as the slide button is held (and the air dash works again and again in
+// the air)
 const SLIDE_T = 26,
   DASH_T = 20;
 const dashTime = t => (hasPart('turbo') ? t * 3 : t);
@@ -1349,6 +1361,15 @@ function updatePlayer() {
     p.coyote = 0;
     p.jumpT = 0;
   };
+  // Step Jump (shop part): jump again off a step of light in mid-air, as many times as you like; each one is a new
+  // jump, so the air dash comes back too
+  const stepJump = () => {
+    doJump();
+    p.launched = false;
+    p.airDashed = false;
+    sfx.step();
+    part({ kind: 'step', x: p.x + p.w / 2, y: p.y + p.h, life: 14 });
+  };
   const runTo = (target, accel) => {
     p.vx = onIce ? p.vx + clamp(target - p.vx, -accel, accel) : target;
   };
@@ -1386,6 +1407,7 @@ function updatePlayer() {
     case 'slide': {
       if (dir) p.facing = dir;
       p.slideT--;
+      if (p.slideT < 1 && hasPart('unlimited') && (inp.slide || inp.down)) p.slideT = 1; // held: keeps sliding
       runTo(p.facing * 2.6, 0.08);
       const wall = moveX(p, p.vx);
       applyGravity(p);
@@ -1405,7 +1427,14 @@ function updatePlayer() {
     }
     case 'dash': {
       // flying level: ends after its time, at a wall, or when the player pushes the other way
+      if (hit.jump && hasPart('stepjump')) {
+        // Step Jump: jump straight out of the dash
+        p.state = 'normal';
+        stepJump();
+        return;
+      }
       p.dashT--;
+      if (p.dashT < 1 && hasPart('unlimited') && inp.slide) p.dashT = 1; // held: keeps dashing
       p.vx = p.facing * 2.6;
       p.vy = 0;
       const wall = moveX(p, p.vx);
@@ -1479,11 +1508,12 @@ function updatePlayer() {
     startSlide(p);
     return;
   }
-  if (!p.onGround && hit.slide && !p.airDashed && hasPart('airdash')) {
+  if (!p.onGround && hit.slide && (!p.airDashed || hasPart('unlimited')) && hasPart('airdash')) {
     startAirDash(p, dir);
     return;
   }
   if (p.jumpBuf > 0 && (p.onGround || p.coyote > 0) && p.vy >= 0) doJump();
+  else if (hit.jump && !p.onGround && p.coyote <= 0 && hasPart('stepjump')) stepJump();
   // releasing jump cuts the jump short, but only after a minimum hop so quick taps still jump
   if (p.vy >= 0) p.launched = false;
   if (!inp.jump && p.vy < 0 && p.jumpT > 6 && !p.launched) p.vy = 0;
@@ -1499,7 +1529,7 @@ function updatePlayer() {
 function damagePlayer(dmg) {
   const p = player;
   if (!dmg || p.inv > 0 || !['normal', 'climb', 'slide', 'dash'].includes(p.state)) return;
-  p.hp -= game.tough ? dmg / 10 : dmg; // cheat ILMUKEBAL: 10x thicker HP
+  p.hp -= dmg / hpMult(); // armor from the secret rooms (+1x each) and cheat ILMUKEBAL (10x) make the HP thicker
   sfx.hurt();
   if (p.hp <= 1e-6) {
     p.hp = 0;
@@ -2175,10 +2205,13 @@ function killEnemy(e) {
   boom(e.x + e.w / 2, e.y + e.h / 2);
   sfx.explode();
   addScore(EN[e.type].score);
-  const r = Math.random();
-  if (r < 0.02) pickups.push(makePickup('L', e.x + e.w / 2, e.y));
-  else if (r < 0.08) pickups.push(makePickup('E', e.x + e.w / 2, e.y));
-  else if (r < 0.25) pickups.push(makePickup('h', e.x + e.w / 2, e.y));
+  // what it may drop: a life, a big or a small energy capsule (the Training Ground drops health far more often)
+  const r = Math.random(),
+    [L, E, h] = game.train ? [0, 0.12, 0.45] : [0.02, 0.08, 0.25];
+  if (game.train) game.train.kills++;
+  if (r < L) pickups.push(makePickup('L', e.x + e.w / 2, e.y));
+  else if (r < E) pickups.push(makePickup('E', e.x + e.w / 2, e.y));
+  else if (r < h) pickups.push(makePickup('h', e.x + e.w / 2, e.y));
 }
 function updateEnemies() {
   for (const e of enemies) {
@@ -2195,6 +2228,7 @@ function updateEnemies() {
     if (inAbyss || e.x + e.w < camX - 40 || e.x > camX + VW + 40 || e.y > camY + VH + 96 || e.y + e.h < camY - 96) {
       e.dead = true;
       e.spawn.ent = null;
+      if (e.spawn.lost) e.spawn.lost(); // (Training Ground: it comes back later)
     }
   }
   enemies = enemies.filter(e => !e.dead);
@@ -2319,7 +2353,305 @@ Object.assign(HAZARD_KINDS, {
       glow(x + w / 2, y, w * 0.6, crest, 0.35);
     },
   },
+  // a sealed wall in front of a stage's secret room (Z tiles, x and the bottom row y, h tiles high): only the weapon
+  // it names breaks it (its icon is set into the wall), every other shot bounces off. Once the room's armor is taken
+  // the wall stays open.
+  seal: {
+    make(d) {
+      const w = d.w || 1,
+        h = d.h || 3,
+        y0 = d.y - h + 1,
+        cells = [];
+      for (let ty = y0; ty <= d.y; ty++) for (let tx = d.x; tx < d.x + w; tx++) cells.push([tx, ty]);
+      // what is left once it breaks: the cave's backdrop, water, or open air
+      const side = [tileAt(d.x - 1, d.y), tileAt(d.x + w, d.y)],
+        under = side.includes('W') ? 'W' : side.includes('b') ? 'b' : '.',
+        s = { x: d.x * TILE, y: y0 * TILE, w: w * TILE, h: h * TILE, weapon: d.weapon, hp: 3, cells, under, def: d };
+      s.room = d.room; // the secret room behind it, drawn as solid rock until the wall breaks
+      Object.assign(s, { broken: false, shake: 0, hint: 0 });
+      if (d.broken || save.armors[game.stage]) {
+        s.broken = true;
+        for (const [tx, ty] of cells) map[ty][tx] = under;
+      }
+      return s;
+    },
+    update(h) {
+      if (h.shake > 0) h.shake--;
+      if (h.hint > 0) h.hint--;
+    },
+    draw(h) {
+      if (h.broken) return;
+      const x0 = h.x - camX + (h.shake ? (h.shake & 2 ? 1 : -1) : 0),
+        y0 = h.y - camY;
+      if (x0 > VW + 16 || x0 + h.w < -16 || y0 > VH + 16 || y0 + h.h < -16) return;
+      if (h.room) {
+        // the secret room still looks like the rock round it
+        const ts = TILESETS[level.theme],
+          F = (x, y, w, hh, c) => R(x, y, w, hh, c),
+          [rx0, ry0, rx1, ry1] = h.room;
+        for (let ty = ry0; ty <= ry1; ty++)
+          for (let tx = rx0; tx <= rx1; tx++) {
+            const sx = tx * TILE - camX,
+              sy = ty * TILE - camY,
+              v = tileHash(tx, ty);
+            if (sx < -16 || sx > VW || sy < -16 || sy > VH) continue;
+            ts.ground(F, sx, sy, v, false, tx);
+            finishTile(F, sx, sy, v);
+          }
+      }
+      const L = SEAL_LOOKS[h.weapon];
+      h.cells.forEach(([tx, ty], i) => L.cell(tx * TILE - h.x + x0, ty * TILE - h.y + y0, i, frameCount));
+      // cracks as it takes hits
+      const cx = x0 + h.w / 2,
+        cy = y0 + h.h / 2;
+      if (h.hp < 3) {
+        R(cx - 5, y0 + 3, 1, 8, '#0a0a16');
+        R(cx - 4, y0 + 10, 5, 1, '#0a0a16');
+        R(cx + 1, y0 + 10, 1, 9, '#0a0a16');
+      }
+      if (h.hp < 2) {
+        R(cx + 3, y0 + h.h - 14, 1, 10, '#0a0a16');
+        R(cx - 2, y0 + h.h - 9, 5, 1, '#0a0a16');
+        R(cx - 6, y0 + h.h - 20, 6, 1, '#0a0a16');
+      }
+      // the icon of the weapon that breaks it, glowing faintly
+      circle(cx, cy, 7.5, '#0a0a16');
+      circle(cx, cy, 6.5, '#1a1a2c');
+      glow(cx, cy, 12, WEAPONS[h.weapon].glow || '#fcfcfc', 0.25 + ((frameCount >> 4) & 1) * 0.15);
+      drawWeaponIcon(h.weapon, cx - 5, cy - 5);
+      if (h.hint > 0) text('BUTUH ' + WEAPONS[h.weapon].short, cx, y0 - 12, '#f8d800', 1, 'center');
+    },
+  },
 });
+// what a sealed wall is made of, by the weapon that breaks it: cell(x, y, i, t) paints one 16 x 16 tile of it
+const SEAL_LOOKS = {
+  // ice, melted by Fire Storm
+  fire: {
+    col: '#a8e8fc',
+    cell(x, y, i) {
+      R(x, y, 16, 16, '#3878b8');
+      R(x + 1, y + 1, 14, 14, '#7ac4f0');
+      R(x + 2, y + 2, 3, 9, '#d8f4fc');
+      R(x + 9, y + 6 + (i % 3), 2, 6, '#c0e8fc');
+      R(x + 6, y + 3, 1, 3, '#ffffff');
+      R(x + 12, y + 2, 1, 2, '#ffffff');
+    },
+  },
+  // magma rock, cracked by Frost Shard's cold
+  snow: {
+    col: '#f86000',
+    cell(x, y, i, t) {
+      const g = ((t >> 3) + i) & 1 ? '#f8a800' : '#f86000';
+      R(x, y, 16, 16, '#1e1416');
+      R(x + 1, y + 1, 14, 14, '#4a3430');
+      R(x + 3, y + 2, 1, 5, g);
+      R(x + 3, y + 6, 6, 1, g);
+      R(x + 9, y + 6, 1, 6, g);
+      R(x + 9, y + 11, 5, 1, g);
+      R(x + 11, y + 2, 3, 1, '#6a5048');
+      R(x + 2, y + 12, 3, 1, '#6a5048');
+    },
+  },
+  // cracked boulders, smashed by Rock Breaker
+  earth: {
+    col: '#a89c90',
+    cell(x, y, i) {
+      R(x, y, 16, 16, '#3a3430');
+      R(x + 1, y + 1, 8, 7, '#8a8078');
+      R(x + 10, y + 1, 5, 7, '#7a7068');
+      R(x + 1, y + 9, 5, 6, '#7a7068');
+      R(x + 7, y + 9, 8, 6, '#8a8078');
+      R(x + 2, y + 2, 4, 1, '#b4a898');
+      R(x + 8, y + 10, 4, 1, '#b4a898');
+      R(x + 4 + (i % 2) * 6, y + 4, 1, 3, '#3a3430');
+    },
+  },
+  // planks nailed across, cut by Rolling Cutter
+  cut: {
+    col: '#c89858',
+    cell(x, y) {
+      R(x, y, 16, 16, '#4a2e16');
+      for (const py of [1, 6, 11]) {
+        R(x, y + py, 16, 4, '#a8783a');
+        R(x, y + py, 16, 1, '#c89858');
+        R(x + 2, y + py + 1, 1, 1, '#d8d8e0');
+        R(x + 13, y + py + 1, 1, 1, '#d8d8e0');
+      }
+      R(x + 6, y + 2, 4, 1, '#6a4a22');
+      R(x + 8, y + 12, 5, 1, '#6a4a22');
+    },
+  },
+  // a steel door with an electric lock, overloaded by Thunder Beam
+  elec: {
+    col: '#f8e030',
+    cell(x, y, i, t) {
+      R(x, y, 16, 16, '#3a3e4a');
+      R(x + 1, y + 1, 14, 14, '#8890a0');
+      R(x + 1, y + 1, 14, 1, '#b8c0cc');
+      R(x + 3, y + 3, 1, 1, '#5a606c');
+      R(x + 12, y + 3, 1, 1, '#5a606c');
+      if (i === 0) for (let k = 0; k < 16; k += 4) R(x + k, y + 12, 2, 3, '#f8d800');
+      if (i === 2) {
+        R(x + 4, y + 5, 8, 6, '#1a1c24');
+        R(x + 6, y + 7, 4, 2, (t >> 4) & 1 ? '#f84040' : '#5a1818');
+      }
+    },
+  },
+  // a bank of cloud, blown away by Gale Shot
+  wind: {
+    col: '#f0f4fc',
+    cell(x, y, i, t) {
+      const d = Math.sin(t * 0.05 + i) * 1.5;
+      R(x, y, 16, 16, '#c8d4e8');
+      circle(x + 5 + d, y + 6, 6, '#e8eef8');
+      circle(x + 11 - d, y + 10, 6, '#f4f8fc');
+      circle(x + 7, y + 13, 4, '#ffffff');
+    },
+  },
+  // burning crates, put out by Hydro Blast
+  hydro: {
+    col: '#f8a800',
+    cell(x, y, i, t) {
+      R(x, y, 16, 16, '#3a2410');
+      R(x + 1, y + 1, 14, 14, '#8a5a2a');
+      R(x + 1, y + 1, 14, 1, '#a8783a');
+      R(x + 2, y + 2, 12, 1, '#6a4420');
+      R(x + 2, y + 13, 12, 1, '#6a4420');
+      R(x + 7, y + 2, 2, 12, '#6a4420');
+      const f = (t >> 2) + i * 3;
+      for (let k = 0; k < 3; k++) {
+        const fh = 4 + ((f + k * 5) % 5);
+        R(x + 2 + k * 5, y + 15 - fh, 3, fh, '#f86000');
+        R(x + 3 + k * 5, y + 16 - fh + 1, 1, fh - 2, '#f8d800');
+      }
+    },
+  },
+  // a rusted grate, eaten through by Venom Drip
+  toxic: {
+    col: '#a85a28',
+    cell(x, y) {
+      R(x, y, 16, 16, '#14100c');
+      for (let k = 1; k < 16; k += 5) R(x + k, y, 3, 16, '#8a4a20');
+      R(x, y + 2, 16, 2, '#a85a28');
+      R(x, y + 11, 16, 2, '#a85a28');
+      R(x + 2, y + 6, 1, 2, '#6a8a28');
+      R(x + 11, y + 8, 1, 2, '#6a8a28');
+    },
+  },
+  // solid darkness, dispelled by Prism Laser
+  light: {
+    col: '#7838a8',
+    cell(x, y, i, t) {
+      R(x, y, 16, 16, '#0c0614');
+      const a = t * 0.06 + i;
+      circle(x + 8 + Math.cos(a) * 3, y + 8 + Math.sin(a) * 3, 5, '#24103a');
+      circle(x + 8 - Math.cos(a) * 2, y + 8 - Math.sin(a) * 2, 3, '#3a1a5a');
+      if (((t >> 3) + i * 5) % 9 === 0) R(x + 4 + (i % 7), y + 5, 1, 1, '#c878f8');
+    },
+  },
+  // panes of glass, shattered by Sonic Boom
+  sonic: {
+    col: '#c8ecfc',
+    cell(x, y) {
+      R(x, y, 16, 16, '#4a5a7a');
+      R(x + 1, y + 1, 14, 14, 'rgba(160,216,240,0.55)');
+      R(x + 3, y + 3, 1, 6, 'rgba(255,255,255,0.8)');
+      R(x + 4, y + 2, 1, 3, 'rgba(255,255,255,0.8)');
+      R(x + 10, y + 9, 1, 4, 'rgba(255,255,255,0.6)');
+    },
+  },
+  // a wall of holy light, swallowed by Shadow Clone
+  shadow: {
+    col: '#f8e070',
+    cell(x, y, i, t) {
+      R(x, y, 16, 16, '#c8a030');
+      R(x + 1, y, 14, 16, '#f8e070');
+      const k = (t >> 1) % 16;
+      R(x + 2, y + ((k + i * 5) % 16), 12, 1, '#fffce0');
+      R(x + 5, y + ((k + 8 + i * 5) % 16), 6, 1, '#fffce0');
+      glow(x + 8, y + 8, 10, '#f8e070', 0.15);
+    },
+  },
+  // a gate of gears, stopped and broken by Time Stopper
+  time: {
+    col: '#c88838',
+    cell(x, y, i, t) {
+      R(x, y, 16, 16, '#2a1e10');
+      const cx = x + 8,
+        cy = y + 8,
+        a = (i & 1 ? -1 : 1) * t * 0.04;
+      for (let k = 0; k < 8; k++) {
+        const b = a + (k * Math.PI) / 4;
+        R(cx + Math.cos(b) * 6 - 1.5, cy + Math.sin(b) * 6 - 1.5, 3, 3, '#a86828');
+      }
+      circle(cx, cy, 5.5, '#c88838');
+      circle(cx, cy, 3, '#6a4418');
+      circle(cx, cy, 1.5, '#f0c878');
+    },
+  },
+};
+// player shots against sealed walls: checked before a shot moves (most shots die on touching a wall) and after
+function hitSeals(s, ahead) {
+  if (s.sealHit) return;
+  if (!s.w || !s.h) {
+    if (s.ultra) {
+      s.sealHit = true;
+      breakSealsInView(s.weapon);
+    }
+    return;
+  }
+  const box = ahead
+    ? {
+        x: s.x + Math.min(0, s.vx || 0) - 2,
+        y: s.y + Math.min(0, s.vy || 0) - 2,
+        w: s.w + Math.abs(s.vx || 0) + 4,
+        h: s.h + Math.abs(s.vy || 0) + 4,
+      }
+    : s;
+  for (const h of hazards) if (h.kind === 'seal' && !h.broken && overlap(box, h)) return hitSeal(s, h);
+}
+// an ultra attack over the whole screen breaks a sealed wall of its weapon in view
+function breakSealsInView(weapon) {
+  for (const h of hazards)
+    if (h.kind === 'seal' && !h.broken && h.weapon === weapon && onScreen(h.x + h.w / 2, h.y + h.h / 2, 0))
+      hitSeal({ kind: 'area', weapon, x: h.x, y: h.y, w: h.w, h: h.h, ultra: true }, h);
+}
+function hitSeal(s, h) {
+  const bx = clamp(s.x + s.w / 2, h.x, h.x + h.w),
+    by = clamp(s.y + s.h / 2, h.y, h.y + h.h);
+  s.sealHit = true;
+  if (s.weapon !== h.weapon) {
+    spark(bx, by);
+    sfx.deflect();
+    h.hint = 120; // names the weapon it needs
+    if (s.kind === 'buster') {
+      s.deflected = true;
+      s.vx = -s.vx * 0.8;
+      s.vy = -3.5;
+    } else if (isRock(s)) shatterRock(s);
+    else s.dead = true;
+    return;
+  }
+  h.hp -= s.charged || s.ultra ? 3 : 1;
+  h.shake = 12;
+  debris(bx, by, SEAL_LOOKS[h.weapon].col, 5, 1.6);
+  sfx.bossHit();
+  if (isRock(s)) shatterRock(s);
+  else if (!s.pierce) s.dead = true;
+  if (h.hp <= 0) breakSeal(h);
+}
+function breakSeal(h) {
+  h.broken = true;
+  h.def.broken = true; // stays open for the rest of this visit
+  for (const [tx, ty] of h.cells) {
+    map[ty][tx] = h.under;
+    debris(tx * TILE + 8, ty * TILE + 8, SEAL_LOOKS[h.weapon].col, 6, 2);
+  }
+  boom(h.x + h.w / 2, h.y + h.h / 2);
+  sfx.explode();
+  game.shake = Math.max(game.shake, 10);
+  addScore(500);
+}
 function makeHazard(d) {
   if (HAZARD_KINDS[d.type]) return Object.assign({ kind: d.type }, HAZARD_KINDS[d.type].make(d));
   switch (d.type) {
@@ -3491,6 +3823,8 @@ const BOSSES = {
   },
 };
 
+// a boss's HP: the 28 the bar shows times its continent's bossHp (Azura 3x, Vespera 5x)
+const bossMaxHp = type => 28 * (CONTINENTS[continentOf(type)].bossHp || 1);
 function spawnBoss() {
   const type = game.stage;
   boss = {
@@ -3501,7 +3835,8 @@ function spawnBoss() {
     h: 24,
     vx: 0,
     vy: 0,
-    hp: 28,
+    hp: bossMaxHp(type),
+    maxHp: bossMaxHp(type),
     state: 'drop',
     t: 0,
     facing: -1,
@@ -3546,7 +3881,7 @@ function updateBoss() {
     moveX(b, -b.facing * 0.8);
     physics(b);
     if (b.t > 18) bossToIdle(b);
-  } else BOSSES[b.type].update(b, b.hp <= 14);
+  } else BOSSES[b.type].update(b, b.hp <= b.maxHp / 2);
   if (BOSSES[b.type].tick) BOSSES[b.type].tick(b);
   if (b.type === 'elec' && frameCount % 9 === 0) spark(bcx(b) + (Math.random() - 0.5) * 22, b.y + Math.random() * b.h);
   if (b.type === 'fire' && frameCount % 4 === 0)
@@ -3570,12 +3905,12 @@ function defeatBoss() {
 
 // ================= PICKUPS =================
 function makePickup(kind, cx, y, placed = null) {
-  const [w, h] = { h: [8, 8], E: [14, 12], L: [14, 14] }[kind];
+  const [w, h] = { h: [8, 8], E: [14, 12], L: [14, 14], A: [16, 16] }[kind];
   return { kind, x: cx - w / 2, y, w, h, vy: 0, onGround: false, life: placed ? Infinity : 420, placed };
 }
 function updatePickups() {
   for (const k of pickups) {
-    physics(k);
+    if (k.kind !== 'A') physics(k); // the armor floats where it was put
     if (tileAt(Math.floor((k.x + k.w / 2) / TILE), Math.floor((k.y + k.h / 2) / TILE)) === 'X') {
       k.dead = true;
       continue;
@@ -3588,7 +3923,17 @@ function updatePickups() {
     if (alive(player) && overlap(k, player)) {
       k.dead = true;
       if (k.placed) k.placed.taken = true;
-      if (k.kind === 'L') {
+      if (k.kind === 'A') {
+        // an armor from a secret room: the HP is 1x thicker for good
+        save.armors[game.stage] = true;
+        writeSave();
+        player.hp = 28;
+        game.refill = 0;
+        game.flash = 8;
+        game.note = { text: 'ARMOR DIDAPAT! HP X' + hpMult(), t: 200 };
+        sfx.weaponGet();
+        addScore(1000);
+      } else if (k.kind === 'L') {
         game.lives = Math.min(9, game.lives + 1);
         sfx.oneup();
       } else {

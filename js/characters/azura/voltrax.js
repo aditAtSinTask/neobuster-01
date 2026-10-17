@@ -1,5 +1,5 @@
 'use strict';
-// Voltrax, boss of the electric stage, drawn natively after his character sheet (see js/chars.js): a gold, silver and
+// Voltrax, boss of the electric stage, drawn natively after his character sheet (see js/characters/chars.js): a gold, silver and
 // blue lightning robot with a crest of gold lightning spikes, a blue visor over an angry face, a glowing cyan energy
 // core in his chest, spiked gold shoulder pads, big gold boots, and a cannon on his arm that fires the Thunder Beam.
 // Letters: K outline, Y gold, V silver, B blue, C cyan energy, c its white-hot centre, D dark, S skin, N skin shadow,

@@ -1,5 +1,5 @@
 'use strict';
-// Art: palettes, the character entry point drawRobot (the characters themselves are in js/chars.js), themed parallax
+// Art: palettes, the character entry point drawRobot (the characters themselves are in js/characters/chars.js), themed parallax
 // backgrounds and tilesets, weapon icons.
 
 const SKIN = '#fcd8a8';
@@ -24,8 +24,8 @@ function grayHex(h) {
   return '#' + l + l + l;
 }
 
-// ---------- content registries (filled by the base game and by continent files such as js/vespera.js) ----------
-// (the characters: NATIVE_CHARS[style], see js/chars.js); WEAPON_ICONS[key]() draws a 10x10 weapon icon at the origin; AMBIENTS[type] = { n, update(q), draw(q, x, y) }; ROOM_FX[theme](rx, ry) animates a boss
+// ---------- content registries (filled by the base game and by continent files such as js/continents/vespera.js) ----------
+// (the characters: NATIVE_CHARS[style], see js/characters/chars.js); WEAPON_ICONS[key]() draws a 10x10 weapon icon at the origin; AMBIENTS[type] = { n, update(q), draw(q, x, y) }; ROOM_FX[theme](rx, ry) animates a boss
 // room; POST_FX[theme]() draws over the world (e.g. darkness); PAD_DRAW[theme](sx, sy) skins updraft pads;
 // LIQUID[theme] = [base, crest, foam] recolours '~' tiles; PLAT_COL[theme] is the moving-platform colour.
 const WEAPON_ICONS = {},
@@ -47,7 +47,7 @@ const PLAT_COL = {
 // angles in degrees: 0 points down, positive swings forward (toward the facing side), 180 is up
 const rad = a => (a * Math.PI) / 180;
 const along = (x, y, a, len) => [x + Math.sin(rad(a)) * len, y + Math.cos(rad(a)) * len];
-// colour mixing for the native characters (js/chars.js)
+// colour mixing for the native characters (js/characters/chars.js)
 const hexRgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
 const mixHex = (a, b, t) =>
   '#' +
@@ -59,7 +59,7 @@ const mixHex = (a, b, t) =>
     )
     .join('');
 // drawRobot(ox, oy, facing, pose, frame, shooting, pal, style, opt) draws a character in a 24 x 24 box (feet at oy + 24):
-// the hero and every boss are native characters (NATIVE_CHARS[style], js/chars.js), drawn in detail in the 3x views
+// the hero and every boss are native characters (NATIVE_CHARS[style], js/characters/chars.js), drawn in detail in the 3x views
 // (title, intro and ending screens); a style without one is drawn as the hero
 function drawRobot(ox, oy, f, pose, fr, arm, pal, style = 'hero', opt = {}) {
   const ch = NATIVE_CHARS[style] || NATIVE_CHARS.hero;
@@ -936,7 +936,7 @@ function backdropCells(lv) {
       [x, y - 1],
       [x, y + 1],
     ]) {
-      if (nx < 0 || ny < 0 || nx >= lv.LW || ny >= lv.LH || back.has(ny * lv.LW + nx) || !'H^CW'.includes(m[ny][nx]))
+      if (nx < 0 || ny < 0 || nx >= lv.LW || ny >= lv.LH || back.has(ny * lv.LW + nx) || !'H^CWZ'.includes(m[ny][nx]))
         continue;
       back.add(ny * lv.LW + nx);
       q.push([nx, ny]);

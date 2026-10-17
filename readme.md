@@ -2,7 +2,7 @@
 
 > Game action-platformer 2D bergaya **Mega Man** untuk browser — pixel art dengan kepadatan pixel 2x yang detail, tapi tetap ringan dan optimal untuk web.
 
-**Versi saat ini: `1.5.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
+**Versi saat ini: `1.8.2`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
 
 ---
 
@@ -13,6 +13,8 @@
 - [Kontrol](#kontrol)
 - [Stage](#stage)
 - [Boss & Senjata](#boss--senjata)
+- [Ruang Rahasia & Armor](#ruang-rahasia--armor)
+- [Training Ground](#training-ground)
 - [Peta Dunia & Menu Pause](#peta-dunia--menu-pause)
 - [Shop & Part](#shop--part)
 - [Progress & Save](#progress--save)
@@ -52,7 +54,7 @@ Tidak perlu build atau install apa pun — cukup HTML + JavaScript murni.
 | ------------------------------------------------ | ------------------------------------------------------------------------------- | ------------------- |
 | Gerak                                            | `←` `→` / `A` `D`                                                               | D-pad / stik kiri   |
 | Naik / turun tangga                              | `↑` `↓` / `W` `S`                                                               | D-pad / stik kiri   |
-| Lompat                                           | `Z` / `J` / `Space`                                                             | A                   |
+| Lompat (di udara: Step Jump, part Shop)          | `Z` / `J` / `Space`                                                             | A                   |
 | Tembak                                           | `X` / `K`                                                                       | X / B               |
 | Charge shot (semua senjata)                      | Tahan `X` lalu lepas                                                            | Tahan tombol tembak |
 | Slide (di udara: Air Dash, part Shop)            | `C` / `L` (atau `↓` + lompat)                                                   | RT / Y              |
@@ -137,6 +139,8 @@ Setiap stage juga punya musuh, mekanik, dan ruang boss yang hanya ada di stage i
 
 Nama tempat tampil di Stage Select, dan kalimat perkenalan boss tampil di layar intro stage dan saat boss muncul.
 
+HP boss bergantung pada pulaunya: boss **Azura** punya **84 HP** (3x), boss **Vespera** punya **140 HP** (5x). Bar HP boss tetap 28 kotak dan turun sebanding dengan HP-nya. Senjata kelemahan memberi 4 damage (charge shot 6, ultra attack 8), jadi boss Azura kalah setelah 21 tembakan kelemahan biasa (84 tembakan Neo Buster biasa), dan boss Vespera setelah 35 (140 tembakan Neo Buster biasa). Boss mengamuk (serangan lebih cepat) setelah HP-nya tinggal setengah.
+
 Serangan boss Vespera:
 
 | Boss    | Serangan                                                                                                                                           |
@@ -183,9 +187,39 @@ Tekan `X` untuk tembakan biasa. Tahan `X` sampai karakter berkedip dengan warna 
 
 Setelah semua boss di semua benua dikalahkan, muncul layar ending.
 
+## Ruang Rahasia & Armor
+
+Setiap stage menyembunyikan satu **ruang rahasia** di balik dinding bersegel. Dari luar ruangannya tampak seperti batu biasa; hanya dinding segelnya yang terlihat berbeda, dengan ikon senjata yang bisa menghancurkannya. Tembakan senjata lain memantul, dan nama senjata yang dibutuhkan muncul di atas dinding. Senjatanya selalu milik boss lain, jadi sebagian ruang rahasia baru bisa dibuka setelah kamu kembali dengan senjata dari pulau lain. Ultra attack yang mengenai seluruh layar juga menghancurkan segel senjatanya.
+
+Di dalam setiap ruang rahasia ada **armor**. Setiap armor membuat HP **1x lebih tebal** untuk seterusnya (semua damage dibagi kelipatannya): 1 armor = 2x, 12 armor = 13x. Kelipatannya tampil sebagai badge (mis. **X4**) di atas bar HP, dan sisa HP sebagai angka di bawah ikon senjata. Dengan cheat `ILMUKEBAL` kelipatannya bertambah: 10x + 1x per armor (11x dengan satu armor, dan seterusnya). Setelah armor diambil, dinding segelnya tetap terbuka.
+
+| Stage  | Letak ruang rahasia                           | Dinding segel          | Senjata yang dibutuhkan |
+| ------ | --------------------------------------------- | ---------------------- | ----------------------- |
+| Cut    | Ujung terowongan sabuk, di kaki tangga naik   | Gerbang roda gigi      | Time Stopper            |
+| Fire   | Dinding kawah, tempat mendarat di ruang magma | Batu magma             | Frost Shard             |
+| Elec   | Pilar tempat kereta gantung berakhir          | Batu retak             | Rock Breaker            |
+| Snow   | Gletser di samping sumur turun ke gua es      | Dinding es             | Fire Storm              |
+| Earth  | Kaki undakan pasir hisap                      | Papan kayu tambang     | Rolling Cutter          |
+| Wind   | Ujung barat aula bawah benteng                | Jendela kaca           | Sonic Boom              |
+| Hydro  | Lantai dasar di dalam bendungan               | Jeruji berkarat        | Venom Drip              |
+| Toxic  | Kaki cerobong asap                            | Barikade drum terbakar | Hydro Blast             |
+| Shadow | Dasar sumur turun ke penjara bawah tanah      | Dinding kegelapan      | Prism Laser             |
+| Sonic  | Menara di bawah lantai dansa terakhir         | Gumpalan awan          | Gale Shot               |
+| Light  | Ujung gua kristal                             | Dinding cahaya         | Shadow Clone            |
+| Time   | Lantai dasar ruang muka jam                   | Pintu berkunci listrik | Thunder Beam            |
+
+## Training Ground
+
+Pulau **TRAINING GROUND** ada di ujung kanan peta dunia (sesudah pulau "???") dan selalu terbuka. Di dalamnya ada arena luas bertingkat (langkan, tangga, dan pad lontar ke jembatan di tengah) dengan musuh yang datang bergelombang **tanpa akhir**:
+
+- Setiap wave membawa lebih banyak musuh, dan HP mereka makin tebal (+0,5x per wave: wave 5 = 3x, wave 10 = 5,5x). Musuh baru ikut muncul dari wave 3 dan wave 5, termasuk musuh khas setiap stage.
+- Musuh sering menjatuhkan **health** (kapsul kecil dan besar).
+- Setiap wave yang dibereskan memberi bonus wave x 500 poin. Semua poin masuk ke dompet POIN, jadi Training Ground juga tempat mengumpulkan poin untuk Shop.
+- Latihan berakhir saat kamu jatuh (tidak mengurangi life) atau memilih **EXIT STAGE** di menu pause. Layar hasil menampilkan wave, jumlah musuh, waktu, poin yang didapat, dan rekor wave (tersimpan dan tampil di peta).
+
 ## Peta Dunia & Menu Pause
 
-- **Peta Dunia** muncul setelah layar title. Setiap benua tampil sebagai pulau alami (pantai, hutan, sungai, gunung) dengan landmark tiap stage; boss berdiri di landmark-nya, dan yang sudah dikalahkan berganti bendera. Benua yang belum terbuka tampil gelap di bawah awan, bertanda "?".
+- **Peta Dunia** muncul setelah layar title. Setiap benua tampil sebagai pulau alami (pantai, hutan, sungai, gunung) dengan landmark tiap stage; boss berdiri di landmark-nya, dan yang sudah dikalahkan berganti bendera. Benua yang belum terbuka tampil gelap di bawah awan, bertanda "?". Di ujung kanan ada pulau Training Ground dengan arenanya.
 - **Menu pause** (`Enter` / `Esc` di dalam stage) punya dua kolom:
   - **SENJATA**: grid ikon dengan satu baris untuk Neo Buster dan satu baris per benua. Slot yang belum didapat bertanda "?". Nama senjata dan charge shot-nya tampil di bawah grid.
   - **TOOLS**: part dari Shop yang bisa di-ON/OFF. Daftarnya bisa digulir.
@@ -196,19 +230,21 @@ Setiap poin skor yang kamu dapat (musuh, pickup, boss 10.000) juga masuk ke domp
 
 Tekan `X` di **Stage Select** untuk membuka Shop. Part dikelompokkan dalam tab **GERAK**, **PERTAHANAN**, dan **SERANGAN** (pindah tab dengan kiri/kanan). Pilih part dengan atas/bawah, tekan `Enter` untuk membeli, dan `X` atau `Esc` untuk kembali. Part yang sudah dibeli bisa dinyalakan atau dimatikan dengan `Enter`. Part yang aktif tampil sebagai ikon di pojok kanan atas layar.
 
-| Part            | Harga  | Efek                                                                                                                                                                                                                                                                                                                   |
-| --------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Boots Anti Duri | 8.000  | Berjalan di atas duri tanpa mati                                                                                                                                                                                                                                                                                       |
-| Armor Anti Api  | 8.000  | Masuk dan berjalan di lava tanpa mati                                                                                                                                                                                                                                                                                  |
-| Jetpack         | 10.000 | Lompatan 1,6x lebih tinggi                                                                                                                                                                                                                                                                                             |
-| Core            | 6.000  | Kebal 5x lebih lama setelah terkena hit                                                                                                                                                                                                                                                                                |
-| Super Booster   | 15.000 | Setiap tembakan biasa langsung keluar sebagai charge shot (Neo Buster: peluru besar; senjata spesial: charge shot-nya)                                                                                                                                                                                                 |
-| Ultra Booster   | 25.000 | Harus punya Super Booster. Tahan tembak sekitar 2,5 detik sampai karakter berkilau emas, lalu lepas untuk **ultra attack**                                                                                                                                                                                             |
-| Shield          | 12.000 | 2 orb perisai mengorbit di sekitarmu. Orb yang terkena musuh atau peluru musuh menangkisnya (musuh kena damage, peluru kecil hancur), lalu hilang 10 detik sebelum muncul lagi                                                                                                                                         |
-| Anti Angin      | 10.000 | Kebal terhadap semua dorongan angin: badai di stage Glacielle, tiupan Fanbot, dan serangan Gust Winderwomen. Pad angin tetap berfungsi karena dibutuhkan untuk menyelesaikan stage Winderwomen                                                                                                                         |
-| Omega Booster   | 40.000 | Harus punya Ultra Booster. Setiap tembakan langsung jadi ultra attack tanpa menahan tombol (kalau ultra sebelumnya masih berjalan, keluar charge shot). Selama Omega ON, Super Booster dan Ultra Booster berstatus **DISABLED**: tidak bisa diubah, dan setelan ON/OFF-nya kembali seperti semula saat Omega dimatikan |
-| Air Dash        | 12.000 | Tekan slide saat di udara untuk dash mendatar, sekali per lompatan (kembali setelah mendarat atau memanjat tangga). Bisa sambil menembak. Dash berhenti di dinding atau saat kamu menekan arah sebaliknya                                                                                                              |
-| Turbo           | 9.000  | Slide dan Air Dash 3x lebih lama                                                                                                                                                                                                                                                                                       |
+| Part            | Harga   | Efek                                                                                                                                                                                                                                                                                                                   |
+| --------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Boots Anti Duri | 8.000   | Berjalan di atas duri tanpa mati                                                                                                                                                                                                                                                                                       |
+| Armor Anti Api  | 8.000   | Masuk dan berjalan di lava tanpa mati                                                                                                                                                                                                                                                                                  |
+| Jetpack         | 10.000  | Lompatan 1,6x lebih tinggi                                                                                                                                                                                                                                                                                             |
+| Core            | 6.000   | Kebal 5x lebih lama setelah terkena hit                                                                                                                                                                                                                                                                                |
+| Super Booster   | 15.000  | Setiap tembakan biasa langsung keluar sebagai charge shot (Neo Buster: peluru besar; senjata spesial: charge shot-nya)                                                                                                                                                                                                 |
+| Ultra Booster   | 25.000  | Harus punya Super Booster. Tahan tembak sekitar 2,5 detik sampai karakter berkilau emas, lalu lepas untuk **ultra attack**                                                                                                                                                                                             |
+| Shield          | 12.000  | 2 orb perisai mengorbit di sekitarmu. Orb yang terkena musuh atau peluru musuh menangkisnya (musuh kena damage, peluru kecil hancur), lalu hilang 10 detik sebelum muncul lagi                                                                                                                                         |
+| Anti Angin      | 10.000  | Kebal terhadap semua dorongan angin: badai di stage Glacielle, tiupan Fanbot, dan serangan Gust Winderwomen. Pad angin tetap berfungsi karena dibutuhkan untuk menyelesaikan stage Winderwomen                                                                                                                         |
+| Omega Booster   | 40.000  | Harus punya Ultra Booster. Setiap tembakan langsung jadi ultra attack tanpa menahan tombol (kalau ultra sebelumnya masih berjalan, keluar charge shot). Selama Omega ON, Super Booster dan Ultra Booster berstatus **DISABLED**: tidak bisa diubah, dan setelan ON/OFF-nya kembali seperti semula saat Omega dimatikan |
+| Air Dash        | 12.000  | Tekan slide saat di udara untuk dash mendatar, sekali per lompatan (kembali setelah mendarat atau memanjat tangga). Bisa sambil menembak. Dash berhenti di dinding atau saat kamu menekan arah sebaliknya                                                                                                              |
+| Turbo           | 9.000   | Slide dan Air Dash 3x lebih lama                                                                                                                                                                                                                                                                                       |
+| Unlimited Dash  | 100.000 | Harus punya Turbo. Air Dash bisa dipakai berulang kali dalam satu lompatan, dan slide maupun Air Dash terus berjalan selama tombol slide ditahan (paling tidak sepanjang durasi normalnya). Lepas tombol untuk berhenti                                                                                                |
+| Step Jump       | 100.000 | Tekan lompat saat di udara untuk melompat lagi dari pijakan cahaya, berkali-kali tanpa batas. Setiap Step Jump juga mengembalikan Air Dash, dan bisa dipakai untuk melompat keluar dari Air Dash                                                                                                                       |
 
 Ultra attack setiap senjata:
 
@@ -239,19 +275,20 @@ Data disimpan di `localStorage` browser (key `neobuster-save-v1`).
 - Jika ada save point, layar title menampilkan pilihan **CONTINUE** / **NEW GAME** (pilih dengan tombol panah).
   - **CONTINUE** melanjutkan dari save point. Kalau disimpan di dalam stage, game langsung masuk ke stage itu (dari checkpoint jika sudah melewatinya).
   - **NEW GAME** mulai dengan 2 life dan skor 0. Boss yang sudah dikalahkan tetap tersimpan.
-- Tekan `R` di title untuk menghapus semua progress, termasuk POIN dan part yang sudah dibeli.
+- **Armor** dari ruang rahasia dan **rekor wave** Training Ground tersimpan otomatis.
+- Tekan `R` di title untuk menghapus semua progress, termasuk POIN, part yang sudah dibeli, armor, dan rekor Training Ground.
 
 ## Cheat Code
 
 Tekan **`P` + `O` bersamaan** untuk membuka cheat box. Ketik kode, tekan `Enter` untuk memakai, atau `Esc` untuk batal. Game berhenti sementara selama cheat box terbuka.
 
-| Kode          | Efek                                                                                                                                                                                                                                                                | Bisa dipakai                                              |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| `MAUKUAT`     | HP penuh                                                                                                                                                                                                                                                            | Di dalam stage, saat karakter masih hidup                 |
-| `AWETMUDA`    | Life +1 (maks. 99)                                                                                                                                                                                                                                                  | Selama permainan berjalan                                 |
-| `ILMUKEBAL`   | HP 10x lebih tebal (semua damage dibagi 10) + HP penuh. Bar HP berubah emas dan berkilau, badge **X10** muncul di atas bar, dan sisa HP tampil sebagai angka (mis. 276/280). Aktif sampai game over atau kembali ke title. Duri dan jurang tetap mematikan seketika | Selama permainan berjalan (HP penuh hanya di dalam stage) |
-| `AKUABADI`    | Life tak terbatas: mati tidak mengurangi life, kamu kembali ke checkpoint. HUD dan menu pause menampilkan **LIFE ∞**. Aktif sampai kembali ke title                                                                                                                 | Selama permainan berjalan                                 |
-| `INGATANKUAT` | Simpan progress saat ini (lihat [Progress & Save](#progress--save))                                                                                                                                                                                                 | Selama permainan berjalan                                 |
+| Kode          | Efek                                                                                                                                                                                                                                                                                                                                                                                 | Bisa dipakai                                              |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------- |
+| `MAUKUAT`     | HP penuh                                                                                                                                                                                                                                                                                                                                                                             | Di dalam stage, saat karakter masih hidup                 |
+| `AWETMUDA`    | Life +1 (maks. 99)                                                                                                                                                                                                                                                                                                                                                                   | Selama permainan berjalan                                 |
+| `ILMUKEBAL`   | HP 10x lebih tebal (semua damage dibagi 10), ditambah 1x untuk setiap armor dari ruang rahasia (mis. 11x dengan satu armor), + HP penuh. Bar HP berubah emas dan berkilau, badge **X10** (atau X11, X12, dan seterusnya) muncul di atas bar, dan sisa HP tampil sebagai angka (mis. 276/280). Aktif sampai game over atau kembali ke title. Duri dan jurang tetap mematikan seketika | Selama permainan berjalan (HP penuh hanya di dalam stage) |
+| `AKUABADI`    | Life tak terbatas: mati tidak mengurangi life, kamu kembali ke checkpoint. HUD dan menu pause menampilkan **LIFE ∞**. Aktif sampai kembali ke title                                                                                                                                                                                                                                  | Selama permainan berjalan                                 |
+| `INGATANKUAT` | Simpan progress saat ini (lihat [Progress & Save](#progress--save))                                                                                                                                                                                                                                                                                                                  | Selama permainan berjalan                                 |
 
 Cheat tidak bisa dipakai di layar title, game over, atau ending.
 
@@ -277,34 +314,32 @@ neobuster/
 │   └── ART-STYLE.md        # panduan gaya karakter anime
 ├── package.json    # script yarn format / format:check (Prettier)
 ├── .prettierrc.json
-└── js/
-    ├── engine.js   # versi, canvas, input, audio & musik, font pixel, sprite & glow
-    ├── art.js      # palet, drawRobot, background parallax, tileset, ikon senjata (+ registry untuk file benua)
-    ├── chars.js    # sistem karakter native: kerangka, rasterisasi pixel art, outline, shading, lari, bagian bersama
-    ├── nexo.js     # Nexo (hero)
-    ├── sniptor.js  # Sniptor (boss)
-    ├── magmaron.js # Magmaron (boss)
-    ├── voltrax.js  # Voltrax (boss)
-    ├── glacielle.js    # Glacielle (boss)
-    ├── terralyn.js     # Terralyn (boss)
-    ├── winderwomen.js  # Winderwomen (boss)
-    ├── hydros.js   # Hydros (boss Benua Vespera)
-    ├── toxaris.js  # Toxaris (boss Benua Vespera)
-    ├── umbrion.js  # Umbrion (boss Benua Vespera)
-    ├── sonique.js  # Sonique (boss Benua Vespera)
-    ├── lumina.js   # Lumina (boss Benua Vespera)
-    ├── chronia.js  # Chronia (boss Benua Vespera)
-    ├── levels.js   # data benua, stage & layout level Benua Azura
-    ├── actors.js   # fisika (termasuk air), player, senjata, musuh, hazard, platform, boss Benua Azura
-    ├── cheats.js   # cheat box (P + O) dan daftar cheat code
-    ├── vespera.js  # Benua Vespera: 6 stage, boss, senjata, musuh, hazard, dan gambarnya dalam satu file
-    ├── worldmap.js # pulau-pulau di peta dunia: medan alami, hutan, sungai, gunung, dan landmark tiap stage
-    └── main.js     # alur game (title, peta, select, stage, boss, ending), shop, render, save, validator konten, game loop
+└── js/                 # dikelompokkan per fungsi; urutan pemuatannya ada di index.html
+    ├── core/
+    │   ├── engine.js       # versi, canvas, input, audio & musik, font pixel, sprite & glow
+    │   └── main.js         # alur game (title, peta, select, stage, boss, ending), shop, render, save, validator konten, game loop
+    ├── art/
+    │   └── art.js          # palet, drawRobot, background parallax, tileset, ikon senjata (+ registry untuk file benua)
+    ├── characters/         # karakter yang digambar native
+    │   ├── chars.js        # sistem karakter: kerangka, rasterisasi pixel art, outline, shading, lari, wajah bersama
+    │   ├── nexo.js         # Nexo (hero)
+    │   ├── azura/          # boss Azura: sniptor, magmaron, voltrax, glacielle, terralyn, winderwomen
+    │   └── vespera/        # boss Vespera: hydros, toxaris, umbrion, sonique, lumina, chronia
+    ├── stages/
+    │   └── levels.js       # data benua & stage, builder layout, layout stage Azura
+    ├── gameplay/
+    │   ├── actors.js       # fisika (termasuk air), player, senjata, musuh, hazard, ruang rahasia, platform, boss Azura
+    │   └── cheats.js       # cheat box (P + O) dan daftar cheat code
+    ├── continents/
+    │   └── vespera.js      # Benua Vespera: 6 stage, boss, senjata, musuh, hazard, dan gambarnya dalam satu file
+    └── world/
+        ├── worldmap.js     # pulau-pulau di peta dunia: medan alami, hutan, sungai, gunung, dan landmark tiap stage
+        └── training.js     # Training Ground: arena, gelombang musuh tanpa akhir, layar hasil, dan pulaunya di peta
 ```
 
 Detail teknis:
 
-- Semua karakter (Nexo dan keduabelas boss) digambar native di kode (`js/chars.js`, satu file per karakter), dengan lembar karakter sebagai referensi desain: kerangka yang digerakkan lewat sudut sendi, diberi bentuk (rambut, helm, armor, sarung tangan, sepatu, senjata), lalu dirasterisasi tanpa anti-alias pada kerapatan layar (1, 2, atau 3 pixel kecil per satuan; tampilan 3x di layar judul, intro, dan ending memakai kerapatan 3), dengan outline 1 pixel per bagian dan cel shading dari kiri atas. Mata digambar pixel demi pixel, dan semua karakter memakai wajah bersama (satu untuk pria, satu untuk wanita) supaya wajahnya seragam. Kaki saat berlari diletakkan dengan inverse kinematics pada lintasan yang bergerak mundur persis secepat karakter berlari, jadi kaki yang menapak tidak meluncur. Rambut, sarung tangan, buster, dan sepatu Nexo diwarnai ulang sesuai senjata. Logo dibuat dari huruf poligon yang dirasterisasi ke pixel kecil dengan efek krom, api, outline, dan ekstrusi.
+- Semua karakter (Nexo dan keduabelas boss) digambar native di kode (`js/characters/chars.js`, satu file per karakter), dengan lembar karakter sebagai referensi desain: kerangka yang digerakkan lewat sudut sendi, diberi bentuk (rambut, helm, armor, sarung tangan, sepatu, senjata), lalu dirasterisasi tanpa anti-alias pada kerapatan layar (1, 2, atau 3 pixel kecil per satuan; tampilan 3x di layar judul, intro, dan ending memakai kerapatan 3), dengan outline 1 pixel per bagian dan cel shading dari kiri atas. Mata digambar pixel demi pixel, dan semua karakter memakai wajah bersama (satu untuk pria, satu untuk wanita) supaya wajahnya seragam. Kaki saat berlari diletakkan dengan inverse kinematics pada lintasan yang bergerak mundur persis secepat karakter berlari, jadi kaki yang menapak tidak meluncur. Rambut, sarung tangan, buster, dan sepatu Nexo diwarnai ulang sesuai senjata. Logo dibuat dari huruf poligon yang dirasterisasi ke pixel kecil dengan efek krom, api, outline, dan ekstrusi.
 - Tata letak memakai ruang logis **384 × 224**, tapi pixel art-nya 2x lebih rapat: satu pixel lama dipecah jadi 2×2 pixel kecil yang tetap tajam. Karakter punya outline 1 pixel kecil, sudut terpotong, dan shading berlapis; teks dan tile juga 2x lebih detail. Kanvas digambar di resolusi layar (kelipatan genap) agar setiap pixel kecil tetap pas di pixel layar.
 - Peta level digambar per potongan 32 kolom saat terlihat, supaya hemat memori.
 - Level berukuran **300 × 44 tile** (16 px). Kamera mengikuti player ke segala arah, kecuali di ruang boss.
@@ -317,4 +352,4 @@ Panduan menambah benua, boss, part shop, dan musuh ada di [docs/MENAMBAH-KONTEN.
 
 ## Versi
 
-Versi ditulis di konstanta `VERSION` di `js/engine.js` dan tampil di pojok kanan bawah layar title & pause. Setiap ada perubahan, versinya dinaikkan dan catatannya ditambahkan di [CHANGELOG.md](CHANGELOG.md).
+Versi ditulis di konstanta `VERSION` di `js/core/engine.js` dan tampil di pojok kanan bawah layar title & pause. Setiap ada perubahan, versinya dinaikkan dan catatannya ditambahkan di [CHANGELOG.md](CHANGELOG.md).

@@ -1,5 +1,5 @@
 'use strict';
-// Hydros, boss of the water stage, drawn natively (see js/chars.js): a sleek aquatic robot in blue armour with white
+// Hydros, boss of the water stage, drawn natively (see js/characters/chars.js): a sleek aquatic robot in blue armour with white
 // plates and aqua fins. Signature: a tall shark fin on his helmet, fin-shaped ear guards, gill slits on his chest,
 // fins on his forearms and calves, a glass water tank on his back with the water sloshing inside, and the Hydro Blast
 // cannon over his forearm, always dripping; it bursts into spray with every jet, blows a big bubble before the bubbles

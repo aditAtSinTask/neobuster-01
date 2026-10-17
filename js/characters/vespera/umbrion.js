@@ -1,10 +1,10 @@
 'use strict';
-// Umbrion, boss of the shadow stage, drawn natively (see js/chars.js): a dark ninja knight in violet-black armour with
+// Umbrion, boss of the shadow stage, drawn natively (see js/characters/chars.js): a dark ninja knight in violet-black armour with
 // violet trim and claw gauntlets. Signature: two long horns sweeping back from his hood, a ninja mask over his mouth and
 // nose below glowing violet eyes, a tattered cape that streams behind him when he moves, and a dark aura with wisps of
 // shadow curling up off him. A burst of shadow leaves his hand when he sends out his clones, a dark orb swells over his
 // raised hand before the orbs rise, and a smear of shadow trails his dash out of the warp. His clones are drawn with his
-// own frames in a dark silhouette palette (see SHADOW_PAL and UMBRION_CLONE_PAL in js/vespera.js). The face is the
+// own frames in a dark silhouette palette (see SHADOW_PAL and UMBRION_CLONE_PAL in js/continents/vespera.js). The face is the
 // shared men's face (ncManFace), scowling.
 // Letters: K outline, A dark violet armour, B black armour, V violet trim, G violet gems, n black cloth (mask, suit),
 // C cape, Q its lining, Z the horns, w gloss; S skin, eyes E I U W, N nose, M mouth.

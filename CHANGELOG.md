@@ -2,6 +2,40 @@
 
 Semua perubahan NEOBUSTER, versi terbaru di atas. Versi ditulis di konstanta `VERSION` di `js/engine.js`.
 
+## 1.8.2
+
+- **Perbaikan: musuh kadang tidak bisa mati walau terkena tembakan.** Ultra attack yang bekerja di seluruh layar (Thunder God, Plague, Eclipse, Supersonic, Supernova, Chrono Break, termasuk lewat Omega Booster) punya titik pengendali tak terlihat di tengah badan pemain. Musuh yang sedang menempel di pemain ikut "terkena" titik itu tanpa nilai damage, sehingga HP-nya rusak dan musuh itu tidak bisa mati lagi. Sekarang titik pengendali itu tidak pernah mengenai musuh atau boss secara langsung (serangannya tetap bekerja seperti biasa), setiap tembakan tanpa nilai damage dihitung 1, dan HP yang rusak langsung dianggap habis.
+
+## 1.8.1
+
+- **File JavaScript dikelompokkan ke folder per fungsi**, supaya jelas isi setiap file:
+  - `js/core/`: `engine.js` (canvas, input, suara, musik, teks) dan `main.js` (alur game, layar, shop, save, game loop).
+  - `js/art/`: `art.js` (palet, tileset, background, ikon senjata).
+  - `js/characters/`: sistem karakter native (`chars.js`), Nexo (`nexo.js`), dan boss per benua di `azura/` dan `vespera/`.
+  - `js/stages/`: `levels.js` (data benua dan stage, builder layout, layout stage Azura).
+  - `js/gameplay/`: `actors.js` (pemain, senjata, musuh, boss Azura, hazard, ruang rahasia) dan `cheats.js`.
+  - `js/continents/`: `vespera.js` (seluruh isi Benua Vespera).
+  - `js/world/`: `worldmap.js` (pulau di peta dunia) dan `training.js` (Training Ground).
+- `index.html` memuat file dari folder barunya dengan urutan yang sama, diberi komentar per bagian. Readme dan panduan di `docs/` ikut diperbarui. Tidak ada perubahan pada gameplay.
+
+## 1.8.0
+
+- **Ruang rahasia di setiap stage**: setiap stage menyembunyikan satu ruangan di balik dinding bersegel yang hanya hancur oleh satu senjata spesial milik boss lain. Ruangannya tampak seperti batu biasa sampai segelnya hancur, dan dinding segelnya dibuat dari bahan yang cocok dengan senjatanya (dengan ikon senjatanya): gerbang roda gigi (Time Stopper) di Cut, batu magma (Frost Shard) di Fire, batu retak (Rock Breaker) di Elec, dinding es (Fire Storm) di Snow, papan kayu tambang (Rolling Cutter) di Earth, jendela kaca (Sonic Boom) di Wind, jeruji berkarat (Venom Drip) di Hydro, barikade drum terbakar (Hydro Blast) di Toxic, dinding kegelapan (Prism Laser) di Shadow, gumpalan awan (Gale Shot) di Sonic, dinding cahaya (Shadow Clone) di Light, dan pintu berkunci listrik (Thunder Beam) di Time. Tembakan senjata lain memantul dan memunculkan nama senjata yang dibutuhkan; ultra attack yang mengenai seluruh layar juga menghancurkan segel senjatanya.
+- **Armor**: di setiap ruang rahasia ada armor yang membuat HP 1x lebih tebal untuk seterusnya (1 armor = 2x, 12 armor = 13x). Kelipatannya tampil sebagai badge X di atas bar HP beserta sisa HP sebagai angka. Dengan cheat `ILMUKEBAL` kelipatannya menjadi 10x + 1x per armor (11x, 12x, dan seterusnya).
+- **HP boss per pulau**: boss Azura sekarang 3x (84 HP) dan boss Vespera 5x (140 HP) dari HP dasar 28 (sebelumnya semua 2x). Bar HP boss tetap 28 kotak.
+- **Pulau Training Ground** di ujung kanan peta dunia: arena luas bertingkat dengan gelombang musuh tanpa akhir. Setiap wave membawa lebih banyak musuh dengan HP yang makin tebal (+0,5x per wave), musuh baru ikut muncul dari wave 3 dan 5, musuh sering menjatuhkan health, dan setiap wave yang dibereskan memberi bonus poin. Latihan berakhir saat jatuh (tanpa kehilangan life) atau keluar lewat menu pause; layar hasil menampilkan wave, musuh, waktu, poin, dan rekor wave (tersimpan dan tampil di peta).
+
+## 1.7.0
+
+- **Part baru STEP JUMP** (tab GERAK, 100.000 POIN): tekan lompat saat di udara untuk melompat lagi dari pijakan cahaya yang muncul di bawah kaki, berkali-kali tanpa batas. Setiap Step Jump juga mengembalikan Air Dash, dan bisa dipakai untuk melompat keluar dari Air Dash. Ikonnya tiga pijakan cahaya yang naik seperti tangga.
+- **Harga UNLIMITED DASH naik menjadi 100.000 POIN**, sama dengan Step Jump (sebelumnya 20.000).
+
+## 1.6.0
+
+- **HP boss 2x lebih tebal**: setiap boss sekarang punya 56 HP (sebelumnya 28). Bar HP boss tetap 28 kotak, jadi satu kotak = 2 HP. Butuh 14 tembakan kelemahan biasa (sebelumnya 7) atau 56 tembakan Neo Buster biasa. Boss tetap mengamuk di setengah HP.
+- **Tanpa kata "Benua" di layar**: peta dunia, Stage Select, pesan saat semua boss satu pulau dikalahkan, dan ending cukup menulis AZURA, VESPERA, dan seterusnya. Pulau yang belum ada bernama "???" dan petunjuk peta menjadi "KIRI/KANAN PILIH". Judul ending menjadi "SEMUA BOSS TELAH DITAKLUKKAN".
+- **Part baru UNLIMITED DASH** (tab GERAK, 20.000 POIN, harus punya Turbo): Air Dash bisa dipakai berulang kali dalam satu lompatan, dan slide maupun Air Dash terus berjalan selama tombol slide ditahan (paling tidak sepanjang durasi normalnya). Ikonnya lambang ∞.
+
 ## 1.5.0
 
 - **Perkenalan boss tanpa gender**: label seperti "Manusia Air" atau "Wanita Bayangan" diganti. Stage Select menampilkan nama tempat stage (mis. BENDUNGAN, BENTENG GELAP), dan layar intro stage serta saat boss muncul menampilkan kalimat perkenalan boss (mis. HYDROS: "MENGENDALIKAN ARUS DAN GELOMBANG").

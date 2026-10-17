@@ -1,5 +1,5 @@
 'use strict';
-// Winderwomen, boss of the wind stage, drawn natively after her character sheet (see js/chars.js): white armour over a
+// Winderwomen, boss of the wind stage, drawn natively after her character sheet (see js/characters/chars.js): white armour over a
 // navy bodysuit, blue and green gems, a helmet with white wings at its sides, and long mint-green hair that streams on
 // the wind; whirlwinds spin on her palm.
 // Letters: K outline, V white armour, n navy bodysuit, B blue gem, G green gem, C wind cyan, c its white, Z hair,

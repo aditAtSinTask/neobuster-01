@@ -1,5 +1,5 @@
 'use strict';
-// Glacielle, boss of the snow stage, drawn natively after her character sheet (see js/chars.js): white and silver
+// Glacielle, boss of the snow stage, drawn natively after her character sheet (see js/characters/chars.js): white and silver
 // armour over a black bodysuit, blue ice crystals on her shoulders, arms and boots, a crystal tiara with a big crystal
 // on her brow, and long pale blue-white hair down to her knees.
 // Letters: K outline, V white armour, n black bodysuit, C ice crystal, c its bright facets, B deep blue, Z hair,

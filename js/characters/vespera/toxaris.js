@@ -1,5 +1,5 @@
 'use strict';
-// Toxaris, boss of the poison stage, drawn natively (see js/chars.js): a hazmat robot in dark green armour with hazard
+// Toxaris, boss of the poison stage, drawn natively (see js/characters/chars.js): a hazmat robot in dark green armour with hazard
 // stripes, heavy rubber gloves and boots. Signature: a gas mask with a filter canister over his mouth and nose, two
 // round goggles glowing lime pushed up on his helmet, a big chemical tank on his back with glowing lime liquid bubbling
 // in its window, and a hose from the tank to the nozzle on his arm; lime fumes always puff from the mask and the tank's

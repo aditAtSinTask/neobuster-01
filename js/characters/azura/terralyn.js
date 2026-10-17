@@ -1,5 +1,5 @@
 'use strict';
-// Terralyn, boss of the earth stage, drawn natively after her character sheet (see js/chars.js): olive-brown rock
+// Terralyn, boss of the earth stage, drawn natively after her character sheet (see js/characters/chars.js): olive-brown rock
 // armour in angular plates over a dark bodysuit, glowing green gems, a rocky crown with a gem on her brow, boulder
 // shoulder pads, a huge rock fist, and a long chestnut ponytail; stones hover round her when she calls down the rocks.
 // Letters: K outline, R rock, O moss, G green gem, g its glow, n dark bodysuit, Z hair, z hair shine, S skin, eyes

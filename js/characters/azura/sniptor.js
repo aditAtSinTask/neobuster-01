@@ -1,5 +1,5 @@
 'use strict';
-// Sniptor, boss of the cut stage, drawn natively after his character sheet (see js/chars.js): a crimson and silver
+// Sniptor, boss of the cut stage, drawn natively after his character sheet (see js/characters/chars.js): a crimson and silver
 // robot ninja with a crest swept back like a blade, silver fins at the sides of the helmet, a gold visor, a silver face
 // plate, gold trim, and the R. Cutter (a spinning eight-bladed cutter) on a launcher over his forearm.
 // Letters: K outline, R crimson armour, V silver, Y gold, D dark metal, E the visor's glow, w gloss.

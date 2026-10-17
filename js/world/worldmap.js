@@ -572,7 +572,7 @@ function mapIsland(def, T, marks = true) {
     }
     return sprites[k];
   };
-  // the landmarks (drawn like the characters: outlined and lit, see js/chars.js) go in the same order
+  // the landmarks (drawn like the characters: outlined and lit, see js/characters/chars.js) go in the same order
   if (marks)
     for (const m of Object.values(def.landmarks))
       if (MAP_LANDMARKS[m.kind] && MAP_LANDMARKS[m.kind].draw) trees.push([m.at[0] * 2, m.at[1] * 2, 'mark|' + m.kind]);
@@ -934,8 +934,10 @@ const MAP_LANDMARKS = {
 // ---------- the islands on the map ----------
 const _mapIslands = new Map(),
   _mapTerrains = new Map();
-// the island of continent i (CONTINENTS.length: the one still to come) and its terrain (computed once)
+// the island of continent i (CONTINENTS.length: the one still to come; 'train': the Training Ground) and its terrain
+// (computed once)
 function mapIslandOf(i) {
+  if (i === 'train') return MAP_TRAINING; // the Training Ground (js/world/training.js)
   const c = CONTINENTS[i];
   if (!c) return MAP_UNKNOWN;
   return (

@@ -4,7 +4,9 @@
 // Tiles: # ground, = block, I ice (slippery), C crumbling block, ^ spikes, ~ lava, H ladder, D boss door,
 //        b cave/backdrop wall (not solid, drawn dark), X abyss (falling into it is death),
 //        < > conveyor belt, Q quicksand (you sink; jump out before your head goes under),
-//        U updraft pad (launches you about 8 tiles up), W water.
+//        U updraft pad (launches you about 8 tiles up), W water, Z sealed wall (see B.seal).
+// Every stage hides a secret room behind a sealed wall that only one special weapon (never the stage's own) breaks,
+// with an armor inside (B.secret); each armor found makes the HP 1x thicker.
 // Hazards: saw, jet (fire), icicle, rockfall, zap (electric beam from a ceiling emitter down to row y1),
 //          bubble (magma leaping out of lava at row y), eblock (energy block idx of n, solid in turn),
 //          wind (blizzard gusts over columns x..x1 pushing toward dir), crusher (a press slamming from row y down to
@@ -81,12 +83,25 @@ const STAGES = {
   },
 };
 // Continents group the stages: each holds six bosses and appears as a landmass on the world map. A continent
-// opens once every boss of the one before it is beaten. Stages, bosses and weapons all share one key (a boss's
+// opens once every boss of the one before it is beaten. bossHp: how many times the 28 HP the boss bar shows its
+// bosses have (each segment of the bar is that many HP). Stages, bosses and weapons all share one key (a boss's
 // weapon is weapons[stage key]), so a new continent only needs its six stages registered in every table; see
 // docs/MENAMBAH-KONTEN.md. validateContent() in main.js warns in the console about anything missing.
 const CONTINENTS = [
-  { key: 'azura', name: 'AZURA', color: '#58c878', stages: ['cut', 'fire', 'elec', 'snow', 'earth', 'wind'] },
-  { key: 'vespera', name: 'VESPERA', color: '#a878d8', stages: ['hydro', 'toxic', 'shadow', 'sonic', 'light', 'time'] },
+  {
+    key: 'azura',
+    name: 'AZURA',
+    color: '#58c878',
+    bossHp: 3,
+    stages: ['cut', 'fire', 'elec', 'snow', 'earth', 'wind'],
+  },
+  {
+    key: 'vespera',
+    name: 'VESPERA',
+    color: '#a878d8',
+    bossHp: 5,
+    stages: ['hydro', 'toxic', 'shadow', 'sonic', 'light', 'time'],
+  },
 ];
 const STAGE_ORDER = CONTINENTS.flatMap(c => c.stages);
 const continentOf = key =>
@@ -205,6 +220,18 @@ function makeBuilder() {
     // a conveyor belt pushing toward dir (-1 left, 1 right)
     belt(x0, x1, y, dir) {
       B.rect(x0, y, x1, y, dir < 0 ? '<' : '>');
+    },
+    // a sealed wall h tiles high standing on row y (its bottom tile), that only `weapon` breaks
+    seal(x, y, weapon, h = 3, w = 1, room = null) {
+      B.rect(x, y - h + 1, x + w - 1, y, 'Z');
+      B.add('seal', x, y, { weapon, h, w, room });
+    },
+    // a secret room (x0..x1, y0..y1, its floor the row under y1) behind a sealed wall in column sx that only `weapon`
+    // breaks, with an armor in column ax; the room looks like solid rock until the wall breaks
+    secret(x0, y0, x1, y1, sx, weapon, ax) {
+      B.cave(x0, y0, x1, y1);
+      B.seal(sx, y1, weapon, 3, 1, [x0, y0, x1, y1]);
+      B.add('armor', ax, y1);
     },
     // fill the open cells of a rectangle with water (W); ladders and walls stay
     flood(x0, y0, x1, y1) {
@@ -347,6 +374,8 @@ const LAYOUTS = {
     B.add('crusher', 263, 13, { y1: F, phase: 20 });
     B.add('E', 260);
     B.add('blader', 272, 15);
+    // --- the secret room: behind a gate of gears at the end of the belt tunnels (Time Stopper)
+    B.secret(207, 34, 212, 37, 206, 'time', 210);
     bossRoom(B, DOOR_COL, 'cut');
   },
 
@@ -461,6 +490,8 @@ const LAYOUTS = {
     [252, 258, 264].forEach((x, i) => B.add('jet', x, F, { phase: i * 40 }));
     B.add('hopper', 255);
     B.add('totem', 269);
+    // --- the secret room: in the crater wall where you land in the magma chamber, behind magma rock (Frost Shard)
+    B.secret(58, 30, 62, 33, 63, 'snow', 60);
     bossRoom(B, DOOR_COL, 'fire');
   },
 
@@ -562,6 +593,9 @@ const LAYOUTS = {
     B.solid(262, 20, 262, 21);
     B.add('turret', 262, 19);
     B.add('watcher', 268, 15);
+    // --- the secret room: inside the pillar where the cable cars end, behind cracked stone (Rock Breaker)
+    B.pillar(185, 185, 8);
+    B.secret(186, 9, 188, 11, 189, 'earth', 187);
     bossRoom(B, DOOR_COL, 'elec');
   },
 
@@ -656,6 +690,8 @@ const LAYOUTS = {
     B.solid(262, 20, 263, 21);
     B.add('turret', 262, 19);
     B.add('flyer', 268, 14);
+    // --- the secret room: inside the glacier by the shaft down to the ice cave, behind a wall of ice (Fire Storm)
+    B.secret(193, 18, 198, 21, 192, 'fire', 196);
     bossRoom(B, DOOR_COL, 'snow');
   },
 
@@ -735,6 +771,9 @@ const LAYOUTS = {
     B.add('E', 262);
     B.add('fanbot', 268, 18);
     B.add('flyer', 271, 13);
+    // --- the secret room: a balcony room off the castle's bottom hall, behind a glass window (Sonic Boom)
+    B.solid(104, 16, 109, 23);
+    B.secret(105, 18, 109, 21, 110, 'sonic', 107);
     bossRoom(B, DOOR_COL, 'wind');
   },
 
@@ -819,6 +858,8 @@ const LAYOUTS = {
     B.solid(266, 20, 267, 21);
     B.add('turret', 266, 19);
     B.add('flyer', 271, 14);
+    // --- the secret room: at the foot of the quicksand tiers, behind the planks of an old mine gallery (Rolling Cutter)
+    B.secret(208, 32, 211, 35, 207, 'cut', 210);
     bossRoom(B, DOOR_COL, 'earth');
   },
 };
@@ -845,7 +886,7 @@ function buildStage(key) {
     map,
     orig: map.map(r => r.slice()),
     ents: B.ents,
-    doorCol: DOOR_COL,
+    doorCol: B.doorCol || DOOR_COL,
     start: start ? spot(start) : { x: 3, y: FLOOR - 1 },
     cps: B.ents
       .filter(e => e.type === 'cp')

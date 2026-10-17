@@ -1,5 +1,5 @@
 'use strict';
-// Lumina, boss of the light stage, drawn natively (see js/chars.js): a radiant light priestess in white and gold
+// Lumina, boss of the light stage, drawn natively (see js/characters/chars.js): a radiant light priestess in white and gold
 // armour with a long ivory skirt. Signature: a prism-crystal tiara with cyan and rainbow facets, a halo of light behind
 // her head, crystal prisms on her shoulders, and long golden hair; motes of light twinkle round her and rainbow glints
 // flash on the prisms. A prism charges in her hand and splits the light into a rainbow at each laser, her raised hands

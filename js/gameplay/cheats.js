@@ -27,7 +27,7 @@ const CHEATS = {
       game.refill = 0;
     }
     sfx.oneup();
-    return [true, was ? 'ILMU KEBAL SUDAH AKTIF - HP PENUH!' : 'ILMU KEBAL! HP X10 + HP PENUH'];
+    return [true, was ? 'ILMU KEBAL SUDAH AKTIF - HP PENUH!' : 'ILMU KEBAL! HP X' + hpMult() + ' + HP PENUH'];
   },
   AKUABADI() {
     // unlimited lives until back to the title: dying goes back to the checkpoint without losing a life

@@ -24,27 +24,37 @@
   </head>
   <body>
     <canvas id="game"></canvas>
-    <script src="js/engine.js"></script>
-    <script src="js/art.js"></script>
-    <script src="js/chars.js"></script>
-    <script src="js/nexo.js"></script>
-    <script src="js/sniptor.js"></script>
-    <script src="js/magmaron.js"></script>
-    <script src="js/voltrax.js"></script>
-    <script src="js/glacielle.js"></script>
-    <script src="js/terralyn.js"></script>
-    <script src="js/winderwomen.js"></script>
-    <script src="js/hydros.js"></script>
-    <script src="js/toxaris.js"></script>
-    <script src="js/umbrion.js"></script>
-    <script src="js/sonique.js"></script>
-    <script src="js/lumina.js"></script>
-    <script src="js/chronia.js"></script>
-    <script src="js/levels.js"></script>
-    <script src="js/actors.js"></script>
-    <script src="js/cheats.js"></script>
-    <script src="js/vespera.js"></script>
-    <script src="js/worldmap.js"></script>
-    <script src="js/main.js"></script>
+    <!-- load order matters: every file shares one global scope and builds on the ones before it -->
+    <!-- core: canvas, input, sound, music, text -->
+    <script src="js/core/engine.js"></script>
+    <!-- art: palettes, tilesets, backgrounds, icons -->
+    <script src="js/art/art.js"></script>
+    <!-- characters: the native character system, the hero and the bosses of each continent -->
+    <script src="js/characters/chars.js"></script>
+    <script src="js/characters/nexo.js"></script>
+    <script src="js/characters/azura/sniptor.js"></script>
+    <script src="js/characters/azura/magmaron.js"></script>
+    <script src="js/characters/azura/voltrax.js"></script>
+    <script src="js/characters/azura/glacielle.js"></script>
+    <script src="js/characters/azura/terralyn.js"></script>
+    <script src="js/characters/azura/winderwomen.js"></script>
+    <script src="js/characters/vespera/hydros.js"></script>
+    <script src="js/characters/vespera/toxaris.js"></script>
+    <script src="js/characters/vespera/umbrion.js"></script>
+    <script src="js/characters/vespera/sonique.js"></script>
+    <script src="js/characters/vespera/lumina.js"></script>
+    <script src="js/characters/vespera/chronia.js"></script>
+    <!-- stages: the continents, stage data and the Azura layouts -->
+    <script src="js/stages/levels.js"></script>
+    <!-- gameplay: the player, weapons, enemies, bosses, hazards, pickups; the cheat box -->
+    <script src="js/gameplay/actors.js"></script>
+    <script src="js/gameplay/cheats.js"></script>
+    <!-- continents: everything a continent adds (stages, bosses, weapons, enemies, art, music) -->
+    <script src="js/continents/vespera.js"></script>
+    <!-- world: the world map's islands and the Training Ground -->
+    <script src="js/world/worldmap.js"></script>
+    <script src="js/world/training.js"></script>
+    <!-- core: the game's flow, screens, shop, save and main loop (last: it uses everything above) -->
+    <script src="js/core/main.js"></script>
   </body>
 </html>

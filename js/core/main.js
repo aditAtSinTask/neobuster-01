@@ -13,6 +13,8 @@ function loadSave() {
   if (!s || !s.cleared) s = { cleared: {} };
   s.points = s.points || 0;
   s.parts = s.parts || {}; // shop wallet and bought parts ('on' / 'off')
+  s.armors = s.armors || {}; // armors found in the secret rooms, by stage
+  s.train = s.train || { wave: 0, kills: 0 }; // best training ground run
   return s;
 }
 function writeSave() {
@@ -59,6 +61,7 @@ function continueGame() {
 // ================= STAGE FLOW =================
 function startStage(key, checkpoint = false) {
   game.stage = key;
+  game.train = null; // set again by startTraining() for the Training Ground
   level = buildStage(key);
   map = level.map;
   LW = level.LW;
@@ -66,9 +69,11 @@ function startStage(key, checkpoint = false) {
   levelArt = makeLevelArt(level);
   game.checkpoint = +checkpoint || 0;
   game.time = 0; // number of checkpoints reached (old saves stored true/false)
+  // pickups placed in the layout; a secret room's armor only until it is found
   game.placed = level.ents
-    .filter(e => ['h', 'E', 'L'].includes(e.type))
-    .map(e => ({ kind: e.type, tx: e.x, ty: e.y, taken: false }));
+    .filter(e => ['h', 'E', 'L'].includes(e.type) || (e.type === 'armor' && !save.armors[key]))
+    .map(e => ({ kind: e.type === 'armor' ? 'A' : e.type, tx: e.x, ty: e.y, taken: false }));
+  game.note = null;
   spawns = level.ents.filter(e => EN[e.type]).map(e => ({ type: e.type, tx: e.x, ty: e.y, armed: true, ent: null }));
   if (!ownedWeapons().includes(player.weapon)) player.weapon = 'buster';
   ambient = makeAmbient(STAGES[key].ambient);
@@ -97,7 +102,9 @@ function restartFromCheckpoint() {
   boss = null;
   hazards = level.ents.filter(e => HAZARD_TYPES.includes(e.type) || HAZARD_KINDS[e.type]).map(makeHazard);
   plats = level.ents.filter(e => e.type === 'plat').map(makePlat);
-  pickups = game.placed.filter(p => !p.taken).map(p => makePickup(p.kind, p.tx * TILE + 8, p.ty * TILE + 4, p));
+  pickups = game.placed
+    .filter(p => !p.taken)
+    .map(p => makePickup(p.kind, p.tx * TILE + 8, p.ty * TILE + (p.kind === 'A' ? -2 : 4), p));
   for (const s of spawns) {
     s.armed = true;
     s.ent = null;
@@ -218,6 +225,7 @@ function updatePlay() {
   if (game.timeStop > 0) game.timeStop--;
   if (game.flash > 0) game.flash--;
   if (game.popup > 0) game.popup--;
+  if (game.note && game.note.t > 0) game.note.t--;
   updatePlats();
   updatePlayer();
   updateCrumbles();
@@ -231,6 +239,7 @@ function updatePlay() {
   updatePickups();
   updateParticles();
   checkHazards();
+  if (game.train && alive(player)) updateTraining();
 
   // a checkpoint counts once the player walks past it at its height (a cave checkpoint is not taken from the surface)
   level.cps.forEach((c, i) => {
@@ -239,6 +248,10 @@ function updatePlay() {
   });
 
   if (!alive(player)) {
+    if (game.train) {
+      if (++game.deadT > 150) endTraining(); // a fall ends the training run, no life is lost
+      return;
+    }
     if (++game.deadT > 210) {
       if (!game.infLives) game.lives--; // cheat AKUABADI: no life is lost
       if (game.lives < 0) {
@@ -251,6 +264,7 @@ function updatePlay() {
   }
   if (
     !game.bossLocked &&
+    !game.train &&
     game.state === 'play' &&
     player.state === 'normal' &&
     player.onGround &&
@@ -342,6 +356,21 @@ const SHOP = [
     desc: 'TEKAN SLIDE DI UDARA: DASH SEKALI PER LOMPATAN',
   },
   { key: 'turbo', cat: 'move', name: 'TURBO', price: 9000, desc: 'SLIDE DAN AIR DASH 3X LEBIH LAMA' },
+  {
+    key: 'unlimited',
+    cat: 'move',
+    name: 'UNLIMITED DASH',
+    price: 100000,
+    needs: 'turbo',
+    desc: 'AIR DASH TANPA BATAS, SLIDE/DASH SELAMA DITAHAN',
+  },
+  {
+    key: 'stepjump',
+    cat: 'move',
+    name: 'STEP JUMP',
+    price: 100000,
+    desc: 'TEKAN LOMPAT DI UDARA: LOMPAT LAGI TANPA BATAS',
+  },
   { key: 'armor', cat: 'guard', name: 'ARMOR ANTI API', price: 8000, desc: 'MASUK DAN JALAN DI LAVA TANPA MATI' },
   { key: 'core', cat: 'guard', name: 'CORE', price: 6000, desc: 'KEBAL 5X LEBIH LAMA SETELAH KENA HIT' },
   { key: 'shield', cat: 'guard', name: 'SHIELD', price: 12000, desc: '2 PERISAI - YANG KENA HIT HILANG 10 DETIK' },
@@ -440,12 +469,19 @@ function step() {
       game.t++;
       if (
         hit.reset &&
-        (Object.keys(save.cleared).length || save.snap || save.points || Object.keys(save.parts).length)
+        (Object.keys(save.cleared).length ||
+          save.snap ||
+          save.points ||
+          Object.keys(save.parts).length ||
+          Object.keys(save.armors).length ||
+          save.train.wave)
       ) {
         save.cleared = {};
         delete save.snap;
         save.points = 0;
         save.parts = {};
+        save.armors = {};
+        save.train = { wave: 0, kills: 0 };
         writeSave();
         player.weapon = 'buster';
         sfx.deflect();
@@ -560,7 +596,8 @@ function step() {
     case 'map': {
       game.t++;
       if (game.mapMsgT > 0) game.mapMsgT--;
-      const slots = CONTINENTS.length + 1; // the last slot is the next continent, still to come
+      // the continents, then the next continent still to come, then the Training Ground
+      const slots = CONTINENTS.length + 2;
       if (hit.left && game.mapSel > 0) {
         game.mapSel--;
         sfx.select();
@@ -581,7 +618,10 @@ function step() {
           game.mapMsgT = 150;
           sfx.deflect();
         };
-        if (i >= CONTINENTS.length) no('BENUA BARU SEGERA HADIR');
+        if (i === CONTINENTS.length + 1) {
+          sfx.confirm();
+          startTraining();
+        } else if (i >= CONTINENTS.length) no('SEGERA HADIR');
         else if (!continentUnlocked(i)) no('KALAHKAN SEMUA BOSS DI ' + CONTINENTS[i - 1].name + ' DULU');
         else {
           sfx.confirm();
@@ -626,7 +666,8 @@ function step() {
           const it = grid[game.pr][game.pc];
           if (it === 'exit') {
             sfx.pause();
-            goSelect(continentOf(game.stage));
+            if (game.train) endTraining();
+            else goSelect(continentOf(game.stage));
           } else if (!ownedWeapons().includes(it)) sfx.deflect();
           else {
             if (it !== player.weapon) {
@@ -691,9 +732,14 @@ function step() {
           game.state = 'ending';
           game.t = 0;
           playMusic('title');
-        } else if (continentCleared(ci)) goMap('BENUA ' + CONTINENTS[ci].name + ' DITAKLUKKAN!');
+        } else if (continentCleared(ci)) goMap(CONTINENTS[ci].name + ' DITAKLUKKAN!');
         else goSelect(ci);
       }
+      break;
+    case 'trainover':
+      game.t++;
+      updateParticles();
+      if (game.t > 40 && go) leaveTraining();
       break;
     case 'gameover':
       game.t++;
@@ -1579,6 +1625,36 @@ function drawPickup(k) {
       ],
     );
     glow(x + 7, y + 6, 12, '#f8d800', 0.5);
+  } else if (k.kind === 'A') {
+    // an armor from a secret room (hidden until its sealed wall breaks): Nexo's gold-winged chest plate in a glowing
+    // capsule, bobbing
+    if (hazards.some(h => h.kind === 'seal' && !h.broken)) return;
+    const by = y + Math.round(Math.sin(frameCount * 0.08) * 2);
+    glow(x + 8, by + 8, 20, '#78f8fc', 0.45 + ((frameCount >> 3) & 1) * 0.15);
+    circle(x + 8, by + 8, 9, '#0a0a16');
+    circle(x + 8, by + 8, 8, '#1848a8');
+    circle(x + 8, by + 8, 6.5, '#2457d0');
+    sprite(
+      x + 1,
+      by + 1,
+      1,
+      14,
+      [
+        [3, 3, 8, 8, '#2457d0'],
+        [2, 4, 10, 4, '#2457d0'],
+      ],
+      [
+        [3, 4, 3, 1, '#f2c23c'],
+        [8, 4, 3, 1, '#f2c23c'],
+        [5, 5, 4, 2, '#f2c23c'],
+        [6, 7, 2, 2, '#f2c23c'],
+        [4, 3, 2, 1, '#d6e6ff'],
+      ],
+    );
+    if ((frameCount >> 3) % 4 === 0) {
+      R(x + 13, by - 1, 1, 3, '#ffffff');
+      R(x + 12, by, 3, 1, '#ffffff');
+    }
   } else {
     // Nexo's head, with the hair in the weapon's colour like his sprite
     const hair = nexoColors(WEAPONS[player.weapon].pal);
@@ -1738,7 +1814,7 @@ function drawBoss() {
   )
     pose = 'raise';
   if (def.pose) pose = def.pose(b, pose);
-  // a native boss (js/chars.js) runs through its cycle by the distance covered (fr in 1.4 px steps) and has its own
+  // a native boss (js/characters/chars.js) runs through its cycle by the distance covered (fr in 1.4 px steps) and has its own
   // rising and falling frames
   if (NATIVE_CHARS[def.style]) {
     if (pose === 'run') fr = (b.anim * Math.abs(b.vx)) / 1.4;
@@ -1753,7 +1829,7 @@ function drawBoss() {
     state: b.state,
     landT: b.landT,
     t: b.t,
-    enr: b.hp <= 14,
+    enr: b.hp <= b.maxHp / 2,
     armT: b.arm,
     vy: b.vy,
     mode: b.mode,
@@ -1812,6 +1888,30 @@ function drawParticles() {
         R(x - 4, y, 8, 1, '#fcfcfc');
         R(x, y - 4, 1, 8, '#fcfcfc');
         break;
+      case 'warp': {
+        // Training Ground: an enemy beams in on a column of light
+        const k = q.t / q.life,
+          w = 14 * (1 - k);
+        ctx.globalAlpha = 1 - k * 0.6;
+        R(x - w / 2, y - 48, w, 48, '#3cbcfc');
+        R(x - w / 4, y - 48, w / 2, 48, '#fcfcfc');
+        ctx.globalAlpha = 1;
+        glow(x, y - 14, 22, '#3cbcfc', 0.6 * (1 - k));
+        break;
+      }
+      case 'step': {
+        // Step Jump: a step of light under the feet that spreads out and fades
+        const k = q.t / q.life,
+          w = 10 + q.t * 1.4;
+        glow(x, y + 1, 10 + q.t, '#3cbcfc', 0.7 * (1 - k));
+        ctx.globalAlpha = 1 - k;
+        R(x - w / 2, y, w, 2, '#78f8fc');
+        R(x - w / 2 + 2, y, w - 4, 1, '#fcfcfc');
+        R(x - w / 2 - 2, y + 0.5, 1, 1, '#78f8fc');
+        R(x + w / 2 + 1, y + 0.5, 1, 1, '#78f8fc');
+        ctx.globalAlpha = 1;
+        break;
+      }
       case 'orb': {
         const big = (q.t >> 2) & 1;
         glow(x, y, 14, q.col, 0.6);
@@ -1857,25 +1957,37 @@ function drawHUD() {
   if (game.tough) glow(16, 40, 30, '#f8b800', 0.3 + ((frameCount >> 3) & 1) * 0.15);
   drawBar(12, 12, player.hp, game.tough ? '#f8a800' : '#f8d878', game.tough);
   drawWeaponIcon(player.weapon, 11, 76);
-  if (game.tough) {
-    // ILMUKEBAL: X10 badge above the HP bar and the real HP (out of 280) below the weapon icon
-    R(6, 0, 21, 10, '#c89800');
-    R(7, 1, 19, 8, '#0a0a16');
-    text('X10', 8, 2, '#f8d800');
-    const hp = String(Math.ceil(player.hp * 10));
+  const mult = hpMult();
+  if (mult > 1) {
+    // thicker HP (armors, ILMUKEBAL): an X badge above the HP bar and the real HP below the weapon icon
+    const [dark, lit] = game.tough ? ['#c89800', '#f8d800'] : ['#2878d8', '#78f8fc'],
+      badge = 'X' + mult,
+      hp = String(Math.ceil(player.hp * mult)),
+      max = '/' + 28 * mult;
+    R(6, 0, textWidth(badge) + 5, 10, dark);
+    R(7, 1, textWidth(badge) + 3, 8, '#0a0a16');
+    text(badge, 8, 2, lit);
     R(8, 88, textWidth(hp) + 6, 11, 'rgba(5,5,20,0.75)');
-    text(hp, 11, 90, '#f8d800');
-    R(8, 100, textWidth('/280') + 6, 11, 'rgba(5,5,20,0.75)');
-    text('/280', 11, 102, '#c89800');
+    text(hp, 11, 90, lit);
+    R(8, 100, textWidth(max) + 6, 11, 'rgba(5,5,20,0.75)');
+    text(max, 11, 102, dark);
   }
-  if (game.bossLocked) drawBar(26, 12, boss ? (game.state === 'bossintro' ? game.bossBar : boss.hp) : 0, '#f87858');
+  if (game.bossLocked)
+    drawBar(26, 12, boss ? (game.state === 'bossintro' ? game.bossBar : (boss.hp * 28) / boss.maxHp) : 0, '#f87858');
   if (game.bossLocked && boss && boss.hp > 0) drawWeakness();
   text(String(game.score).padStart(7, '0'), VW - 8, 8, '#fcfcfc', 1, 'right');
   text('LIFE ' + livesText(), VW - 8, 20, game.infLives ? '#f8d800' : '#a8c8f8', 1, 'right');
+  if (game.train) drawTrainingHUD();
   SHOP.filter(it => hasPart(it.key))
     .slice(0, 14)
     .forEach((it, i) => drawPartIcon(it.key, VW - 22 - i * 16, 32));
   if (game.popup > 0) text(WEAPONS[player.weapon].name, VW / 2, 14, WEAPONS[player.weapon].pal.b, 1, 'center');
+  if (game.note && game.note.t > 0 && (game.note.t > 40 || (frameCount >> 2) & 1)) {
+    const w = textWidth(game.note.text);
+    R(VW / 2 - w / 2 - 6, 48, w + 12, 15, 'rgba(5,5,20,0.8)');
+    R(VW / 2 - w / 2 - 6, 48, w + 12, 1, '#78f8fc');
+    text(game.note.text, VW / 2, 52, '#78f8fc', 1, 'center');
+  }
 }
 
 function renderWorld() {
@@ -2311,7 +2423,7 @@ function drawPortrait(k, x, y, s, pal) {
 
 // stage select grid: [column, row]; three panels per row
 // ================= WORLD MAP =================
-// Each continent is an island on an ocean map (see js/worldmap.js), MAP_SLOT apart; the slot after the last continent
+// Each continent is an island on an ocean map (see js/world/worldmap.js), MAP_SLOT apart; the slot after the last continent
 // shows the next one under clouds.
 const MAP_SLOT = 220;
 function drawMap() {
@@ -2324,12 +2436,26 @@ function drawMap() {
     for (let x = ((y * 7 + frameCount * 0.3) % 40) - 40; x < VW; x += 40) R(x, y, 6, HP, 'rgba(168,220,252,0.25)');
   text('PETA DUNIA', VW / 2, 8, '#fcfcfc', 2, 'center');
   text('POIN ' + save.points, VW - 10, 12, '#f8d800', 1, 'right');
-  for (let i = 0; i <= CONTINENTS.length; i++) {
+  for (let i = 0; i <= CONTINENTS.length + 1; i++) {
     const cx = Math.round(VW / 2 + i * MAP_SLOT - game.mapX);
     if (cx < -120 || cx > VW + 120) continue;
     const real = i < CONTINENTS.length,
       open = real && continentUnlocked(i),
       sel = game.mapSel === i;
+    if (i === CONTINENTS.length + 1) {
+      // the Training Ground: always open, Nexo waiting by the arena
+      drawIsland('train', cx - 100, 40, true);
+      const [ix, iy] = islandIconAt('train', 'train');
+      ctx.save();
+      ctx.translate(cx - 100 + ix - 7, 40 + iy - 14);
+      ctx.scale(0.6, 0.6);
+      drawRobot(0, 0, 1, 'stand', 0, false, PAL_HERO);
+      ctx.restore();
+      text('TRAINING GROUND', cx, 166, sel ? '#fcfcfc' : '#8888a0', 1, 'center');
+      text(save.train.wave ? 'REKOR WAVE ' + save.train.wave : 'ENDLESS', cx, 178, '#78f8fc', 1, 'center');
+      if (sel && (frameCount >> 3) & 1) drawMapBrackets(cx);
+      continue;
+    }
     drawIsland(i, cx - 100, 40, open);
     if (open) {
       // the six bosses at their landmarks; beaten ones show a flag
@@ -2350,7 +2476,7 @@ function drawMap() {
         }
       });
     } else text('?', cx - 9, 86, '#c8cee0', 3);
-    const name = real ? 'BENUA ' + CONTINENTS[i].name : 'BENUA BARU';
+    const name = real ? CONTINENTS[i].name : '???';
     text(name, cx, 166, sel ? '#fcfcfc' : '#8888a0', 1, 'center');
     const info = !real
       ? 'SEGERA HADIR'
@@ -2360,21 +2486,22 @@ function drawMap() {
           '/6 BOSS' +
           (continentCleared(i) ? '  SELESAI' : '');
     text(info, cx, 178, real && open ? CONTINENTS[i].color : '#686878', 1, 'center');
-    if (sel && (frameCount >> 3) & 1) {
-      // selection brackets
-      for (const [bx, by, dx, dy] of [
-        [cx - 104, 36, 1, 1],
-        [cx + 104, 36, -1, 1],
-        [cx - 104, 188, 1, -1],
-        [cx + 104, 188, -1, -1],
-      ]) {
-        R(Math.min(bx, bx + dx * 10), by, 10, 1.5, '#f8d800');
-        R(bx - (dx < 0 ? 1.5 : 0), Math.min(by, by + dy * 10), 1.5, 10, '#f8d800');
-      }
-    }
+    if (sel && (frameCount >> 3) & 1) drawMapBrackets(cx);
   }
   if (game.mapMsgT > 0) text(game.mapMsg, VW / 2, 196, '#f8d800', 1, 'center');
-  text('KIRI/KANAN PILIH BENUA  ENTER MASUK  ESC TITLE', VW / 2, 211, '#a8a8b8', 1, 'center');
+  text('KIRI/KANAN PILIH  ENTER MASUK  ESC TITLE', VW / 2, 211, '#a8a8b8', 1, 'center');
+}
+// the selection brackets round the island at cx
+function drawMapBrackets(cx) {
+  for (const [bx, by, dx, dy] of [
+    [cx - 104, 36, 1, 1],
+    [cx + 104, 36, -1, 1],
+    [cx - 104, 188, 1, -1],
+    [cx + 104, 188, -1, -1],
+  ]) {
+    R(Math.min(bx, bx + dx * 10), by, 10, 1.5, '#f8d800');
+    R(bx - (dx < 0 ? 1.5 : 0), Math.min(by, by + dy * 10), 1.5, 10, '#f8d800');
+  }
 }
 
 const SEL_POS = [
@@ -2397,7 +2524,7 @@ function drawSelect() {
   for (let x = -(frameCount % 16); x < VW; x += 16) R(x, 0, 1, VH, 'rgba(80,100,200,0.12)');
   for (let y = -(frameCount % 16); y < VH; y += 16) R(0, y, VW, 1, 'rgba(80,100,200,0.12)');
   const cont = CONTINENTS[game.continent];
-  text('BENUA ' + cont.name, VW / 2, 10, '#fcfcfc', 2, 'center');
+  text(cont.name, VW / 2, 10, '#fcfcfc', 2, 'center');
   text('POIN ' + save.points, VW - 10, 14, '#f8d800', 1, 'right');
   cont.stages.forEach((k, i) => {
     const px = SEL_X0 + SEL_POS[i][0] * (PW + 8),
@@ -2594,6 +2721,54 @@ function drawPartIcon(key, x, y) {
           [0, 5, 2, 1, '#3cbcfc'],
           [0, 7, 2, 1, '#3cbcfc'],
           [0, 9, 2, 1, '#3cbcfc'],
+        ],
+      );
+      break;
+    case 'unlimited': // an infinity sign on a badge
+      sprite(
+        x,
+        y,
+        1,
+        14,
+        [
+          [1, 1, 12, 12, '#1848a8'],
+          [0, 2, 14, 10, '#1848a8'],
+        ],
+        [
+          [3, 4, 3, 1, '#78f8fc'],
+          [9, 4, 3, 1, '#78f8fc'],
+          [2, 5, 1, 3, '#78f8fc'],
+          [12, 5, 1, 3, '#78f8fc'],
+          [6, 5, 1, 1, '#78f8fc'],
+          [8, 5, 1, 1, '#78f8fc'],
+          [7, 6, 1, 1, '#fcfcfc'],
+          [6, 7, 1, 1, '#78f8fc'],
+          [8, 7, 1, 1, '#78f8fc'],
+          [3, 8, 3, 1, '#78f8fc'],
+          [9, 8, 3, 1, '#78f8fc'],
+          [3, 4, 2, 1, '#fcfcfc'],
+          [9, 4, 2, 1, '#fcfcfc'],
+        ],
+      );
+      break;
+    case 'stepjump': // steps of light climbing into the air
+      sprite(
+        x,
+        y,
+        1,
+        14,
+        [
+          [0, 10, 5, 3, '#2878d8'],
+          [4, 6, 5, 3, '#2878d8'],
+          [8, 2, 5, 3, '#2878d8'],
+        ],
+        [
+          [0, 10, 5, 1, '#78f8fc'],
+          [4, 6, 5, 1, '#78f8fc'],
+          [8, 2, 5, 1, '#78f8fc'],
+          [1, 10, 2, 1, '#fcfcfc'],
+          [5, 6, 2, 1, '#fcfcfc'],
+          [9, 2, 2, 1, '#fcfcfc'],
         ],
       );
       break;
@@ -2829,7 +3004,7 @@ function drawEnding() {
   ctx.fillStyle = 'rgba(5,5,20,0.55)';
   ctx.fillRect(0, 0, VW, VH);
   text('CONGRATULATIONS!', VW / 2, 10, '#f8d800', 2, 'center');
-  text('SEMUA BENUA TELAH DITAKLUKKAN', VW / 2, 32, '#fcfcfc', 1, 'center');
+  text('SEMUA BOSS TELAH DITAKLUKKAN', VW / 2, 32, '#fcfcfc', 1, 'center');
   ctx.save();
   ctx.translate(24, 58);
   ctx.scale(3, 3);
@@ -2840,7 +3015,7 @@ function drawEnding() {
   // one row of defeated bosses per continent (as many rows as fit)
   CONTINENTS.slice(0, 3).forEach((c, ci) => {
     const y = 50 + ci * 44;
-    text('BENUA ' + c.name, 124, y, c.color);
+    text(c.name, 124, y, c.color);
     c.stages.forEach((k, j) => drawPortrait(k, 124 + j * 40, y + 16, 1, grayPal(BOSSES[k].pal)));
   });
   text('SCORE ' + String(game.score).padStart(7, '0'), VW / 2, 192, '#fcfcfc', 1, 'center');
@@ -2888,7 +3063,7 @@ function drawPause() {
   // details of the selected weapon
   const it = grid[game.pr][game.pc],
     iy = 44 + Math.min(grid.length, PAUSE_ROWS) * 21 + 4;
-  if (it === 'exit') text('KEMBALI KE STAGE SELECT', 20, iy, '#8888a0');
+  if (it === 'exit') text(game.train ? 'AKHIRI LATIHAN' : 'KEMBALI KE STAGE SELECT', 20, iy, '#8888a0');
   else if (owned.includes(it)) {
     text(WEAPONS[it].name, 20, iy, '#fcfcfc');
     text('CHARGE: ' + (WEAPONS[it].charged || 'BUSTER + STORM'), 20, iy + 11, '#8888a0');
@@ -2957,6 +3132,7 @@ function render() {
     text(STAGES[boss.type].intro, VW / 2, 80, '#fcfcfc', 1, 'center');
   }
   if (game.state === 'pause') drawPause();
+  if (game.state === 'trainover') drawTrainOver();
   if (game.state === 'clear' && game.t > 100) text('STAGE CLEAR!', VW / 2, 90, '#f8d800', 2, 'center');
 }
 
@@ -2990,7 +3166,18 @@ function validateContent() {
       ])
         if (!table[st.theme]) warn(`stage ${k}: tema ${st.theme} tidak ada di ${name}`);
       if (!SONGS[st.music]) warn(`stage ${k}: lagu ${st.music} tidak ada di SONGS`);
+      // every stage hides one secret room (B.secret) behind a wall that another weapon breaks
+      if (LAYOUTS[k]) {
+        const B = makeBuilder();
+        LAYOUTS[k](B);
+        const seals = B.ents.filter(e => e.type === 'seal');
+        if (seals.length !== 1 || B.ents.filter(e => e.type === 'armor').length !== 1)
+          warn(`stage ${k}: harus punya tepat 1 ruang rahasia dengan armor (B.secret)`);
+        else if (!WEAPONS[seals[0].weapon] || seals[0].weapon === k)
+          warn(`stage ${k}: segel ruang rahasia butuh senjata ${seals[0].weapon} (harus senjata lain yang ada)`);
+      }
     }
+    if (!(c.bossHp >= 1)) warn(`benua ${c.name}: bossHp (kelipatan HP boss) belum diisi`);
     // every weapon of a continent should be the weakness of exactly one of its bosses
     for (const k of c.stages) {
       const n = c.stages.filter(b => BOSSES[b] && BOSSES[b].weak === k).length;

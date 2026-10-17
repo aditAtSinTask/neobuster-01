@@ -1,5 +1,5 @@
 'use strict';
-// Magmaron, boss of the fire stage, drawn natively after his character sheet (see js/chars.js): a hulking lava golem
+// Magmaron, boss of the fire stage, drawn natively after his character sheet (see js/characters/chars.js): a hulking lava golem
 // in red armour veined with glowing lava, dark metal joints, gold trim, a helmet with two bull horns and a gold brow
 // over red eyes and a grey grill, huge round shoulder pads with exhausts that blaze with fire, and a big gold cannon
 // on his arm.

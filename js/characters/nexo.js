@@ -1,5 +1,5 @@
 'use strict';
-// Nexo, the hero, drawn natively after his character sheet (see js/chars.js): spiky brown hair, an anime face with
+// Nexo, the hero, drawn natively after his character sheet (see js/characters/chars.js): spiky brown hair, an anime face with
 // big blue eyes, royal blue armour with gold trim, a gold wing emblem on the chest, round shoulder pads with a blue fin,
 // a steel blue inner suit, big gauntlets and boots, and the Neo Buster on his arm.
 // Letters: K outline, A armour, J inner suit, Y gold, D dark metal, R the buster's red light, w gloss, S skin, Z hair,

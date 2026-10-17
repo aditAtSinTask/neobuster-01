@@ -23,9 +23,10 @@ File ini untuk siapa pun yang melanjutkan NEOBUSTER, manusia maupun AI coding ag
 1. Setiap perubahan menaikkan `VERSION` di `js/core/engine.js` (patch untuk perbaikan, minor untuk fitur), menambah catatan di **paling atas** `CHANGELOG.md`, dan memperbarui baris "Versi saat ini" di `README.md`.
 2. Jalankan `yarn format` (Prettier) sebelum commit. Cek dengan `yarn format:check`.
 3. Repo memakai satu branch: `main`.
-4. Jangan menambah dependensi, build step, atau file gambar/suara.
+4. Jangan menambah dependensi, build step, atau file gambar/suara. Satu-satunya pengecualian adalah ikon aplikasi PWA di `icons/`, yang digambar oleh game sendiri: buat ulang dengan [tools/icons.js](tools/icons.js) kalau tampilan Nexo berubah.
 5. Perbarui dokumentasi (`README.md`, `docs/`) di commit yang sama dengan perubahan yang dijelaskannya.
 6. Game juga dimainkan di HP lewat tombol sentuh (`js/core/touch.js`). Petunjuk di layar game ditulis dengan nama tombol keyboard (`ENTER`, `ESC`, `X`, ...); tombol sentuh menampilkan padanannya, jadi aksi baru perlu tombol keyboard di `KEYMAP` dan, kalau dipakai di HP, tombol di `TOUCH_BUTTONS`.
+7. Game bisa dipasang sebagai aplikasi (PWA: `manifest.webmanifest`, `sw.js`, `js/core/pwa.js`). Service worker mengambil semua script yang dimuat `index.html` dengan sendirinya; file lain yang dibutuhkan saat offline (selain script) perlu ditambahkan ke daftar `FILES` di `sw.js`.
 
 ## Aturan konten baru (wajib)
 

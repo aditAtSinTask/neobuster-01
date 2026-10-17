@@ -514,6 +514,7 @@ function step() {
         const it = items[game.menu];
         sfx.confirm();
         if (it === 'CLOUD SAVE') openCloud();
+        else if (it === 'INSTALL APP') pwaInstall();
         else {
           game.tough = game.infLives = false;
           if (it === 'CONTINUE') continueGame();
@@ -2422,8 +2423,12 @@ function drawTitleArt() {
   ctx.fillStyle = 'rgba(5,5,15,0.55)';
   ctx.fillRect(0, 164, VW, VH - 164); // calm band behind the text
 }
-// the title menu: CONTINUE only when there is a save point
-const titleItems = () => (save.snap ? ['CONTINUE', 'NEW GAME', 'CLOUD SAVE'] : ['START', 'CLOUD SAVE']);
+// the title menu: CONTINUE only when there is a save point, INSTALL APP only where the browser can install the game
+const titleItems = () => [
+  ...(save.snap ? ['CONTINUE', 'NEW GAME'] : ['START']),
+  'CLOUD SAVE',
+  ...(pwaCanInstall() ? ['INSTALL APP'] : []),
+];
 function drawTitle() {
   drawTitleArt();
   drawLogo(14);

@@ -1,6 +1,16 @@
 # Changelog
 
-Semua perubahan NEOBUSTER, versi terbaru di atas. Versi ditulis di konstanta `VERSION` di `js/engine.js`.
+Semua perubahan NEOBUSTER, versi terbaru di atas. Versi ditulis di konstanta `VERSION` di `js/core/engine.js`.
+
+## 1.12.0
+
+- **Bisa dipasang sebagai aplikasi (PWA)**: game punya manifest (`manifest.webmanifest`) dan service worker (`sw.js`).
+  - Setelah dipasang, game terbuka layar penuh tanpa bilah browser, dalam landscape (layar lebar), dengan ikon Nexo.
+  - Pilihan **INSTALL APP** muncul di menu title kalau browser siap memasang (Chrome, Edge, Android). Di iPhone lewat _Share_ → _Add to Home Screen_.
+  - **Offline**: setelah dibuka sekali, semua file game tersimpan dan game tetap bisa dimainkan tanpa internet. Saat online, file terbaru selalu diambil dulu, jadi pembaruan langsung terpakai. API Cloud Save tidak pernah disimpan di cache.
+- **Ikon aplikasi digambar oleh game sendiri**: Nexo membidikkan Neo Buster di depan langit malam dan cincin energi layar title, dalam ukuran 512, 192, _maskable_ (aman dipotong lingkaran oleh Android), dan 180 untuk iPhone. `tools/icons.js` membuat ulang ikon dari gambar game.
+- Saat berjalan layar penuh atau sebagai aplikasi, game memenuhi layar, termasuk layar lebar (misalnya 1851 × 1080 di layar 1080p, bukan 1536 × 896 dengan bingkai hitam). Tombol FULL di layar sentuh disembunyikan saat game sudah berjalan sebagai aplikasi.
+- Di layar sentuh landscape, D-pad dan tombol aksi menjauhi garis home iPhone (_safe area_ bawah), yang ada tepat di bawahnya saat game berjalan layar penuh sebagai aplikasi.
 
 ## 1.11.0
 

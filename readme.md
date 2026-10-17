@@ -2,7 +2,7 @@
 
 > Game action-platformer 2D bergaya **Mega Man** untuk browser — pixel art dengan kepadatan pixel 2x yang detail, tapi tetap ringan dan optimal untuk web.
 
-**Versi saat ini: `1.11.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
+**Versi saat ini: `1.12.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
 
 ---
 
@@ -12,6 +12,7 @@
 - [Cara Menjalankan](#cara-menjalankan)
 - [Kontrol](#kontrol)
 - [Main di HP & Tablet](#main-di-hp--tablet)
+- [Pasang sebagai Aplikasi (PWA)](#pasang-sebagai-aplikasi-pwa)
 - [Stage](#stage)
 - [Boss & Senjata](#boss--senjata)
 - [Ruang Rahasia & Armor](#ruang-rahasia--armor)
@@ -81,6 +82,16 @@ Game mendeteksi layar sentuh dengan sendirinya: di HP dan tablet muncul tombol s
 - **Cloud Save** di HP: ketuk kolom USERNAME atau PASSWORD untuk memunculkan keyboard HP, lalu START untuk masuk dan BACK untuk kembali.
 - Menekan tombol di keyboard fisik menyembunyikan tombol sentuh; sentuhan berikutnya memunculkannya lagi.
 - Cheat box (`P` + `O`) hanya bisa dibuka dengan keyboard.
+
+## Pasang sebagai Aplikasi (PWA)
+
+Game bisa dipasang sebagai aplikasi (Progressive Web App). Setelah dipasang, game terbuka **layar penuh** tanpa bilah browser, **landscape** (layar lebar), dengan ikon Nexo di layar utama, dan bisa dimainkan **offline**.
+
+- **Chrome / Edge (komputer & Android)**: pilih **INSTALL APP** di menu title (muncul kalau browser siap memasang), atau ikon pasang di bilah alamat / menu browser → _Install app_.
+- **iPhone / iPad (Safari)**: tombol _Share_ → _Add to Home Screen_.
+- Saat berjalan layar penuh atau sebagai aplikasi, game memenuhi layar, termasuk layar lebar (tidak lagi dibatasi kelipatan bulat dari ukurannya).
+- **Offline**: setelah dibuka sekali, semua file game tersimpan, jadi game tetap bisa dimainkan tanpa internet (Cloud Save tetap butuh internet; perubahan disinkronkan lagi saat online). Saat online, file terbaru selalu diambil dulu, jadi pembaruan langsung terpakai.
+- PWA hanya aktif kalau game disajikan lewat **https** (misalnya GitHub Pages) atau `localhost`, bukan dibuka langsung sebagai file.
 
 ## Stage
 
@@ -346,14 +357,19 @@ neobuster/
 ├── docs/
 │   ├── MENAMBAH-KONTEN.md  # aturan wajib dan panduan menambah benua, boss, part, musuh
 │   └── ART-STYLE.md        # panduan gaya karakter anime
+├── manifest.webmanifest  # PWA: nama, ikon, layar penuh, landscape
+├── sw.js           # service worker: game bisa dipasang dan dimainkan offline
+├── icons/          # ikon aplikasi (digambar oleh game sendiri lewat tools/icons.js)
 ├── tools/
-│   └── reach.js    # tes jangkauan stage (dijalankan di console browser)
+│   ├── reach.js    # tes jangkauan stage (dijalankan di console browser)
+│   └── icons.js    # membuat ulang ikon aplikasi dari gambar game (dijalankan di console browser)
 ├── package.json    # script yarn format / format:check (Prettier)
 ├── .prettierrc.json
 └── js/                 # dikelompokkan per fungsi; urutan pemuatannya ada di index.html
     ├── core/
     │   ├── engine.js       # versi, canvas, input, audio & musik, font pixel, sprite & glow
     │   ├── cloud.js        # cloud save: login tanpa daftar (hash), sinkron otomatis, pilihan saat cloud dan perangkat berbeda
+    │   ├── pwa.js          # PWA: mendaftarkan service worker, pilihan INSTALL APP di menu title
     │   ├── touch.js        # tombol sentuh di HP & tablet (D-pad, aksi, menu), keyboard HP untuk form Cloud Save
     │   └── main.js         # alur game (title, peta, select, stage, boss, ending), shop, render, save, validator konten, game loop
     ├── art/
@@ -382,7 +398,7 @@ Detail teknis:
 - Peta level digambar per potongan 32 kolom saat terlihat, supaya hemat memori.
 - Level berukuran **300 × 44 tile** (16 px). Kamera mengikuti player ke segala arah, kecuali di ruang boss.
 - Logika berjalan tetap **60 langkah/detik**. Render diinterpolasi agar mulus di layar 120/144 Hz.
-- Semua grafik dan suara dibuat lewat kode (Canvas 2D + Web Audio), tanpa file aset.
+- Semua grafik dan suara dibuat lewat kode (Canvas 2D + Web Audio), tanpa file aset. Satu-satunya file gambar adalah ikon aplikasi PWA di `icons/`, dan ikon itu pun digambar oleh game sendiri (`tools/icons.js`).
 
 ## Menambah Konten
 

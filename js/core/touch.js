@@ -61,10 +61,10 @@ body.touch { touch-action: none; user-select: none; -webkit-user-select: none; -
 #touch .dpad .left { left: 9%; top: 50%; transform: translateY(-50%); }
 #touch .dpad .right { right: 9%; top: 50%; transform: translateY(-50%); }
 @media (orientation: landscape) {
-  #touch .dpad { left: calc(3vmin + env(safe-area-inset-left)); bottom: 4vmin; width: 38vmin; height: 38vmin; }
-  #touch .jump { right: calc(3vmin + env(safe-area-inset-right)); bottom: 14vmin; width: 19vmin; height: 19vmin; }
-  #touch .shoot { right: calc(23vmin + env(safe-area-inset-right)); bottom: 3vmin; width: 19vmin; height: 19vmin; }
-  #touch .slide { right: calc(24vmin + env(safe-area-inset-right)); bottom: 26vmin; width: 14vmin; height: 14vmin; }
+  #touch .dpad { left: calc(3vmin + env(safe-area-inset-left)); bottom: calc(4vmin + env(safe-area-inset-bottom)); width: 38vmin; height: 38vmin; }
+  #touch .jump { right: calc(3vmin + env(safe-area-inset-right)); bottom: calc(14vmin + env(safe-area-inset-bottom)); width: 19vmin; height: 19vmin; }
+  #touch .shoot { right: calc(23vmin + env(safe-area-inset-right)); bottom: calc(3vmin + env(safe-area-inset-bottom)); width: 19vmin; height: 19vmin; }
+  #touch .slide { right: calc(24vmin + env(safe-area-inset-right)); bottom: calc(26vmin + env(safe-area-inset-bottom)); width: 14vmin; height: 14vmin; }
   #touch .prev { left: calc(3vmin + env(safe-area-inset-left)); top: 4vmin; }
   #touch .back { left: calc(3vmin + env(safe-area-inset-left)); top: 16vmin; }
   #touch .next { right: calc(3vmin + env(safe-area-inset-right)); top: 4vmin; }
@@ -123,12 +123,12 @@ function touchBuild() {
     return b;
   };
   for (const B of TOUCH_BUTTONS) touchUI.buttons.push({ a: B.a, el: button(B.cls, B.label, B.key) });
-  // mute (the M key) and full screen (where the browser allows it)
+  // mute (the M key) and full screen (where the browser allows it, and not when it already runs as the app)
   const mute = button('tiny mute', 'MUTE', '');
   touchUI.extras.push({ el: mute, act: () => (toggleMute(), mute.classList.toggle('on', muted)) });
   const root = document.documentElement,
     fullscreen = root.requestFullscreen || root.webkitRequestFullscreen;
-  if (fullscreen) {
+  if (fullscreen && !pwa.app) {
     const full = button('tiny full', 'FULL', '');
     touchUI.extras.push({
       el: full,

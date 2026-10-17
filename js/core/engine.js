@@ -2,7 +2,7 @@
 // NEOBUSTER — core: canvas, helpers, input, audio, music, text, sprite + glow primitives.
 
 // bump on every change (and add an entry to CHANGELOG.md)
-const VERSION = '1.11.0';
+const VERSION = '1.12.0';
 document.title = 'Neobuster v' + VERSION;
 
 const TILE = 16,
@@ -18,13 +18,18 @@ const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 // whole device pixels. render() applies SCALE every frame.
 const HP = 0.5;
 let SCALE = 2;
-// On a computer the game is shown at a whole multiple of its size. With the touch buttons (js/core/touch.js) it fills
-// the screen instead, and on a phone held upright it takes the top half, the buttons the rest.
+// On a computer the game is shown at a whole multiple of its size. With the touch buttons (js/core/touch.js), in full
+// screen and as the installed app (js/core/pwa.js) it fills the screen instead, wide screens included; on a phone held
+// upright it takes the top half, the buttons the rest.
 function fit() {
   const touch = document.body.classList.contains('touch'),
+    fill =
+      touch ||
+      !!document.fullscreenElement ||
+      matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches,
     h = touch && innerHeight > innerWidth ? innerHeight * 0.5 : innerHeight;
   let s = Math.min(innerWidth / VW, h / VH);
-  s = s >= 1 && !touch ? Math.floor(s) : s;
+  s = s >= 1 && !fill ? Math.floor(s) : s;
   cvs.style.width = VW * s + 'px';
   cvs.style.height = VH * s + 'px';
   SCALE = Math.min(6, Math.max(2, Math.round(s * (window.devicePixelRatio || 1))));
@@ -33,6 +38,7 @@ function fit() {
   cvs.height = VH * SCALE;
 }
 addEventListener('resize', fit);
+document.addEventListener('fullscreenchange', fit);
 fit();
 const overlap = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 function R(x, y, w, h, c) {

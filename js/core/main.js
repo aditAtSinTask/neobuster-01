@@ -2534,6 +2534,11 @@ function drawMap() {
           '/6 BOSS' +
           (continentCleared(i) ? '  SELESAI' : '');
     text(info, cx, 178, real && open ? CONTINENTS[i].color : '#686878', 1, 'center');
+    if (real && open) {
+      // the secret armors found on this island
+      const n = CONTINENTS[i].stages.filter(k => save.armors[k]).length;
+      text(n + '/' + CONTINENTS[i].stages.length + ' ARMOR', cx, 188, n ? '#78f8fc' : '#686878', 1, 'center');
+    }
     if (sel && (frameCount >> 3) & 1) drawMapBrackets(cx);
   }
   if (game.mapMsgT > 0) text(game.mapMsg, VW / 2, 196, '#f8d800', 1, 'center');
@@ -2571,9 +2576,12 @@ function drawSelect() {
   ctx.fillRect(0, 0, VW, VH);
   for (let x = -(frameCount % 16); x < VW; x += 16) R(x, 0, 1, VH, 'rgba(80,100,200,0.12)');
   for (let y = -(frameCount % 16); y < VH; y += 16) R(0, y, VW, 1, 'rgba(80,100,200,0.12)');
-  const cont = CONTINENTS[game.continent];
+  const cont = CONTINENTS[game.continent],
+    armors = cont.stages.filter(k => save.armors[k]).length;
   text(cont.name, VW / 2, 10, '#fcfcfc', 2, 'center');
   text('POIN ' + save.points, VW - 10, 14, '#f8d800', 1, 'right');
+  drawArmorIcon(10, 12, armors > 0);
+  text('ARMOR ' + armors + '/' + cont.stages.length, 24, 14, armors ? '#78f8fc' : '#686878');
   cont.stages.forEach((k, i) => {
     const px = SEL_X0 + SEL_POS[i][0] * (PW + 8),
       py = 32 + SEL_POS[i][1] * (PH + 8),
@@ -2592,6 +2600,7 @@ function drawSelect() {
     text(WEAPONS[k].short, px + 58, py + 32, cleared ? '#686878' : '#a8a8b8');
     text(st.place, px + PW / 2, py + 56, cleared ? '#686878' : st.color, 1, 'center');
     if (cleared) text('CLEAR', px + PW - 4, py + 4, '#f8d800', 1, 'right');
+    drawArmorIcon(px + 3, py + 2, save.armors[k]); // the stage's secret armor: lit once found
     if (game.sel === i && (frameCount >> 3) & 1) {
       ctx.strokeStyle = '#f8d800';
       ctx.lineWidth = 2;
@@ -2599,6 +2608,35 @@ function drawSelect() {
     }
   });
   text('ENTER START  X SHOP  C KELEMAHAN  ESC PETA', VW / 2, 211, '#a8a8b8', 1, 'center');
+}
+
+// a 10x10 armor (the secret room's chest plate): in colour and glowing once found, a dark outline until then
+function drawArmorIcon(x, y, got) {
+  if (got) glow(x + 5, y + 5, 9, '#78f8fc', 0.35 + ((frameCount >> 4) & 1) * 0.15);
+  sprite(
+    x,
+    y,
+    1,
+    10,
+    [
+      [2, 1, 6, 8, got ? '#2457d0' : '#2a2a3e'],
+      [1, 2, 8, 5, got ? '#2457d0' : '#2a2a3e'],
+    ],
+    got
+      ? [
+          [1, 3, 3, 1, '#f2c23c'],
+          [6, 3, 3, 1, '#f2c23c'],
+          [3, 4, 4, 2, '#f2c23c'],
+          [4, 6, 2, 2, '#f2c23c'],
+          [3, 2, 2, 1, '#d6e6ff'],
+        ]
+      : [
+          [1, 3, 3, 1, '#3e3e54'],
+          [6, 3, 3, 1, '#3e3e54'],
+          [3, 4, 4, 2, '#3e3e54'],
+          [4, 6, 2, 2, '#3e3e54'],
+        ],
+  );
 }
 
 // 14x14 icons for the shop parts

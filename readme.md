@@ -2,7 +2,7 @@
 
 > Game action-platformer 2D bergaya **Mega Man** untuk browser — pixel art dengan kepadatan pixel 2x yang detail, tapi tetap ringan dan optimal untuk web.
 
-**Versi saat ini: `1.9.1`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
+**Versi saat ini: `1.10.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
 
 ---
 
@@ -193,6 +193,8 @@ Setelah semua boss di semua benua dikalahkan, muncul layar ending.
 Setiap stage menyembunyikan satu **ruang rahasia** di balik dinding bersegel. Dari luar ruangannya tampak seperti batu biasa; hanya dinding segelnya yang terlihat berbeda, dengan ikon senjata yang bisa menghancurkannya. Tembakan senjata lain memantul, dan nama senjata yang dibutuhkan muncul di atas dinding. Senjatanya selalu milik boss lain, jadi sebagian ruang rahasia baru bisa dibuka setelah kamu kembali dengan senjata dari pulau lain. Ultra attack yang mengenai seluruh layar juga menghancurkan segel senjatanya.
 
 Di dalam setiap ruang rahasia ada **armor**. Setiap armor membuat HP **1x lebih tebal** untuk seterusnya (semua damage dibagi kelipatannya): 1 armor = 2x, 12 armor = 13x. Kelipatannya tampil sebagai badge (mis. **X4**) di atas bar HP, dan sisa HP sebagai angka di bawah ikon senjata. Dengan cheat `ILMUKEBAL` kelipatannya bertambah: 10x + 1x per armor (11x dengan satu armor, dan seterusnya). Setelah armor diambil, dinding segelnya tetap terbuka.
+
+Di **Stage Select**, pojok kiri atas setiap panel boss menunjukkan armor stage itu: ikon armor menyala kalau sudah diambil, dan siluet gelap kalau belum. Jumlah armor yang ditemukan di benua itu tampil di pojok kiri atas layar (mis. ARMOR 3/6), dan di peta dunia di bawah jumlah boss setiap pulau.
 
 | Stage  | Letak ruang rahasia                           | Dinding segel          | Senjata yang dibutuhkan |
 | ------ | --------------------------------------------- | ---------------------- | ----------------------- |

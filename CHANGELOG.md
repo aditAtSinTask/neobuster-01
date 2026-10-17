@@ -2,6 +2,11 @@
 
 Semua perubahan NEOBUSTER, versi terbaru di atas. Versi ditulis di konstanta `VERSION` di `js/engine.js`.
 
+## 1.10.0
+
+- **Penanda armor di Stage Select**: pojok kiri atas setiap panel boss menunjukkan armor ruang rahasia stage itu. Ikon armor menyala dan berkilau kalau sudah diambil, dan berupa siluet gelap kalau belum. Jumlah armor yang ditemukan di benua itu tampil di pojok kiri atas layar (mis. ARMOR 3/6).
+- Peta dunia juga menampilkan jumlah armor setiap pulau di bawah jumlah bossnya.
+
 ## 1.9.1
 
 - **Cloud Save memakai TOTP**: token API tidak lagi dikirim di header. Setiap request membawa `x-external-uid` dan `x-external-totp`, yaitu 32 digit pertama HMAC-SHA512 dari token dengan langkah waktu 30 detik. Server menerima langkah waktu saat ini dan sebelumnya.

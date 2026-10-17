@@ -2,7 +2,7 @@
 // NEOBUSTER — core: canvas, helpers, input, audio, music, text, sprite + glow primitives.
 
 // bump on every change (and add an entry to CHANGELOG.md)
-const VERSION = '1.10.1';
+const VERSION = '1.11.0';
 document.title = 'Neobuster v' + VERSION;
 
 const TILE = 16,
@@ -18,9 +18,13 @@ const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 // whole device pixels. render() applies SCALE every frame.
 const HP = 0.5;
 let SCALE = 2;
+// On a computer the game is shown at a whole multiple of its size. With the touch buttons (js/core/touch.js) it fills
+// the screen instead, and on a phone held upright it takes the top half, the buttons the rest.
 function fit() {
-  let s = Math.min(innerWidth / VW, innerHeight / VH);
-  s = s >= 1 ? Math.floor(s) : s;
+  const touch = document.body.classList.contains('touch'),
+    h = touch && innerHeight > innerWidth ? innerHeight * 0.5 : innerHeight;
+  let s = Math.min(innerWidth / VW, h / VH);
+  s = s >= 1 && !touch ? Math.floor(s) : s;
   cvs.style.width = VW * s + 'px';
   cvs.style.height = VH * s + 'px';
   SCALE = Math.min(6, Math.max(2, Math.round(s * (window.devicePixelRatio || 1))));
@@ -241,7 +245,8 @@ const GP_BTN = {
   right: [15],
 };
 const kHeld = {},
-  kLatch = {};
+  kLatch = {},
+  tHeld = {}; // held on the touch buttons
 const inp = {},
   hit = {},
   rel = {},
@@ -277,7 +282,7 @@ function pollInput() {
         break;
       }
   for (const a of ACTIONS) {
-    let v = !!(kHeld[a] || kLatch[a]);
+    let v = !!(kHeld[a] || kLatch[a] || tHeld[a]);
     if (gp) {
       for (const i of GP_BTN[a] || []) if (gp.buttons[i] && gp.buttons[i].pressed) v = true;
       const ax = gp.axes;

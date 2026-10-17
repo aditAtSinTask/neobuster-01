@@ -25,6 +25,7 @@ File ini untuk siapa pun yang melanjutkan NEOBUSTER, manusia maupun AI coding ag
 3. Repo memakai satu branch: `main`.
 4. Jangan menambah dependensi, build step, atau file gambar/suara.
 5. Perbarui dokumentasi (`README.md`, `docs/`) di commit yang sama dengan perubahan yang dijelaskannya.
+6. Game juga dimainkan di HP lewat tombol sentuh (`js/core/touch.js`). Petunjuk di layar game ditulis dengan nama tombol keyboard (`ENTER`, `ESC`, `X`, ...); tombol sentuh menampilkan padanannya, jadi aksi baru perlu tombol keyboard di `KEYMAP` dan, kalau dipakai di HP, tombol di `TOUCH_BUTTONS`.
 
 ## Aturan konten baru (wajib)
 

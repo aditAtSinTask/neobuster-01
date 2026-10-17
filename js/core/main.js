@@ -2436,8 +2436,13 @@ function drawTitle() {
     text((sel ? '>' : ' ') + o, x, 168, sel ? '#f8d800' : '#686878');
     x += widths[i] + gap;
   });
-  text('ARROWS MOVE  Z JUMP  X SHOOT  C SLIDE', VW / 2, 186, '#a8a8b8', 1, 'center');
-  text('HOLD X CHARGE  Q/E WEAPON  ENTER PAUSE  M MUTE', VW / 2, 198, '#a8a8b8', 1, 'center');
+  if (touchUI.on) {
+    text('D-PAD GERAK  JUMP  SHOOT  SLIDE  W GANTI SENJATA', VW / 2, 186, '#a8a8b8', 1, 'center');
+    text('TAHAN SHOOT UNTUK CHARGE  START PAUSE', VW / 2, 198, '#a8a8b8', 1, 'center');
+  } else {
+    text('ARROWS MOVE  Z JUMP  X SHOOT  C SLIDE', VW / 2, 186, '#a8a8b8', 1, 'center');
+    text('HOLD X CHARGE  Q/E WEAPON  ENTER PAUSE  M MUTE', VW / 2, 198, '#a8a8b8', 1, 'center');
+  }
   if (game.resetArm > 0)
     text('R LAGI: HAPUS SEMUA PROGRESS' + (cloud.id ? ' (JUGA DI CLOUD)' : ''), VW / 2, 212, '#f87858', 1, 'center');
   else if (cloudHasProgress(save)) text('R: RESET PROGRESS', VW / 2, 212, '#686878', 1, 'center');

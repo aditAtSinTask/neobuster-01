@@ -2,7 +2,7 @@
 
 > Game action-platformer 2D bergaya **Mega Man** untuk browser — pixel art dengan kepadatan pixel 2x yang detail, tapi tetap ringan dan optimal untuk web.
 
-**Versi saat ini: `1.10.1`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
+**Versi saat ini: `1.11.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
 
 ---
 
@@ -11,6 +11,7 @@
 - [Konsep](#konsep)
 - [Cara Menjalankan](#cara-menjalankan)
 - [Kontrol](#kontrol)
+- [Main di HP & Tablet](#main-di-hp--tablet)
 - [Stage](#stage)
 - [Boss & Senjata](#boss--senjata)
 - [Ruang Rahasia & Armor](#ruang-rahasia--armor)
@@ -51,22 +52,35 @@ Tidak perlu build atau install apa pun — cukup HTML + JavaScript murni.
 
 ## Kontrol
 
-| Aksi                                             | Keyboard                                                                        | Gamepad             |
-| ------------------------------------------------ | ------------------------------------------------------------------------------- | ------------------- |
-| Gerak                                            | `←` `→` / `A` `D`                                                               | D-pad / stik kiri   |
-| Naik / turun tangga                              | `↑` `↓` / `W` `S`                                                               | D-pad / stik kiri   |
-| Lompat (di udara: Step Jump, part Shop)          | `Z` / `J` / `Space`                                                             | A                   |
-| Tembak                                           | `X` / `K`                                                                       | X / B               |
-| Charge shot (semua senjata)                      | Tahan `X` lalu lepas                                                            | Tahan tombol tembak |
-| Slide (di udara: Air Dash, part Shop)            | `C` / `L` (atau `↓` + lompat)                                                   | RT / Y              |
-| Ganti senjata                                    | `Q` / `E`                                                                       | LB / RB             |
-| Pause: ganti senjata & ON/OFF tools              | `Enter` / `Esc`; panah untuk bergerak di grid senjata dan pindah ke kolom tools | Start               |
-| Mute                                             | `M`                                                                             | —                   |
-| Kembali ke layar sebelumnya (menu, peta, select) | `Esc` / `Backspace`                                                             | Select              |
-| Buka Shop (di Stage Select)                      | `X`                                                                             | X / B               |
-| Layar Kelemahan Boss (di Stage Select)           | `C`                                                                             | RT / Y              |
-| Reset progress (di title)                        | `R` dua kali                                                                    | —                   |
-| Buka cheat box                                   | Tekan `P` + `O` bersamaan                                                       | —                   |
+| Aksi                                             | Keyboard                                                                        | Gamepad             | Layar sentuh           |
+| ------------------------------------------------ | ------------------------------------------------------------------------------- | ------------------- | ---------------------- |
+| Gerak                                            | `←` `→` / `A` `D`                                                               | D-pad / stik kiri   | D-pad                  |
+| Naik / turun tangga                              | `↑` `↓` / `W` `S`                                                               | D-pad / stik kiri   | D-pad atas / bawah     |
+| Lompat (di udara: Step Jump, part Shop)          | `Z` / `J` / `Space`                                                             | A                   | JUMP                   |
+| Tembak                                           | `X` / `K`                                                                       | X / B               | SHOOT                  |
+| Charge shot (semua senjata)                      | Tahan `X` lalu lepas                                                            | Tahan tombol tembak | Tahan SHOOT lalu lepas |
+| Slide (di udara: Air Dash, part Shop)            | `C` / `L` (atau `↓` + lompat)                                                   | RT / Y              | SLIDE                  |
+| Ganti senjata                                    | `Q` / `E`                                                                       | LB / RB             | ◀ W / W ▶            |
+| Pause: ganti senjata & ON/OFF tools              | `Enter` / `Esc`; panah untuk bergerak di grid senjata dan pindah ke kolom tools | Start               | START / BACK, D-pad    |
+| Mute                                             | `M`                                                                             | —                   | MUTE                   |
+| Kembali ke layar sebelumnya (menu, peta, select) | `Esc` / `Backspace`                                                             | Select              | BACK                   |
+| Buka Shop (di Stage Select)                      | `X`                                                                             | X / B               | SHOOT                  |
+| Layar Kelemahan Boss (di Stage Select)           | `C`                                                                             | RT / Y              | SLIDE                  |
+| Reset progress (di title)                        | `R` dua kali                                                                    | —                   | —                      |
+| Buka cheat box                                   | Tekan `P` + `O` bersamaan                                                       | —                   | —                      |
+
+Di layar sentuh, setiap tombol juga menampilkan tombol keyboard padanannya (misalnya SHOOT bertuliskan `X`), jadi petunjuk di layar game tetap bisa diikuti.
+
+## Main di HP & Tablet
+
+Game mendeteksi layar sentuh dengan sendirinya: di HP dan tablet muncul tombol semi-transparan di atas dan di sekitar layar game.
+
+- **Landscape**: game memenuhi tinggi layar; D-pad di kiri bawah, JUMP / SHOOT / SLIDE di kanan bawah, ganti senjata, BACK, START, MUTE, dan FULL (layar penuh, kalau browser mendukung) di sisi kiri dan kanan.
+- **Portrait**: game di atas dan tombol di bawahnya, seperti konsol genggam.
+- Beberapa jari bisa dipakai bersamaan, D-pad membaca 8 arah, dan ibu jari bisa digeser dari satu tombol ke tombol lain (misalnya dari SHOOT ke JUMP).
+- **Cloud Save** di HP: ketuk kolom USERNAME atau PASSWORD untuk memunculkan keyboard HP, lalu START untuk masuk dan BACK untuk kembali.
+- Menekan tombol di keyboard fisik menyembunyikan tombol sentuh; sentuhan berikutnya memunculkannya lagi.
+- Cheat box (`P` + `O`) hanya bisa dibuka dengan keyboard.
 
 ## Stage
 
@@ -340,6 +354,7 @@ neobuster/
     ├── core/
     │   ├── engine.js       # versi, canvas, input, audio & musik, font pixel, sprite & glow
     │   ├── cloud.js        # cloud save: login tanpa daftar (hash), sinkron otomatis, pilihan saat cloud dan perangkat berbeda
+    │   ├── touch.js        # tombol sentuh di HP & tablet (D-pad, aksi, menu), keyboard HP untuk form Cloud Save
     │   └── main.js         # alur game (title, peta, select, stage, boss, ending), shop, render, save, validator konten, game loop
     ├── art/
     │   └── art.js          # palet, drawRobot, background parallax, tileset, ikon senjata (+ registry untuk file benua)

@@ -432,8 +432,12 @@ addEventListener(
   'keydown',
   e => {
     if (game.state !== 'cloud' || (cloudUI.mode !== 'form' && cloudUI.mode !== 'new')) return;
-    e.preventDefault();
     e.stopImmediatePropagation();
+    // typing through a phone's keyboard (the hidden text box of js/core/touch.js): the box takes the characters itself
+    const box = e.target && e.target.id === 'nb-text';
+    if (box && e.key !== 'Enter' && e.key !== 'Escape' && e.key !== 'Tab') return;
+    e.preventDefault();
+    if (box) setTimeout(() => touchTyping() && touchType()); // the box follows the field after Enter or Tab
     const k = e.key,
       printable = k.length === 1 && !e.ctrlKey && !e.metaKey && k >= ' ' && k <= '~';
     if (cloudUI.mode === 'new') {
@@ -465,7 +469,22 @@ addEventListener(
 function updateCloudScreen(go) {
   game.t++;
   const U = cloudUI;
-  if (U.mode === 'pick') {
+  if (U.mode === 'form' || U.mode === 'new') {
+    // the touch buttons and a gamepad: START goes on, BACK goes back, up and down pick the field
+    const before = U.field;
+    if (hit.start) {
+      if (U.mode === 'new') cloudCreate();
+      else if (U.field === 0) U.field = 1;
+      else cloudSubmit();
+    } else if (hit.back) {
+      if (U.mode === 'new') Object.assign(U, { mode: 'form', field: 1, pass: '', pass2: '', msg: null });
+      else {
+        game.state = 'title';
+        sfx.pause();
+      }
+    } else if (U.mode === 'form' && (hit.up || hit.down)) U.field ^= 1;
+    if (U.field !== before && touchUI.text && document.activeElement === touchUI.text) touchType();
+  } else if (U.mode === 'pick') {
     if (hit.left || hit.right || hit.up || hit.down) {
       U.sel ^= 1;
       sfx.select();
@@ -660,7 +679,14 @@ function drawCloudScreen() {
       if (on && blink) R(156 + (val ? textWidth(val) + 2 : 0), y + 4, 5, 7, '#f8d800');
     });
     text('PASSWORD TIDAK DISIMPAN DAN TIDAK DIKIRIM, HANYA HASH-NYA.', VW / 2, 130, '#686878', 1, 'center');
-    text('TAB/ATAS/BAWAH PINDAH KOLOM  ENTER MASUK  ESC KEMBALI', VW / 2, 206, '#8888a0', 1, 'center');
+    text(
+      touchUI.on ? 'KETUK KOLOM  START MASUK  BACK KEMBALI' : 'TAB/ATAS/BAWAH PINDAH KOLOM  ENTER MASUK  ESC KEMBALI',
+      VW / 2,
+      206,
+      '#8888a0',
+      1,
+      'center',
+    );
   } else if (U.mode === 'new') {
     text('BELUM ADA SAVE UNTUK USERNAME DAN PASSWORD INI.', VW / 2, 40, '#f8d800', 1, 'center');
     text('KALAU INI AKUN BARU, KETIK ULANG PASSWORD UNTUK MEMBUATNYA', VW / 2, 58, '#a8c8f8', 1, 'center');
@@ -673,7 +699,14 @@ function drawCloudScreen() {
     R(151, 121, 162, 14, '#05050f');
     text(val, 156, 124, '#fcfcfc');
     if (blink) R(156 + (val ? textWidth(val) + 2 : 0), 124, 5, 7, '#f8d800');
-    text('ENTER BUAT SAVE BARU  ESC ULANGI', VW / 2, 206, '#8888a0', 1, 'center');
+    text(
+      touchUI.on ? 'START BUAT SAVE BARU  BACK ULANGI' : 'ENTER BUAT SAVE BARU  ESC ULANGI',
+      VW / 2,
+      206,
+      '#8888a0',
+      1,
+      'center',
+    );
   } else if (U.mode === 'busy') {
     text('MENGHUBUNGKAN' + '.'.repeat(1 + ((frameCount >> 4) % 3)), VW / 2, 96, '#f8d800', 1, 'center');
   } else if (U.mode === 'pick') {

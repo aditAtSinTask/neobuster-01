@@ -2,6 +2,16 @@
 
 Semua perubahan NEOBUSTER, versi terbaru di atas. Versi ditulis di konstanta `VERSION` di `js/engine.js`.
 
+## 1.11.0
+
+- **Main di HP dan tablet**: saat game dibuka di layar sentuh, muncul tombol semi-transparan: D-pad, JUMP, SHOOT, SLIDE, ganti senjata, START, BACK, MUTE, dan FULL (layar penuh, kalau browser mendukung). Setiap tombol juga menampilkan tombol keyboard padanannya, jadi petunjuk di layar game tetap bisa diikuti.
+  - Landscape: game memenuhi tinggi layar dan tombol berada di sisi-sisinya.
+  - Portrait: game di atas dan tombol di bawahnya, dengan latar seperti badan konsol.
+  - Beberapa jari bekerja bersamaan, D-pad membaca 8 arah, dan ibu jari bisa digeser dari satu tombol ke tombol lain. Tombol menyala saat ditekan.
+  - Keyboard fisik menyembunyikan tombol sentuh; sentuhan berikutnya memunculkannya lagi.
+- **Cloud Save di HP**: ketuk kolom untuk mengetik dengan keyboard HP; START untuk masuk, BACK untuk kembali. Tombol START dan BACK juga bekerja di form untuk gamepad.
+- Di layar sentuh, game ditampilkan memenuhi layar (tidak lagi hanya kelipatan bulat dari ukurannya), dan petunjuk kontrol di title menyebut tombol sentuh.
+
 ## 1.10.1
 
 - **Badge akun Cloud Save** menggantikan baris teks status. Badge ini tampil di pojok kanan atas title dan pojok kiri atas peta, berisi avatar bulat dengan huruf pertama nama (warnanya khas untuk setiap nama), nama, dan ikon awan pixel yang menunjukkan status:

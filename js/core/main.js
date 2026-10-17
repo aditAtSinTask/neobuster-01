@@ -359,8 +359,9 @@ const SHOP_TABS = [
   { key: 'attack', name: 'SERANGAN' },
   { key: 'level', name: 'LEVEL' },
 ];
-// Prices: three times the first ones, and more for the parts that make the game easiest (passing spikes, lava and
-// pits without trying, ultra attacks without a wait)
+// Prices: at least three times the first ones; the parts that make the game easiest cost the most: the long cover
+// after a hit (Core), the guards (Shield, Aura Shield), endless dashes and jumps (Unlimited Dash, Step Jump) and the
+// boosters up to ultra attacks without a wait (Omega Booster, the dearest of all)
 const SHOP = [
   { key: 'boots', cat: 'move', name: 'BOOTS ANTI DURI', price: 40000, desc: 'JALAN DI ATAS DURI TANPA MATI' },
   { key: 'jet', cat: 'move', name: 'JETPACK', price: 40000, desc: 'LOMPAT 1.6X LEBIH TINGGI' },
@@ -372,12 +373,12 @@ const SHOP = [
     price: 36000,
     desc: 'TEKAN SLIDE DI UDARA: DASH SEKALI PER LOMPATAN',
   },
-  { key: 'turbo', cat: 'move', name: 'TURBO', price: 27000, desc: 'SLIDE DAN AIR DASH 3X LEBIH LAMA' },
+  { key: 'turbo', cat: 'move', name: 'TURBO', price: 78000, desc: 'SLIDE DAN AIR DASH 3X LEBIH LAMA' },
   {
     key: 'unlimited',
     cat: 'move',
     name: 'UNLIMITED DASH',
-    price: 450000,
+    price: 600000,
     needs: 'turbo',
     desc: 'AIR DASH TANPA BATAS, SLIDE/DASH SELAMA DITAHAN',
   },
@@ -389,8 +390,8 @@ const SHOP = [
     desc: 'TEKAN LOMPAT DI UDARA: LOMPAT LAGI TANPA BATAS',
   },
   { key: 'armor', cat: 'guard', name: 'ARMOR ANTI API', price: 40000, desc: 'MASUK DAN JALAN DI LAVA TANPA MATI' },
-  { key: 'core', cat: 'guard', name: 'CORE', price: 18000, desc: 'KEBAL 5X LEBIH LAMA SETELAH KENA HIT' },
-  { key: 'shield', cat: 'guard', name: 'SHIELD', price: 48000, desc: '2 PERISAI - YANG KENA HIT HILANG 10 DETIK' },
+  { key: 'core', cat: 'guard', name: 'CORE', price: 420000, desc: 'KEBAL 5X LEBIH LAMA SETELAH KENA HIT' },
+  { key: 'shield', cat: 'guard', name: 'SHIELD', price: 250000, desc: '2 PERISAI - YANG KENA HIT HILANG 10 DETIK' },
   {
     key: 'aura',
     cat: 'guard',
@@ -402,14 +403,14 @@ const SHOP = [
     key: 'super',
     cat: 'attack',
     name: 'SUPER BOOSTER',
-    price: 45000,
+    price: 63000,
     desc: 'TEMBAKAN BIASA LANGSUNG JADI CHARGE SHOT',
   },
   {
     key: 'ultra',
     cat: 'attack',
     name: 'ULTRA BOOSTER',
-    price: 75000,
+    price: 250000,
     needs: 'super',
     desc: 'TAHAN TEMBAK 2.5 DETIK: ULTRA ATTACK',
   },
@@ -417,7 +418,7 @@ const SHOP = [
     key: 'omega',
     cat: 'attack',
     name: 'OMEGA BOOSTER',
-    price: 200000,
+    price: 750000,
     needs: 'ultra',
     desc: 'ULTRA ATTACK TANPA DELAY, SUPER/ULTRA DISABLED',
   },

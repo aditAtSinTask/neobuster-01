@@ -2,6 +2,24 @@
 
 Semua perubahan NEOBUSTER, versi terbaru di atas. Versi ditulis di konstanta `VERSION` di `js/core/engine.js`.
 
+## 1.13.1
+
+- **Harga Shop disesuaikan lagi**, supaya part yang paling memudahkan permainan jadi tujuan jangka panjang:
+
+  | Part           | Harga lama | Harga baru |
+  | -------------- | ---------- | ---------- |
+  | Core           | 18.000     | 420.000    |
+  | Shield         | 48.000     | 250.000    |
+  | Turbo          | 27.000     | 78.000     |
+  | Unlimited Dash | 450.000    | 600.000    |
+  | Super Booster  | 45.000     | 63.000     |
+  | Ultra Booster  | 75.000     | 250.000    |
+  | Omega Booster  | 200.000    | 750.000    |
+
+  - Omega Booster kini part termahal.
+  - Unlimited Dash lebih mahal dari Step Jump (450.000).
+  - Part yang sudah dibeli tetap dimiliki.
+
 ## 1.13.0
 
 - **Harga Shop naik**: semua part tiga kali lipat dari harga awalnya, dan lebih mahal lagi untuk part yang paling memudahkan permainan:

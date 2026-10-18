@@ -165,6 +165,18 @@ function touchShow(on) {
   }
 }
 
+// how wide, in game pixels, the middle of the screen is that the touch buttons leave clear: on a phone held sideways
+// the d-pad and SHOOT cover the sides of the game; held upright (buttons under the game) or without them, all of it
+function touchClearWidth() {
+  if (!touchUI.on) return VW;
+  const c = cvs.getBoundingClientRect(),
+    mid = c.left + c.width / 2,
+    d = touchUI.dpad.getBoundingClientRect(),
+    s = touchUI.buttons.find(b => b.a === 'shoot').el.getBoundingClientRect(),
+    over = q => q.top < c.bottom && q.bottom > c.top, // beside the game, not under it
+    half = Math.min(over(d) ? mid - d.right : Infinity, over(s) ? s.left - mid : Infinity);
+  return half === Infinity ? VW : Math.max(0, (half * 2 * VW) / c.width);
+}
 // a finger at (x, y) on a button, or up to `slack` pixels past its edge: the round buttons (JUMP, SHOOT, SLIDE) by
 // their circle, so a press in the corner between two of them belongs to neither
 function touchInside(el, x, y, slack) {

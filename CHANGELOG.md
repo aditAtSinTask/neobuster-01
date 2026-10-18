@@ -2,6 +2,13 @@
 
 Semua perubahan NEOBUSTER, versi terbaru di atas. Versi ditulis di konstanta `VERSION` di `js/core/engine.js`.
 
+## 1.13.3
+
+- **Reset progress bisa dari HP dan gamepad.** Sebelumnya reset hanya lewat tombol `R` dua kali, yang tidak ada di tombol sentuh maupun gamepad.
+  - Menu title punya pilihan **RESET** selama ada progress. Pilih sekali untuk memunculkan peringatan merah ("ENTER LAGI: HAPUS SEMUA PROGRESS"), lalu pilih lagi dalam 3 detik untuk menghapus.
+  - Pindah ke pilihan lain membatalkan reset. Tombol `R` di keyboard tetap berfungsi.
+  - Menu title menyesuaikan jumlah pilihannya. Di layar lebar, jarak antar-pilihan merapat supaya kelima pilihan (CONTINUE, NEW GAME, CLOUD SAVE, INSTALL APP, RESET) muat satu baris. Di HP landscape, menu pindah ke dua baris kalau tidak muat di bagian tengah layar yang tidak tertutup D-pad dan tombol aksi.
+
 ## 1.13.2
 
 - **Perbaikan: di HP, JUMP kadang malah menjadi slide.**

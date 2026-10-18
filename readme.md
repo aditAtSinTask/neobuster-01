@@ -2,7 +2,7 @@
 
 > Game action-platformer 2D bergaya **Mega Man** untuk browser — pixel art dengan kepadatan pixel 2x yang detail, tapi tetap ringan dan optimal untuk web.
 
-**Versi saat ini: `1.13.2`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
+**Versi saat ini: `1.13.3`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
 
 ---
 
@@ -53,22 +53,22 @@ Tidak perlu build atau install apa pun — cukup HTML + JavaScript murni.
 
 ## Kontrol
 
-| Aksi                                             | Keyboard                                                                        | Gamepad             | Layar sentuh           |
-| ------------------------------------------------ | ------------------------------------------------------------------------------- | ------------------- | ---------------------- |
-| Gerak                                            | `←` `→` / `A` `D`                                                               | D-pad / stik kiri   | D-pad                  |
-| Naik / turun tangga                              | `↑` `↓` / `W` `S`                                                               | D-pad / stik kiri   | D-pad atas / bawah     |
-| Lompat (di udara: Step Jump, part Shop)          | `Z` / `J` / `Space`                                                             | A                   | JUMP                   |
-| Tembak                                           | `X` / `K`                                                                       | X / B               | SHOOT                  |
-| Charge shot (semua senjata)                      | Tahan `X` lalu lepas                                                            | Tahan tombol tembak | Tahan SHOOT lalu lepas |
-| Slide (di udara: Air Dash, part Shop)            | `C` / `L` (atau `↓` + lompat)                                                   | RT / Y              | SLIDE                  |
-| Ganti senjata                                    | `Q` / `E`                                                                       | LB / RB             | ◀ W / W ▶            |
-| Pause: ganti senjata & ON/OFF tools              | `Enter` / `Esc`; panah untuk bergerak di grid senjata dan pindah ke kolom tools | Start               | START / BACK, D-pad    |
-| Mute                                             | `M`                                                                             | —                   | MUTE                   |
-| Kembali ke layar sebelumnya (menu, peta, select) | `Esc` / `Backspace`                                                             | Select              | BACK                   |
-| Buka Shop (di Stage Select)                      | `X`                                                                             | X / B               | SHOOT                  |
-| Layar Kelemahan Boss (di Stage Select)           | `C`                                                                             | RT / Y              | SLIDE                  |
-| Reset progress (di title)                        | `R` dua kali                                                                    | —                   | —                      |
-| Buka cheat box                                   | Tekan `P` + `O` bersamaan                                                       | —                   | —                      |
+| Aksi                                             | Keyboard                                                                        | Gamepad                 | Layar sentuh                    |
+| ------------------------------------------------ | ------------------------------------------------------------------------------- | ----------------------- | ------------------------------- |
+| Gerak                                            | `←` `→` / `A` `D`                                                               | D-pad / stik kiri       | D-pad                           |
+| Naik / turun tangga                              | `↑` `↓` / `W` `S`                                                               | D-pad / stik kiri       | D-pad atas / bawah              |
+| Lompat (di udara: Step Jump, part Shop)          | `Z` / `J` / `Space`                                                             | A                       | JUMP                            |
+| Tembak                                           | `X` / `K`                                                                       | X / B                   | SHOOT                           |
+| Charge shot (semua senjata)                      | Tahan `X` lalu lepas                                                            | Tahan tombol tembak     | Tahan SHOOT lalu lepas          |
+| Slide (di udara: Air Dash, part Shop)            | `C` / `L` (atau `↓` + lompat)                                                   | RT / Y                  | SLIDE                           |
+| Ganti senjata                                    | `Q` / `E`                                                                       | LB / RB                 | ◀ W / W ▶                     |
+| Pause: ganti senjata & ON/OFF tools              | `Enter` / `Esc`; panah untuk bergerak di grid senjata dan pindah ke kolom tools | Start                   | START / BACK, D-pad             |
+| Mute                                             | `M`                                                                             | —                       | MUTE                            |
+| Kembali ke layar sebelumnya (menu, peta, select) | `Esc` / `Backspace`                                                             | Select                  | BACK                            |
+| Buka Shop (di Stage Select)                      | `X`                                                                             | X / B                   | SHOOT                           |
+| Layar Kelemahan Boss (di Stage Select)           | `C`                                                                             | RT / Y                  | SLIDE                           |
+| Reset progress (di title)                        | **RESET** di menu dua kali, atau `R` dua kali                                   | RESET di menu, dua kali | RESET di menu (START), dua kali |
+| Buka cheat box                                   | Tekan `P` + `O` bersamaan                                                       | —                       | —                               |
 
 Di layar sentuh, setiap tombol juga menampilkan tombol keyboard padanannya (misalnya SHOOT bertuliskan `X`), jadi petunjuk di layar game tetap bisa diikuti.
 
@@ -317,11 +317,11 @@ Data disimpan di `localStorage` browser (key `neobuster-save-v1`).
 
 - **Boss yang sudah dikalahkan** tersimpan otomatis.
 - **Save point manual** dibuat dengan cheat `INGATANKUAT`. Yang disimpan: jumlah life, skor, senjata aktif, dan — jika sedang di dalam stage — stage tersebut beserta checkpoint-nya.
-- Layar title punya menu **START** (atau **CONTINUE** / **NEW GAME** jika ada save point) dan **CLOUD SAVE**; pilih dengan tombol panah.
+- Layar title punya menu **START** (atau **CONTINUE** / **NEW GAME** jika ada save point), **CLOUD SAVE**, **INSTALL APP** (kalau browser siap memasang game), dan **RESET** (kalau ada progress); pilih dengan tombol panah.
   - **CONTINUE** melanjutkan dari save point. Kalau disimpan di dalam stage, game langsung masuk ke stage itu (dari checkpoint jika sudah melewatinya).
   - **NEW GAME** mulai dengan 2 life dan skor 0. Boss yang sudah dikalahkan tetap tersimpan.
 - **Armor** dari ruang rahasia, **level ATTACK / DEFENSE**, dan **rekor wave** Training Ground tersimpan otomatis.
-- Tekan `R` **dua kali** di title (dalam 3 detik) untuk menghapus semua progress, termasuk POIN, part yang sudah dibeli, level ATTACK / DEFENSE, armor, dan rekor Training Ground. Saat masuk Cloud Save, progress di cloud ikut terhapus.
+- Untuk menghapus semua progress, pilih **RESET** di menu title, lalu pilih lagi dalam 3 detik (peringatannya tampil merah di bawah menu; pindah pilihan membatalkannya). Cara ini juga jalan di HP dan gamepad; di keyboard bisa juga dengan `R` **dua kali**. Yang terhapus termasuk POIN, part yang sudah dibeli, level ATTACK / DEFENSE, armor, dan rekor Training Ground. Saat masuk Cloud Save, progress di cloud ikut terhapus.
 
 ## Cloud Save
 

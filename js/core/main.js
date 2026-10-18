@@ -535,34 +535,21 @@ function step() {
       if (game.resetArm > 0) game.resetArm--;
       const items = titleItems();
       game.menu = Math.min(game.menu, items.length - 1);
-      if (hit.reset && !game.resetArm && cloudHasProgress(save)) {
-        game.resetArm = 180; // R once more within 3 seconds wipes everything
-        sfx.select();
-      } else if (
-        hit.reset &&
-        (Object.keys(save.cleared).length ||
-          save.snap ||
-          save.points ||
-          Object.keys(save.parts).length ||
-          Object.keys(save.armors).length ||
-          save.train.wave ||
-          save.stats.atk > 1 ||
-          save.stats.def > 1)
-      ) {
-        save.cleared = {};
-        delete save.snap;
-        save.points = 0;
-        save.parts = {};
-        save.armors = {};
-        save.train = { wave: 0, kills: 0 };
-        save.stats = { atk: 1, def: 1 };
-        writeSave();
-        player.weapon = 'buster';
-        game.resetArm = 0;
-        sfx.deflect();
+      // wiping the progress: RESET in the menu (on a phone or a gamepad too) or R, once to arm it and once more within
+      // 3 seconds to wipe
+      const reset = hit.reset || (go && items[game.menu] === 'RESET');
+      if (reset && cloudHasProgress(save)) {
+        if (game.resetArm > 0) resetProgress();
+        else {
+          game.resetArm = 180;
+          game.resetBy = hit.reset ? 'R' : 'ENTER';
+          sfx.select();
+        }
+        break;
       }
       if (hit.left || hit.right || hit.up || hit.down) {
         game.menu = (game.menu + (hit.right || hit.down ? 1 : items.length - 1)) % items.length;
+        game.resetArm = 0; // moving away from RESET calls it off
         sfx.select();
       }
       if (go) {
@@ -2535,34 +2522,68 @@ function drawTitleArt() {
   ctx.fillStyle = 'rgba(5,5,15,0.55)';
   ctx.fillRect(0, 164, VW, VH - 164); // calm band behind the text
 }
-// the title menu: CONTINUE only when there is a save point, INSTALL APP only where the browser can install the game
+// the title menu: CONTINUE only when there is a save point, INSTALL APP only where the browser can install the game,
+// RESET only when there is progress to wipe
 const titleItems = () => [
   ...(save.snap ? ['CONTINUE', 'NEW GAME'] : ['START']),
   'CLOUD SAVE',
   ...(pwaCanInstall() ? ['INSTALL APP'] : []),
+  ...(cloudHasProgress(save) ? ['RESET'] : []),
 ];
+// wipes all the progress (RESET on the title, or R, twice): beaten bosses, the save point, points, parts, levels,
+// armors and the Training Ground record; when logged in to Cloud Save, the cloud copy too (it uploads the empty save)
+function resetProgress() {
+  save.cleared = {};
+  delete save.snap;
+  save.points = 0;
+  save.parts = {};
+  save.armors = {};
+  save.train = { wave: 0, kills: 0 };
+  save.stats = { atk: 1, def: 1 };
+  writeSave();
+  player.weapon = 'buster';
+  game.resetArm = 0;
+  sfx.deflect();
+}
 function drawTitle() {
   drawTitleArt();
   drawLogo(14);
+  // the menu in one row, or in two when it does not fit the room the touch buttons leave in the middle of the screen
   const items = titleItems(),
-    gap = 26,
-    widths = items.map(o => textWidth(o) + 8);
-  let x = VW / 2 - (widths.reduce((a, b) => a + b, 0) + gap * (items.length - 1)) / 2;
-  items.forEach((o, i) => {
-    const sel = Math.min(game.menu, items.length - 1) === i;
-    text((sel ? '>' : ' ') + o, x, 168, sel ? '#f8d800' : '#686878');
-    x += widths[i] + gap;
+    room = Math.min(VW, touchClearWidth()) - 16,
+    w = o => textWidth(o) + 8,
+    span = row => row.reduce((a, o) => a + w(o), 0),
+    half = Math.ceil(items.length / 2),
+    rows = span(items) + 14 * (items.length - 1) <= room ? [items] : [items.slice(0, half), items.slice(half)],
+    y0 = rows.length > 1 ? 6 : 0; // two rows push the lines under the menu down a little
+  let i = 0;
+  rows.forEach((row, r) => {
+    const gap = clamp(Math.floor((room - span(row)) / Math.max(1, row.length - 1)), 10, 26); // closer when many
+    let x = VW / 2 - (span(row) + gap * (row.length - 1)) / 2;
+    for (const o of row) {
+      const sel = Math.min(game.menu, items.length - 1) === i++,
+        armed = o === 'RESET' && game.resetArm > 0;
+      if (!(armed && frameCount & 8))
+        text((sel ? '>' : ' ') + o, x, 168 + r * 11, o === 'RESET' && sel ? '#f87858' : sel ? '#f8d800' : '#686878');
+      x += w(o) + gap;
+    }
   });
   if (touchUI.on) {
-    text('D-PAD GERAK  JUMP  SHOOT  SLIDE  W GANTI SENJATA', VW / 2, 186, '#a8a8b8', 1, 'center');
-    text('TAHAN SHOOT UNTUK CHARGE  START PAUSE', VW / 2, 198, '#a8a8b8', 1, 'center');
+    text('D-PAD GERAK  JUMP  SHOOT  SLIDE  W GANTI SENJATA', VW / 2, 186 + y0, '#a8a8b8', 1, 'center');
+    text('TAHAN SHOOT UNTUK CHARGE  START PAUSE', VW / 2, 198 + y0, '#a8a8b8', 1, 'center');
   } else {
-    text('ARROWS MOVE  Z JUMP  X SHOOT  C SLIDE', VW / 2, 186, '#a8a8b8', 1, 'center');
-    text('HOLD X CHARGE  Q/E WEAPON  ENTER PAUSE  M MUTE', VW / 2, 198, '#a8a8b8', 1, 'center');
+    text('ARROWS MOVE  Z JUMP  X SHOOT  C SLIDE', VW / 2, 186 + y0, '#a8a8b8', 1, 'center');
+    text('HOLD X CHARGE  Q/E WEAPON  ENTER PAUSE  M MUTE', VW / 2, 198 + y0, '#a8a8b8', 1, 'center');
   }
   if (game.resetArm > 0)
-    text('R LAGI: HAPUS SEMUA PROGRESS' + (cloud.id ? ' (JUGA DI CLOUD)' : ''), VW / 2, 212, '#f87858', 1, 'center');
-  else if (cloudHasProgress(save)) text('R: RESET PROGRESS', VW / 2, 212, '#686878', 1, 'center');
+    text(
+      game.resetBy + ' LAGI: HAPUS SEMUA PROGRESS' + (cloud.id ? ' (JUGA DI CLOUD)' : ''),
+      VW / 2,
+      212 + Math.min(y0, 2),
+      '#f87858',
+      1,
+      'center',
+    );
   drawCloudStatus(VW - 4, 4, true);
   drawVersion();
 }

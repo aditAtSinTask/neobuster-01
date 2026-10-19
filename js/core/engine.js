@@ -2,7 +2,7 @@
 // NEOBUSTER — core: canvas, helpers, input, audio, music, text, sprite + glow primitives.
 
 // bump on every change (and add an entry to CHANGELOG.md)
-const VERSION = '1.13.3';
+const VERSION = '1.14.0';
 document.title = 'Neobuster v' + VERSION;
 
 const TILE = 16,
@@ -325,9 +325,19 @@ function pollInput() {
 }
 
 // ---------- audio ----------
+// the sound setting (SUARA in Settings, the M key, the touch MUTE button) belongs to this device: it is kept apart from
+// the game save, so Cloud Save never carries it to another device
+const SETTINGS_KEY = 'neobuster-settings-v1';
+function loadSettings() {
+  try {
+    return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {};
+  } catch (e) {
+    return {};
+  }
+}
 let actx = null,
   master = null,
-  muted = false;
+  muted = !!loadSettings().muted;
 function ensureAudio() {
   if (!actx) {
     const AC = window.AudioContext || window.webkitAudioContext;
@@ -342,6 +352,12 @@ function ensureAudio() {
 function toggleMute() {
   muted = !muted;
   if (master) master.gain.value = muted ? 0 : 0.5;
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(Object.assign(loadSettings(), { muted })));
+  } catch (e) {
+    /* storage unavailable */
+  }
+  if (typeof touchUI !== 'undefined' && touchUI.mute) touchUI.mute.classList.toggle('on', muted);
 }
 
 function tone(f0, f1, dur, type = 'square', vol = 0.2, delay = 0) {

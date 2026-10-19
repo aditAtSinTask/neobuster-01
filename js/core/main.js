@@ -154,6 +154,7 @@ function restartFromCheckpoint() {
     shieldAng: 0,
     aura: AURA_HITS, // Aura Shield: hits it still takes, frames until it forms again, cover after a hit, flash
     auraCd: 0,
+    hyperCd: Array(HYPER_HITS).fill(0), // Hyper Shield: frames until each of its shields is back (0: up)
     auraT: 0,
     auraFx: 0,
     anim: 0,
@@ -400,6 +401,14 @@ const SHOP = [
     desc: 'GELEMBUNG EMAS: TAHAN 3 HIT, LALU HILANG 15 DETIK',
   },
   {
+    key: 'hyper',
+    cat: 'guard',
+    name: 'HYPER SHIELD',
+    price: 1500000,
+    needs: 'aura',
+    desc: '6 PERISAI, TIAP PERISAI PULIH 8 DETIK SENDIRI',
+  },
+  {
     key: 'super',
     cat: 'attack',
     name: 'SUPER BOOSTER',
@@ -475,7 +484,7 @@ function shopAction(it) {
   if (it.stat) return buyStat(it);
   const own = save.parts[it.key];
   if (own && partDisabled(it.key)) {
-    shopMsg('DISABLED SELAMA OMEGA BOOSTER ON', false);
+    shopMsg('DISABLED SELAMA ' + (it.key === 'aura' ? 'HYPER SHIELD' : 'OMEGA BOOSTER') + ' ON', false);
     sfx.deflect();
   } else if (own) {
     save.parts[it.key] = own === 'on' ? 'off' : 'on';
@@ -494,6 +503,65 @@ function shopAction(it) {
     writeSave();
     sfx.buy();
     shopMsg('TERBELI! ' + it.name, true);
+  }
+}
+
+// the shop, from the world map or from a continent's stage select; it goes back to where it was opened from
+function openShop(from) {
+  game.shopFrom = from;
+  game.state = 'shop';
+  game.shopTab = game.shopTab || 0;
+  game.shopSel = 0;
+  game.shopMsg = '';
+  game.shopHold = 0;
+  sfx.pause();
+}
+
+// ================= SETTINGS =================
+// Settings, from the title or C on the world map: Cloud Save, the sound (this device's own setting) and wiping all the
+// progress (RESET twice within 3 seconds; R does the same here)
+const SETTINGS_ROWS = ['cloud', 'sound', 'reset', 'back'];
+function openSettings(from) {
+  game.settingsFrom = from;
+  game.state = 'settings';
+  game.setSel = 0;
+  game.resetArm = 0;
+  game.setNoteT = 0;
+  game.t = 0;
+  sfx.pause();
+}
+function updateSettings(go) {
+  game.t++;
+  if (game.resetArm > 0) game.resetArm--;
+  if (game.setNoteT > 0) game.setNoteT--;
+  const n = SETTINGS_ROWS.length;
+  if (hit.up || hit.down) {
+    game.setSel = (game.setSel + (hit.down ? 1 : n - 1)) % n;
+    game.resetArm = 0; // moving away from RESET calls it off
+    sfx.select();
+  }
+  if (hit.reset) game.setSel = SETTINGS_ROWS.indexOf('reset');
+  const row = SETTINGS_ROWS[game.setSel];
+  if (hit.back || (go && row === 'back')) {
+    game.state = game.settingsFrom || 'title';
+    game.resetArm = 0;
+    sfx.pause();
+  } else if (row === 'sound' && (go || hit.left || hit.right)) {
+    toggleMute();
+    sfx.select();
+  } else if (row === 'cloud' && go) {
+    sfx.confirm();
+    openCloud('settings');
+  } else if (row === 'reset' && (go || hit.reset)) {
+    if (!cloudHasProgress(save)) sfx.deflect();
+    else if (game.resetArm > 0) {
+      resetProgress();
+      game.setNote = 'SEMUA PROGRESS SUDAH DIHAPUS';
+      game.setNoteT = 180;
+    } else {
+      game.resetArm = 180;
+      sfx.select();
+    }
   }
 }
 
@@ -532,30 +600,16 @@ function step() {
         openCloud();
         break;
       }
-      if (game.resetArm > 0) game.resetArm--;
       const items = titleItems();
       game.menu = Math.min(game.menu, items.length - 1);
-      // wiping the progress: RESET in the menu (on a phone or a gamepad too) or R, once to arm it and once more within
-      // 3 seconds to wipe
-      const reset = hit.reset || (go && items[game.menu] === 'RESET');
-      if (reset && cloudHasProgress(save)) {
-        if (game.resetArm > 0) resetProgress();
-        else {
-          game.resetArm = 180;
-          game.resetBy = hit.reset ? 'R' : 'ENTER';
-          sfx.select();
-        }
-        break;
-      }
       if (hit.left || hit.right || hit.up || hit.down) {
         game.menu = (game.menu + (hit.right || hit.down ? 1 : items.length - 1)) % items.length;
-        game.resetArm = 0; // moving away from RESET calls it off
         sfx.select();
       }
       if (go) {
         const it = items[game.menu];
-        sfx.confirm();
-        if (it === 'CLOUD SAVE') openCloud();
+        if (it !== 'SETTINGS') sfx.confirm();
+        if (it === 'SETTINGS') openSettings('title');
         else if (it === 'INSTALL APP') pwaInstall();
         else {
           game.tough = game.infLives = false;
@@ -571,6 +625,9 @@ function step() {
     }
     case 'cloud':
       updateCloudScreen(go);
+      break;
+    case 'settings':
+      updateSettings(go);
       break;
     case 'select': {
       game.t++;
@@ -588,12 +645,7 @@ function step() {
         sfx.select();
       }
       if (hit.shoot) {
-        game.state = 'shop';
-        game.shopTab = game.shopTab || 0;
-        game.shopSel = 0;
-        game.shopMsg = '';
-        game.shopHold = 0;
-        sfx.pause();
+        openShop('select');
         break;
       }
       if (hit.slide) {
@@ -658,7 +710,7 @@ function step() {
         sfx.select();
       }
       if (hit.shoot || hit.back) {
-        game.state = 'select';
+        game.state = game.shopFrom || 'select';
         sfx.pause();
         break;
       }
@@ -690,7 +742,9 @@ function step() {
         game.state = 'title';
         game.t = 0;
         sfx.pause();
-      } else if (go) {
+      } else if (hit.shoot) openShop('map');
+      else if (hit.slide) openSettings('map');
+      else if (go) {
         const i = game.mapSel;
         const no = msg => {
           game.mapMsg = msg;
@@ -1859,7 +1913,8 @@ function drawPlayer() {
       circle(ox, oy, 4, '#3cbcfc');
       circle(ox - 1, oy - 1, 2, '#fcfcfc');
     }
-  if (hasPart('aura')) drawAura(p, sx + p.w / 2, sy + p.h / 2 - 1);
+  if (hasPart('hyper')) drawHyper(p, sx + p.w / 2, sy + p.h / 2 - 1);
+  else if (hasPart('aura')) drawAura(p, sx + p.w / 2, sy + p.h / 2 - 1);
   if (ultra) {
     glow(sx + p.w / 2, sy + p.h / 2, 32, '#f8d800', 0.45 + ((frameCount >> 1) & 1) * 0.25);
     for (let i = 0; i < 4; i++) {
@@ -1886,17 +1941,10 @@ function drawAura(p, cx, cy) {
   for (let i = 0; i < AURA_HITS; i++) {
     const a0 = -Math.PI / 2 + (i * 2 * Math.PI) / AURA_HITS + 0.12,
       a1 = a0 + (2 * Math.PI) / AURA_HITS - 0.24;
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.arc(cx, cy, r + 2, a0, a1);
-    ctx.closePath();
-    ctx.clip();
     if (i < p.aura) {
-      ring(cx, cy, r, 1, fx ? '#fcfcfc' : '#f8d800');
-      ring(cx, cy, r - 1, 0.5, 'rgba(252,248,192,0.45)');
-    } else ring(cx, cy, r, 0.5, 'rgba(248,216,0,0.25)');
-    ctx.restore();
+      arcRing(cx, cy, r, 1, a0, a1, fx ? '#fcfcfc' : '#f8d800');
+      arcRing(cx, cy, r - 1, 0.5, a0, a1, 'rgba(252,248,192,0.45)');
+    } else arcRing(cx, cy, r, 0.5, a0, a1, 'rgba(248,216,0,0.25)');
   }
   // a glint up on the left, and a shimmer that runs round the rim
   const g = -2.4,
@@ -1908,6 +1956,49 @@ function drawAura(p, cx, cy) {
     [s, 'rgba(252,252,252,0.7)'],
   ])
     R(cx + Math.cos(a) * (r - 1.5) - 0.5, cy + Math.sin(a) * (r - 1.5) - 0.5, 1, 1, col);
+}
+
+// a ring (see ring()) drawn only from angle a0 to a1
+function arcRing(cx, cy, r, th, a0, a1, col) {
+  if (a1 <= a0) return;
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.arc(cx, cy, r + 2, a0, a1);
+  ctx.closePath();
+  ctx.clip();
+  ring(cx, cy, r, th, col);
+  ctx.restore();
+}
+// the Hyper Shield: six cyan plates round the player with gold studs between them, one plate for each shield; a plate
+// that took a hit is a faint outline that fills back up, round from its start, over the 8 seconds until it is back
+function drawHyper(p, cx, cy) {
+  const up = p.hyperCd.filter(t => !(t > 0)).length,
+    fx = p.auraFx > 0,
+    r = 19 + (fx ? 1.5 : 0) + (Math.sin(frameCount * 0.1) > 0.6 ? 0.5 : 0),
+    span = (2 * Math.PI) / HYPER_HITS;
+  if (up) {
+    glow(cx, cy, r + 8, '#3cbcfc', fx ? 0.5 : 0.08 + 0.025 * up);
+    circle(cx, cy, r, fx ? 'rgba(220,252,255,0.2)' : 'rgba(120,248,252,0.07)');
+  }
+  for (let i = 0; i < HYPER_HITS; i++) {
+    const a0 = -Math.PI / 2 + i * span + 0.08,
+      a1 = a0 + span - 0.16,
+      t = p.hyperCd[i];
+    if (t > 0) {
+      arcRing(cx, cy, r, 0.5, a0, a1, 'rgba(120,248,252,0.2)');
+      arcRing(cx, cy, r, 0.5, a0, a0 + (a1 - a0) * (1 - t / HYPER_DOWN), 'rgba(120,248,252,0.6)');
+      continue;
+    }
+    arcRing(cx, cy, r, 1, a0, a1, fx && p.hyperHit !== i ? '#fcfcfc' : '#78f8fc');
+    arcRing(cx, cy, r - 1, 0.5, a0, a1, 'rgba(220,252,255,0.5)');
+  }
+  for (let i = 0; i < HYPER_HITS; i++) {
+    const a = -Math.PI / 2 + i * span;
+    R(cx + Math.cos(a) * (r - 0.5) - 0.5, cy + Math.sin(a) * (r - 0.5) - 0.5, 1, 1, '#f8d800');
+  }
+  const s = (frameCount * 0.05) % (Math.PI * 2); // a glint running round the rim
+  if (up) R(cx + Math.cos(s) * (r - 1.5) - 0.5, cy + Math.sin(s) * (r - 1.5) - 0.5, 1, 1, '#fcfcfc');
 }
 
 function drawBoss() {
@@ -2108,6 +2199,8 @@ function drawHUD() {
         R(x, 48, 14, 2, '#3a2a08');
         R(x, 48, Math.round(14 * (1 - player.auraCd / AURA_DOWN)), 2, '#f8d800');
       }
+      if (it.key === 'hyper')
+        for (let k = 0; k < HYPER_HITS; k++) R(x + k * 2.4, 48, 2, 2, player.hyperCd[k] > 0 ? '#1c3a4a' : '#78f8fc');
     });
   if (game.popup > 0) text(WEAPONS[player.weapon].name, VW / 2, 14, WEAPONS[player.weapon].pal.b, 1, 'center');
   if (game.note && game.note.t > 0 && (game.note.t > 40 || (frameCount >> 2) & 1)) {
@@ -2522,15 +2615,14 @@ function drawTitleArt() {
   ctx.fillStyle = 'rgba(5,5,15,0.55)';
   ctx.fillRect(0, 164, VW, VH - 164); // calm band behind the text
 }
-// the title menu: CONTINUE only when there is a save point, INSTALL APP only where the browser can install the game,
-// RESET only when there is progress to wipe
+// the title menu: CONTINUE only when there is a save point, INSTALL APP only where the browser can install the game
+// (Cloud Save, the sound and RESET are in SETTINGS)
 const titleItems = () => [
   ...(save.snap ? ['CONTINUE', 'NEW GAME'] : ['START']),
-  'CLOUD SAVE',
+  'SETTINGS',
   ...(pwaCanInstall() ? ['INSTALL APP'] : []),
-  ...(cloudHasProgress(save) ? ['RESET'] : []),
 ];
-// wipes all the progress (RESET on the title, or R, twice): beaten bosses, the save point, points, parts, levels,
+// wipes all the progress (RESET in Settings, twice): beaten bosses, the save point, points, parts, levels,
 // armors and the Training Ground record; when logged in to Cloud Save, the cloud copy too (it uploads the empty save)
 function resetProgress() {
   save.cleared = {};
@@ -2548,42 +2640,51 @@ function resetProgress() {
 function drawTitle() {
   drawTitleArt();
   drawLogo(14);
-  // the menu in one row, or in two when it does not fit the room the touch buttons leave in the middle of the screen
+  // the menu as buttons (two rows when they do not fit the clear middle of a phone held sideways), the controls under
+  // them as key caps
   const items = titleItems(),
-    room = Math.min(VW, touchClearWidth()) - 16,
-    w = o => textWidth(o) + 8,
-    span = row => row.reduce((a, o) => a + w(o), 0),
-    half = Math.ceil(items.length / 2),
-    rows = span(items) + 14 * (items.length - 1) <= room ? [items] : [items.slice(0, half), items.slice(half)],
-    y0 = rows.length > 1 ? 6 : 0; // two rows push the lines under the menu down a little
-  let i = 0;
-  rows.forEach((row, r) => {
-    const gap = clamp(Math.floor((room - span(row)) / Math.max(1, row.length - 1)), 10, 26); // closer when many
-    let x = VW / 2 - (span(row) + gap * (row.length - 1)) / 2;
-    for (const o of row) {
-      const sel = Math.min(game.menu, items.length - 1) === i++,
-        armed = o === 'RESET' && game.resetArm > 0;
-      if (!(armed && frameCount & 8))
-        text((sel ? '>' : ' ') + o, x, 168 + r * 11, o === 'RESET' && sel ? '#f87858' : sel ? '#f8d800' : '#686878');
-      x += w(o) + gap;
-    }
-  });
+    rows = drawButtonRow(items, 168, Math.min(game.menu, items.length - 1)),
+    y = rows > 1 ? 201 : 188;
   if (touchUI.on) {
-    text('D-PAD GERAK  JUMP  SHOOT  SLIDE  W GANTI SENJATA', VW / 2, 186 + y0, '#a8a8b8', 1, 'center');
-    text('TAHAN SHOOT UNTUK CHARGE  START PAUSE', VW / 2, 198 + y0, '#a8a8b8', 1, 'center');
-  } else {
-    text('ARROWS MOVE  Z JUMP  X SHOOT  C SLIDE', VW / 2, 186 + y0, '#a8a8b8', 1, 'center');
-    text('HOLD X CHARGE  Q/E WEAPON  ENTER PAUSE  M MUTE', VW / 2, 198 + y0, '#a8a8b8', 1, 'center');
-  }
-  if (game.resetArm > 0)
-    text(
-      game.resetBy + ' LAGI: HAPUS SEMUA PROGRESS' + (cloud.id ? ' (JUGA DI CLOUD)' : ''),
-      VW / 2,
-      212 + Math.min(y0, 2),
-      '#f87858',
-      1,
-      'center',
+    drawHints(
+      [
+        ['D-PAD', 'GERAK'],
+        ['JUMP', 'LOMPAT'],
+        ['SLIDE', 'SLIDE'],
+      ],
+      y,
+      '#a8a8b8',
+      false,
     );
+    drawHints(
+      [
+        ['SHOOT', 'TEMBAK, TAHAN = CHARGE'],
+        ['START', 'PAUSE'],
+      ],
+      y + 13,
+      '#a8a8b8',
+      false,
+    );
+  } else {
+    drawHints(
+      [
+        ['←→', 'GERAK'],
+        ['Z', 'LOMPAT'],
+        ['X', 'TEMBAK'],
+        ['C', 'SLIDE'],
+      ],
+      y,
+    );
+    drawHints(
+      [
+        ['X', 'TAHAN = CHARGE'],
+        ['Q E', 'SENJATA'],
+        ['ENTER', 'PAUSE'],
+        ['M', 'SUARA'],
+      ],
+      y + 13,
+    );
+  }
   drawCloudStatus(VW - 4, 4, true);
   drawVersion();
 }
@@ -2642,8 +2743,8 @@ function drawMap() {
       ctx.scale(0.6, 0.6);
       drawRobot(0, 0, 1, 'stand', 0, false, PAL_HERO);
       ctx.restore();
-      text('TRAINING GROUND', cx, 166, sel ? '#fcfcfc' : '#8888a0', 1, 'center');
-      text(save.train.wave ? 'REKOR WAVE ' + save.train.wave : 'ENDLESS', cx, 178, '#78f8fc', 1, 'center');
+      text('TRAINING GROUND', cx, 162, sel ? '#fcfcfc' : '#8888a0', 1, 'center');
+      text(save.train.wave ? 'REKOR WAVE ' + save.train.wave : 'ENDLESS', cx, 173, '#78f8fc', 1, 'center');
       if (sel && (frameCount >> 3) & 1) drawMapBrackets(cx);
       continue;
     }
@@ -2668,7 +2769,7 @@ function drawMap() {
       });
     } else text('?', cx - 9, 86, '#c8cee0', 3);
     const name = real ? CONTINENTS[i].name : '???';
-    text(name, cx, 166, sel ? '#fcfcfc' : '#8888a0', 1, 'center');
+    text(name, cx, 162, sel ? '#fcfcfc' : '#8888a0', 1, 'center');
     const info = !real
       ? 'SEGERA HADIR'
       : !open
@@ -2676,24 +2777,37 @@ function drawMap() {
         : CONTINENTS[i].stages.filter(k => save.cleared[k]).length +
           '/6 BOSS' +
           (continentCleared(i) ? '  SELESAI' : '');
-    text(info, cx, 178, real && open ? CONTINENTS[i].color : '#686878', 1, 'center');
+    text(info, cx, 173, real && open ? CONTINENTS[i].color : '#686878', 1, 'center');
     if (real && open) {
       // the secret armors found on this island
       const n = CONTINENTS[i].stages.filter(k => save.armors[k]).length;
-      text(n + '/' + CONTINENTS[i].stages.length + ' ARMOR', cx, 188, n ? '#78f8fc' : '#686878', 1, 'center');
+      text(n + '/' + CONTINENTS[i].stages.length + ' ARMOR', cx, 183, n ? '#78f8fc' : '#686878', 1, 'center');
     }
     if (sel && (frameCount >> 3) & 1) drawMapBrackets(cx);
   }
-  if (game.mapMsgT > 0) text(game.mapMsg, VW / 2, 196, '#f8d800', 1, 'center');
-  text('KIRI/KANAN PILIH  ENTER MASUK  ESC TITLE', VW / 2, 211, '#a8a8b8', 1, 'center');
+  if (game.mapMsgT > 0) {
+    const w = textWidth(game.mapMsg) + 14;
+    box(VW / 2 - w / 2, 141, w, 15, 'rgba(5,6,20,0.88)', '#8a6a18');
+    text(game.mapMsg, VW / 2, 145, '#f8d800', 1, 'center');
+  }
+  drawHints(
+    [
+      ['←→', 'PILIH'],
+      ['ENTER', 'MASUK'],
+      ['X', 'SHOP'],
+      ['C', 'SETTINGS'],
+      ['ESC', 'TITLE'],
+    ],
+    211,
+  );
 }
 // the selection brackets round the island at cx
 function drawMapBrackets(cx) {
   for (const [bx, by, dx, dy] of [
     [cx - 104, 36, 1, 1],
     [cx + 104, 36, -1, 1],
-    [cx - 104, 188, 1, -1],
-    [cx + 104, 188, -1, -1],
+    [cx - 104, 186, 1, -1],
+    [cx + 104, 186, -1, -1],
   ]) {
     R(Math.min(bx, bx + dx * 10), by, 10, 1.5, '#f8d800');
     R(bx - (dx < 0 ? 1.5 : 0), Math.min(by, by + dy * 10), 1.5, 10, '#f8d800');
@@ -2750,7 +2864,15 @@ function drawSelect() {
       ctx.strokeRect(px - 1, py - 1, PW + 2, PH + 2);
     }
   });
-  text('ENTER START  X SHOP  C KELEMAHAN  ESC PETA', VW / 2, 211, '#a8a8b8', 1, 'center');
+  drawHints(
+    [
+      ['ENTER', 'START'],
+      ['X', 'SHOP'],
+      ['C', 'KELEMAHAN'],
+      ['ESC', 'PETA'],
+    ],
+    211,
+  );
 }
 
 // a 10x10 armor (the secret room's chest plate): in colour and glowing once found, a dark outline until then
@@ -2894,6 +3016,17 @@ function drawPartIcon(key, x, y) {
       circle(x + 8, y + 8, 2.5, '#c89820');
       R(x + 3, y + 3, 3, 1, '#fcf8c0');
       R(x + 3, y + 4, 1, 2, '#fcf8c0');
+      break;
+    case 'hyper': // six cyan plates round a gold core
+      circle(x + 7, y + 7, 7, '#0a0a16');
+      circle(x + 7, y + 7, 6.5, '#78f8fc');
+      circle(x + 7, y + 7, 5, '#0c3454');
+      for (let i = 0; i < 6; i++) {
+        const a = -Math.PI / 2 + (i * Math.PI) / 3;
+        R(x + 7 + Math.cos(a) * 5.8 - 0.5, y + 7 + Math.sin(a) * 5.8 - 0.5, 1, 1, '#f8d800');
+      }
+      circle(x + 7, y + 7, 2.5, '#f8d800');
+      R(x + 6, y + 6, 1, 1, '#fcfcfc');
       break;
     case 'atk': // the Attack level: a sword
       sprite(
@@ -3140,16 +3273,111 @@ function drawWeakChart() {
     }
   });
   text('MULAI DARI BOSS MANA SAJA, LALU IKUTI PANAHNYA', VW / 2, 198, '#8888a0', 1, 'center');
-  text('C / X / ENTER KEMBALI', VW / 2, 211, '#686878', 1, 'center');
+  drawHints([['ENTER', 'KEMBALI']], 211);
 }
 
-function drawShop() {
+// the backdrop of the menu screens (Shop, Settings): a dark gradient with a drifting grid
+function drawMenuBack(top = '#0a1430', bottom = '#20103a') {
   const g = ctx.createLinearGradient(0, 0, 0, VH);
-  g.addColorStop(0, '#0a1430');
-  g.addColorStop(1, '#20103a');
+  g.addColorStop(0, top);
+  g.addColorStop(1, bottom);
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, VW, VH);
   for (let x = -(frameCount % 16); x < VW; x += 16) R(x, 0, 1, VH, 'rgba(80,100,200,0.1)');
+}
+// the icons of the Settings rows, 14 x 14 at x, y
+function drawSettingIcon(key, x, y) {
+  if (key === 'cloud') drawCloudIcon(x, y + 2, cloud.id ? cloudBadge().sign : '');
+  else if (key === 'sound') {
+    // a speaker, its waves when the sound is on and a cross when it is off
+    sprite(
+      x,
+      y,
+      1,
+      14,
+      [
+        [1, 4, 4, 6, '#a8b0c8'],
+        [4, 2, 4, 10, '#c8d0e8'],
+      ],
+      [],
+    );
+    if (muted)
+      for (let i = 0; i < 4; i++) R(x + 10 + i, y + 5 + i, 1, 1, '#f87858'), R(x + 13 - i, y + 5 + i, 1, 1, '#f87858');
+    else {
+      R(x + 10, y + 5, 1, 4, '#78f8fc');
+      R(x + 12, y + 3, 1, 8, '#78f8fc');
+    }
+  } else if (key === 'reset') {
+    // a warning sign
+    for (let r = 0; r < 12; r++) R(x + 7 - r / 2, y + 1 + r, r + 1, 1, r === 11 ? '#a83818' : '#f87858');
+    R(x + 6.5, y + 4, 1, 4, '#fcfcfc');
+    R(x + 6.5, y + 10, 1, 1, '#fcfcfc');
+  } else {
+    // an arrow back
+    for (let r = 0; r < 4; r++) R(x + 2 + r, y + 7 - r, 1, 1 + r * 2, '#a8b0c8');
+    R(x + 6, y + 6, 7, 3, '#a8b0c8');
+  }
+}
+function drawSettings() {
+  drawMenuBack('#0a1430', '#102038');
+  text('SETTINGS', VW / 2, 6, '#fcfcfc', 2, 'center');
+  const badge = cloudBadge(),
+    canReset = cloudHasProgress(save),
+    rows = [
+      [
+        'cloud',
+        'CLOUD SAVE',
+        cloud.id ? 'MASUK SEBAGAI ' + cloud.name : 'SIMPAN PROGRESS, MASUK TANPA DAFTAR',
+        cloud.id ? badge.label : 'MASUK',
+        cloud.id ? badge.color : '#fcfcfc',
+      ],
+      ['sound', 'SUARA', 'MUSIK DAN EFEK SUARA (TOMBOL M)', muted ? 'OFF' : 'ON', muted ? '#888898' : '#b8f818'],
+      [
+        'reset',
+        'RESET PROGRESS',
+        'BOSS, POIN, PART, LEVEL, ARMOR, REKOR WAVE',
+        !canReset ? 'KOSONG' : game.resetArm > 0 ? 'ENTER LAGI!' : 'HAPUS',
+        !canReset ? '#686878' : '#f87858',
+      ],
+      ['back', 'KEMBALI', game.settingsFrom === 'map' ? 'KE PETA DUNIA' : 'KE LAYAR TITLE', '', ''],
+    ];
+  // the rows keep to the clear middle of a phone held sideways, between its d-pad and its action buttons
+  const x0 = Math.max(12, Math.round((VW - touchClearWidth()) / 2) + 4),
+    x1 = VW - x0;
+  rows.forEach(([key, name, desc, value, col], i) => {
+    const y = 42 + i * 26,
+      sel = game.setSel === i,
+      hot = key === 'reset' ? '#f87858' : '#f8d800';
+    box(x0, y - 4, x1 - x0, 22, sel ? 'rgba(60,188,252,0.2)' : 'rgba(255,255,255,0.04)', sel ? hot : '');
+    if (sel) R(x0 + 1, y - 3, 2, 20, hot);
+    drawSettingIcon(key, x0 + 8, y);
+    text(name, x0 + 30, y, sel ? hot : '#fcfcfc');
+    text(desc, x0 + 30, y + 9, '#8888a0');
+    if (value && !(key === 'reset' && game.resetArm > 0 && frameCount & 8)) text(value, x1 - 8, y, col, 1, 'right');
+  });
+  if (game.resetArm > 0)
+    text(
+      'ENTER LAGI: HAPUS SEMUA PROGRESS' + (cloud.id ? ' (JUGA DI CLOUD)' : ''),
+      VW / 2,
+      154,
+      '#f87858',
+      1,
+      'center',
+    );
+  else if (game.setNoteT > 0) text(game.setNote, VW / 2, 154, '#b8f818', 1, 'center');
+  drawHints(
+    [
+      ['↑↓', 'PILIH'],
+      ['ENTER', 'PILIH / UBAH'],
+      ['ESC', 'KEMBALI'],
+    ],
+    211,
+  );
+  drawVersion();
+}
+
+function drawShop() {
+  drawMenuBack();
   text('SHOP', VW / 2, 6, '#fcfcfc', 2, 'center');
   text('POIN ' + fmtNum(save.points), VW - 12, 10, '#f8d800', 1, 'right');
   let tx = 16; // tabs
@@ -3195,10 +3423,20 @@ function drawShop() {
     text('ATTACK: DAMAGE +1% SETIAP LEVEL', 20, y, '#a8c8f8');
     text('DEFENSE: HP 1% LEBIH TEBAL SETIAP LEVEL', 20, y + 12, '#a8c8f8');
     text('LEVEL MAKS ' + STAT_MAX + ', HARGA NAIK 3.5% SETIAP LEVEL', 20, y + 24, '#a8c8f8');
-    text('TAHAN ENTER UNTUK MEMBELI BERULANG', 20, y + 40, '#8888a0');
+    text('TAHAN', 20, y + 40, '#8888a0');
+    const kx = 20 + textWidth('TAHAN ') + keyCap('ENTER', 20 + textWidth('TAHAN '), y + 40) + 4;
+    text('UNTUK MEMBELI BERULANG', kx, y + 40, '#8888a0');
   }
-  if (game.shopMsgT > 0) text(game.shopMsg, VW / 2, 182, game.shopOk ? '#b8f818' : '#f87858', 1, 'center');
-  text('KIRI/KANAN TAB  ATAS/BAWAH PILIH  ENTER BELI  X KEMBALI', VW / 2, 200, '#8888a0', 1, 'center');
+  if (game.shopMsgT > 0) text(game.shopMsg, VW / 2, 186, game.shopOk ? '#b8f818' : '#f87858', 1, 'center');
+  drawHints(
+    [
+      ['←→', 'TAB'],
+      ['↑↓', 'PILIH'],
+      ['ENTER', 'BELI / ON-OFF'],
+      ['X', 'KEMBALI'],
+    ],
+    211,
+  );
   drawVersion();
 }
 // little up/down triangles at x, beside a list spanning y..y+h, when it scrolls that way
@@ -3380,7 +3618,14 @@ function drawPause() {
   });
   drawScrollMarks(376, 46, TOOL_ROWS * 16 - 6, tfirst > 0, tfirst + TOOL_ROWS < tools.length);
   text('LIFE ' + livesText() + '   POIN ' + fmtNum(save.points), VW / 2, 192, '#a8c8f8', 1, 'center');
-  text('ARAH PILIH  ENTER PAKAI / ON-OFF  ESC LANJUT', VW / 2, 206, '#686878', 1, 'center');
+  drawHints(
+    [
+      ['ARAH', 'PILIH'],
+      ['ENTER', 'PAKAI / ON-OFF'],
+      ['ESC', 'LANJUT'],
+    ],
+    207,
+  );
   drawVersion();
 }
 
@@ -3394,6 +3639,8 @@ function render() {
       return drawTitle();
     case 'cloud':
       return drawCloudScreen();
+    case 'settings':
+      return drawSettings();
     case 'map':
       return drawMap();
     case 'select':

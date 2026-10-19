@@ -2,6 +2,26 @@
 
 Semua perubahan NEOBUSTER, versi terbaru di atas. Versi ditulis di konstanta `VERSION` di `js/core/engine.js`.
 
+## 1.14.0
+
+- **Menu Settings baru** (pilihan **SETTINGS** di title, atau `C` di Peta Dunia), berisi:
+  - **CLOUD SAVE**: masuk atau melihat akun. Keluar dari layar Cloud Save kembali ke Settings.
+  - **SUARA**: ON/OFF. Setelan ini milik perangkat: tersimpan di browser dan tetap sama saat game dibuka lagi, termasuk lampu tombol MUTE di HP. Tidak ikut Cloud Save.
+  - **RESET PROGRESS**: pilih dua kali dalam 3 detik.
+- **Menu title** kini CONTINUE / NEW GAME (atau START), SETTINGS, dan INSTALL APP, tampil sebagai tombol. CLOUD SAVE dan RESET pindah ke Settings.
+- **Shop bisa dibuka dari Peta Dunia** (`X`, di HP tombol SHOOT) tanpa masuk ke benua dulu, dan tetap juga dari Stage Select. Keluar dari Shop kembali ke layar asalnya.
+- **Part baru: Hyper Shield** (1.500.000, tab PERTAHANAN, harus punya Aura Shield):
+  - 6 perisai cyan; setiap perisai menahan 1 hit lalu pulih sendiri 8 detik kemudian.
+  - Perisai yang terkena hit tampil tipis dan terisi kembali selama pulih. Ikonnya di HUD punya 6 titik sisa perisai.
+  - Selama Hyper Shield ON, Aura Shield berstatus DISABLED, seperti Super/Ultra Booster saat Omega Booster ON.
+- **Tata letak menu lebih rapi dan seragam**:
+  - Petunjuk tombol di semua layar (title, Peta Dunia, Stage Select, Shop, Settings, pause, Cloud Save, tabel kelemahan) tampil sebagai keycap, misalnya `[ENTER] MASUK`.
+  - Legenda kontrol di title juga memakai keycap.
+  - Pesan di Peta Dunia (mis. "SEGERA HADIR") tampil sebagai kotak di atas pulau.
+  - Di HP yang dipegang miring, tombol menu, baris Settings, dan bar petunjuk tetap di bagian tengah yang tidak tertutup tombol sentuh (dua baris kalau tidak muat).
+- **Dicek: level ATTACK dan DEFENSE berlaku untuk semua senjata**, bukan hanya Neo Buster. Uji: ke-13 senjata, tembakan biasa, charge, dan ultra, terhadap musuh dan boss, dengan ATTACK LV 101 memberi tepat 2x damage LV 1. Satu-satunya pengecualian adalah charge Time Stopper, yang memang hanya membekukan waktu tanpa damage. README kini menyebutkannya.
+- File baru `js/core/ui.js`: widget menu bersama (keycap, bar petunjuk, tombol menu, panel). AGENTS.md menjelaskan cara memakainya untuk layar baru.
+
 ## 1.13.3
 
 - **Reset progress bisa dari HP dan gamepad.** Sebelumnya reset hanya lewat tombol `R` dua kali, yang tidak ada di tombol sentuh maupun gamepad.

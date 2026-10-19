@@ -125,8 +125,9 @@ function touchBuild() {
   };
   for (const B of TOUCH_BUTTONS) touchUI.buttons.push({ a: B.a, el: button(B.cls, B.label, B.key) });
   // mute (the M key) and full screen (where the browser allows it, and not when it already runs as the app)
-  const mute = button('tiny mute', 'MUTE', '');
-  touchUI.extras.push({ el: mute, act: () => (toggleMute(), mute.classList.toggle('on', muted)) });
+  const mute = (touchUI.mute = button('tiny mute', 'MUTE', ''));
+  mute.classList.toggle('on', muted); // the sound setting is kept from the last visit
+  touchUI.extras.push({ el: mute, act: toggleMute });
   const root = document.documentElement,
     fullscreen = root.requestFullscreen || root.webkitRequestFullscreen;
   if (fullscreen && !pwa.app) {

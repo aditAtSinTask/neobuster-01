@@ -271,13 +271,20 @@ function addShot(o) {
 // of 1x under cheat ILMUKEBAL (so 11x with one armor, and so on)
 const armorCount = () => Object.keys(save.armors || {}).length;
 const hpMult = () => (game.tough ? 10 : 1) + armorCount();
-const partDisabled = k => (k === 'super' || k === 'ultra') && !!save.parts && save.parts.omega === 'on';
+// Hyper Shield overrides the Aura Shield the same way: while it is on, the Aura Shield is disabled
+const partDisabled = k =>
+  !!save.parts &&
+  (((k === 'super' || k === 'ultra') && save.parts.omega === 'on') || (k === 'aura' && save.parts.hyper === 'on'));
 const hasPart = k => !!(save.parts && save.parts[k] === 'on') && !partDisabled(k);
 const SHIELD_DOWN = 600; // frames a shield orb stays gone after it blocks something (10 s)
 // Aura Shield (shop part): a golden bubble round the player takes AURA_HITS hits in their place; the hit that pops it
 // leaves it gone for AURA_DOWN frames, then it forms again, whole
 const AURA_HITS = 3,
   AURA_DOWN = 900; // 15 s
+// Hyper Shield (shop part, needs the Aura Shield, which it replaces while it is on): HYPER_HITS shields round the
+// player; each one takes a hit in their place and is back HYPER_DOWN frames later on its own, whatever the others do
+const HYPER_HITS = 6,
+  HYPER_DOWN = 480; // 8 s
 // Attack and Defense levels (the shop's LEVEL tab), 1 to STAT_MAX: every Attack level adds 1% to the damage the
 // player deals, every Defense level makes the HP 1% thicker (the damage taken is divided by 1 + 1% a level), so level
 // 150 deals +149% damage and takes 60% less. The next level costs 500 points at level 1 and 3.5% more at every level
@@ -1350,6 +1357,14 @@ function updateShield(p) {
 function updateAura(p) {
   if (p.auraT > 0) p.auraT--;
   if (p.auraFx > 0) p.auraFx--;
+  // the Hyper Shield's shields come back one by one, 8 seconds after each one took its hit
+  if (hasPart('hyper') && alive(p))
+    p.hyperCd.forEach((t, i) => {
+      if (!(t > 0) || --p.hyperCd[i] > 0) return;
+      const a = -Math.PI / 2 + ((i + 0.5) * 2 * Math.PI) / HYPER_HITS;
+      part({ kind: 'spark', x: pcx() + Math.cos(a) * 19, y: pcy() + Math.sin(a) * 19, life: 10 });
+      sfx.tick();
+    });
   if (!hasPart('aura') || !alive(p) || !(p.auraCd > 0) || --p.auraCd > 0) return;
   p.aura = AURA_HITS;
   p.auraFx = 20;
@@ -1566,6 +1581,20 @@ function updatePlayer() {
 function damagePlayer(dmg) {
   const p = player;
   if (!dmg || p.inv > 0 || p.auraT > 0 || !['normal', 'climb', 'slide', 'dash'].includes(p.state)) return;
+  const hyper = hasPart('hyper') ? p.hyperCd.findIndex(t => !(t > 0)) : -1;
+  if (hyper >= 0) {
+    // the Hyper Shield: a shield that is up takes the hit and comes back on its own 8 seconds later
+    p.hyperCd[hyper] = HYPER_DOWN;
+    p.auraT = 40;
+    p.auraFx = 14;
+    p.hyperHit = hyper;
+    sfx.deflect();
+    if (p.hyperCd.every(t => t > 0)) {
+      debris(pcx(), pcy(), '#78f8fc', 12, 2.4); // the last one is down
+      sfx.shatter();
+    }
+    return;
+  }
   if (hasPart('aura') && p.aura > 0) {
     // the Aura Shield takes the hit; a moment of cover after it, so one touch costs the bubble only one hit
     p.aura--;

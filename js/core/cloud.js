@@ -402,7 +402,9 @@ document.addEventListener('visibilitychange', () => {
 // account (logged in)
 const cloudUI = { mode: 'form', field: 0, name: '', pass: '', pass2: '', pending: null, sel: 0, msg: null };
 Object.assign(cloudUI, { note: null, loadArm: false });
-function openCloud() {
+// the Cloud Save screen, from the title (or by itself when the cloud and this device both changed) or from Settings
+function openCloud(from = 'title') {
+  cloudUI.from = from;
   game.state = 'cloud';
   game.t = 0;
   cloudUI.msg = null;
@@ -412,6 +414,11 @@ function openCloud() {
   } else if (cloud.id) cloudOpenAccount();
   else Object.assign(cloudUI, { mode: 'form', field: 0, pass: '' });
   for (const k in kHeld) kHeld[k] = false;
+}
+// leaving the Cloud Save screen: back to where it was opened from
+function cloudLeave() {
+  game.state = cloudUI.from || 'title';
+  sfx.pause();
 }
 function cloudOpenAccount() {
   cloudUI.mode = 'account';
@@ -449,8 +456,7 @@ addEventListener(
       return;
     }
     if (k === 'Escape') {
-      game.state = 'title';
-      sfx.pause();
+      cloudLeave();
     } else if (k === 'Enter') {
       if (e.repeat) return;
       if (cloudUI.field === 0) cloudUI.field = 1;
@@ -480,8 +486,7 @@ function updateCloudScreen(go) {
     } else if (hit.back) {
       if (U.mode === 'new') Object.assign(U, { mode: 'form', field: 1, pass: '', pass2: '', msg: null });
       else {
-        game.state = 'title';
-        sfx.pause();
+        cloudLeave();
       }
     } else if (U.mode === 'form' && (hit.up || hit.down)) U.field ^= 1;
     if (U.field !== before && touchUI.text && document.activeElement === touchUI.text) touchType();
@@ -506,8 +511,7 @@ function updateCloudScreen(go) {
       sfx.select();
     }
     if (hit.back) {
-      game.state = 'title';
-      sfx.pause();
+      cloudLeave();
     } else if (go) {
       sfx.confirm();
       if (U.sel === 0) {
@@ -681,14 +685,24 @@ function drawCloudScreen() {
       if (on && blink) R(156 + (val ? textWidth(val) + 2 : 0), y + 4, 5, 7, '#f8d800');
     });
     text('PASSWORD TIDAK DISIMPAN DAN TIDAK DIKIRIM, HANYA HASH-NYA.', VW / 2, 130, '#686878', 1, 'center');
-    text(
-      touchUI.on ? 'KETUK KOLOM  START MASUK  BACK KEMBALI' : 'TAB/ATAS/BAWAH PINDAH KOLOM  ENTER MASUK  ESC KEMBALI',
-      VW / 2,
-      206,
-      '#8888a0',
-      1,
-      'center',
-    );
+    if (touchUI.on) {
+      text('KETUK KOLOM UNTUK MENGETIK', VW / 2, 190, '#8888a0', 1, 'center');
+      drawHints(
+        [
+          ['START', 'MASUK'],
+          ['BACK', 'KEMBALI'],
+        ],
+        207,
+      );
+    } else
+      drawHints(
+        [
+          ['TAB', 'PINDAH KOLOM'],
+          ['ENTER', 'MASUK'],
+          ['ESC', 'KEMBALI'],
+        ],
+        207,
+      );
   } else if (U.mode === 'new') {
     text('BELUM ADA SAVE UNTUK USERNAME DAN PASSWORD INI.', VW / 2, 40, '#f8d800', 1, 'center');
     text('KALAU INI AKUN BARU, KETIK ULANG PASSWORD UNTUK MEMBUATNYA', VW / 2, 58, '#a8c8f8', 1, 'center');
@@ -701,13 +715,12 @@ function drawCloudScreen() {
     R(151, 121, 162, 14, '#05050f');
     text(val, 156, 124, '#fcfcfc');
     if (blink) R(156 + (val ? textWidth(val) + 2 : 0), 124, 5, 7, '#f8d800');
-    text(
-      touchUI.on ? 'START BUAT SAVE BARU  BACK ULANGI' : 'ENTER BUAT SAVE BARU  ESC ULANGI',
-      VW / 2,
-      206,
-      '#8888a0',
-      1,
-      'center',
+    drawHints(
+      [
+        [touchUI.on ? 'START' : 'ENTER', 'BUAT SAVE BARU'],
+        [touchUI.on ? 'BACK' : 'ESC', 'ULANGI'],
+      ],
+      207,
     );
   } else if (U.mode === 'busy') {
     text('MENGHUBUNGKAN' + '.'.repeat(1 + ((frameCount >> 4) % 3)), VW / 2, 96, '#f8d800', 1, 'center');
@@ -730,7 +743,14 @@ function drawCloudScreen() {
       });
       text('DISIMPAN ' + when, x + 78, 156, '#686878', 1, 'center');
     });
-    text('KIRI/KANAN PILIH  ENTER PAKAI  ESC KELUAR AKUN', VW / 2, 206, '#8888a0', 1, 'center');
+    drawHints(
+      [
+        ['←→', 'PILIH'],
+        ['ENTER', 'PAKAI'],
+        ['ESC', 'KELUAR AKUN'],
+      ],
+      207,
+    );
   } else {
     // the account card: a big avatar, the name, the cloud's state and the last save
     const b = cloudBadge(),
@@ -765,7 +785,14 @@ function drawCloudScreen() {
       },
     );
     text('PROGRESS TERSIMPAN OTOMATIS KE CLOUD SETIAP ADA PERUBAHAN.', VW / 2, 164, '#686878', 1, 'center');
-    text('ATAS/BAWAH PILIH  ENTER  ESC KEMBALI', VW / 2, 206, '#8888a0', 1, 'center');
+    drawHints(
+      [
+        ['↑↓', 'PILIH'],
+        ['ENTER', 'PILIH'],
+        ['ESC', 'KEMBALI'],
+      ],
+      207,
+    );
   }
   if (U.msg) text(U.msg[0], VW / 2, 178, U.msg[1] ? '#b8f818' : '#f87858', 1, 'center');
   drawVersion();

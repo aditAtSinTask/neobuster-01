@@ -159,9 +159,6 @@ function restartFromCheckpoint() {
     aura: AURA_HITS, // Aura Shield: hits it still takes, frames until it forms again, cover after a hit, flash
     auraCd: 0,
     hyperCd: Array(HYPER_HITS).fill(0), // Hyper Shield: frames until each of its shields is back (0: up)
-    stepLeft: STEP_JUMPS, // Step Jump: steps left, frames until they all come back, the last ground stood on
-    stepCd: 0,
-    groundY: LH * TILE * 2,
     auraT: 0,
     auraFx: 0,
     anim: 0,
@@ -395,7 +392,7 @@ const SHOP = [
     cat: 'move',
     name: 'STEP JUMP',
     price: 600000,
-    desc: 'LOMPAT LAGI DI UDARA 5X, LALU JEDA 5 DETIK',
+    desc: 'TEKAN LOMPAT DI UDARA: LOMPAT LAGI TANPA BATAS',
   },
   { key: 'armor', cat: 'guard', name: 'ARMOR ANTI API', price: 40000, desc: 'MASUK DAN JALAN DI LAVA TANPA MATI' },
   { key: 'core', cat: 'guard', name: 'CORE', price: 420000, desc: 'KEBAL 5X LEBIH LAMA SETELAH KENA HIT' },
@@ -2210,12 +2207,6 @@ function drawHUD() {
       if (down) {
         R(x, 48, 14, 2, '#3a2a08');
         R(x, 48, Math.round(14 * (1 - player.auraCd / AURA_DOWN)), 2, '#f8d800');
-      }
-      if (it.key === 'stepjump') {
-        if (player.stepCd > 0) {
-          R(x, 48, 14, 2, '#1a2a3a');
-          R(x, 48, Math.round(14 * (1 - player.stepCd / STEP_DOWN)), 2, '#78f8fc');
-        } else for (let k = 0; k < STEP_JUMPS; k++) R(x + k * 3, 48, 2, 2, k < player.stepLeft ? '#78f8fc' : '#1c3a4a');
       }
       if (it.key === 'hyper')
         for (let k = 0; k < HYPER_HITS; k++) R(x + k * 2.4, 48, 2, 2, player.hyperCd[k] > 0 ? '#1c3a4a' : '#78f8fc');

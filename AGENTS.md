@@ -34,6 +34,7 @@ Setiap benua (pulau), stage, dan boss baru harus memenuhi checklist di [docs/MEN
 
 1. **Setiap stage unik dan menantang.** Area dan alurnya sendiri, rintangan dan mekanik khas temanya, platform dan rute yang berbeda dari semua stage lain (jangan menyalin geometri), dan musuh khasnya sendiri. Stage yang terasa seperti template tidak diterima. Panjangnya 450 kolom (pintu boss di kolom 426), dan 150 kolom terakhir sebelum pintu boss adalah bagian tersulitnya, dengan dua checkpoint sendiri.
 2. **Setiap stage punya satu ruang rahasia dengan armor (+1x HP)** (`B.secret`). Dinding segelnya hanya hancur oleh senjata boss lain, dan ruangannya tampak seperti batu sampai segelnya hancur.
+   - **Tandai setiap atap yang dilalui jalur dari bawah** dengan `B.roof(x0, x1, top)`: atap aula, menara, dan balok tempat slide. Medan duri, lava, atau air yang menutupi jalur di bawahnya ditandai dengan `B.roof(x0, x1, top, 1)`. Step Jump tidak bisa membawa pemain melewati atap yang ditandai, jadi bagian stage tidak bisa dilewati lewat atas. Pastikan juga atap tidak bisa dicapai dengan gerakan biasa.
 3. **Boss digambar native**, bukan dipotong dari lembar karakter. Wajahnya memakai wajah bersama, ciri khasnya kuat, serangannya berbeda dari boss lain, dan kelemahannya berantai. Lihat [docs/ART-STYLE.md](docs/ART-STYLE.md).
 4. **Teks tanpa gender.** Nama tempat (`place`) dan kalimat perkenalan (`intro`) saja; di layar tidak ada kata "Benua".
 5. **HP boss naik setiap benua** (`bossHp`: Azura 3, Vespera 5, berikutnya lebih besar).

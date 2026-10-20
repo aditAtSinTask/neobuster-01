@@ -2,6 +2,17 @@
 
 Semua perubahan NEOBUSTER, versi terbaru di atas. Versi ditulis di konstanta `VERSION` di `js/core/engine.js`.
 
+## 1.15.1
+
+- **Step Jump kembali tanpa batas.** Jatah 5 kali, jeda 5 detik, dan batas tinggi 3 tile di atas pijakan terakhir dari versi 1.15.0 dihapus. Batas tinggi itu membuat Step Jump berturut-turut kadang gagal di tengah jalan, padahal jatahnya belum habis.
+- **Step Jump tetap tidak bisa dipakai lewat atas.** Setiap atap yang dilalui jalur dari bawah ditandai di layout (`B.roof`, 39 atap di 11 stage), dan Step Jump tidak bisa membawa pemain melewati permukaannya:
+  - Atap aula, menara, dan balok tempat slide: berlaku dalam 8 kolom dari atap.
+  - Medan duri, lava, atau air yang menutupi jalur di bawahnya (terowongan sabuk di Cut, terowongan lava di Fire, saluran kabel di Elec, kanal dan waduk di Hydro, gua kristal di Light, mulut gua di Earth): tidak bisa diseberangi dengan Step Jump.
+  - Step Jump juga tidak bisa membawa pemain keluar dari atas peta.
+  - Uji: dari depan setiap atap, menekan lompat terus sambil bergerak ke atap (tanpa dan dengan Jetpack, 78 percobaan) tidak pernah berhasil berdiri di atap atau menyeberangi medan itu. Di area terbuka, Step Jump bisa dipakai berturut-turut tanpa gagal.
+- **Perbaikan kanal pintu air (Hydro, bagian dari 1.13.0)**: atap kanal ternyata bisa dilewati dengan berjalan biasa, sehingga seluruh kanal terlewati. Rumah pintu air kini menyatu sampai batas atas peta, dan pintu masuknya berupa lubang turun dari pijakan menara.
+- Deskripsi Step Jump di Shop dan README kembali "tanpa batas". AGENTS.md dan docs/MENAMBAH-KONTEN.md kini mewajibkan `B.roof` untuk atap di stage baru.
+
 ## 1.15.0
 
 - **Step Jump tidak lagi seperti cheat**:

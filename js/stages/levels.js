@@ -15,6 +15,8 @@
 //          player starts to climb; see actors.js).
 // Each stage has its own enemy on top of the common ones: blader (cut), totem (fire), watcher (elec),
 // snowman (snow), mole (earth), fanbot (wind).
+// Mark every roof the route goes under with B.roof (and every field of spikes, lava or water it passes beneath), so
+// Step Jump cannot carry the player over the top of a section.
 // Rules of thumb for layouts: a jump clears 3 empty tiles (but only 2 tiles of spikes, which kill on any touch)
 // and rises at most 2 tiles (5 under water); an updraft pad rises about 8 tiles and carries you about 5 across; a
 // slide passes under a gap 1 tile high; ladders are 1 tile wide. Check every stage with the reachability test
@@ -162,10 +164,19 @@ const ENEMY_COLORS = {
 
 function makeBuilder() {
   const map = Array.from({ length: LEVEL_H }, () => Array(LEVEL_W).fill('.'));
-  const ents = [];
+  const ents = [],
+    roofs = [];
   const B = {
     map,
     ents,
+    roofs,
+    // a roof the route goes under (a hall's ceiling, a tower, a block to slide under), its top on row `top` over
+    // columns x0..x1: Step Jump cannot lift the player above it within `reach` columns of it, so the route cannot be
+    // skipped over the top. Reach 1 for a field of spikes, lava or water that the route passes beneath (or through):
+    // no stepping across it
+    roof(x0, x1, top, reach = 8) {
+      roofs.push({ x0, x1, top, reach });
+    },
     rect(x0, y0, x1, y1, c) {
       for (let y = Math.max(0, y0); y <= Math.min(LEVEL_H - 1, y1); y++)
         for (let x = Math.max(0, x0); x <= Math.min(LEVEL_W - 1, x1); x++) map[y][x] = c;
@@ -289,6 +300,7 @@ const LAYOUTS = {
     // --- the press hall: the belt carries you under four presses slamming one after another
     B.ground(24, 61);
     B.solid(24, 8, 61, 12);
+    B.roof(24, 61, 8);
     B.cave(25, 13, 60, 21);
     B.solid(24, 13, 24, 17);
     B.solid(61, 13, 61, 17);
@@ -345,6 +357,7 @@ const LAYOUTS = {
     // spike field)
     B.solid(138, 22, 210, 43);
     B.spikes(140, 201);
+    B.roof(140, 201, F, 1); // the spike field over the belt tunnels
     B.cave(138, 32, 140, 37);
     B.cave(141, 30, 205, 37);
     B.belt(141, 150, 38, -1);
@@ -368,8 +381,10 @@ const LAYOUTS = {
     B.add('saw', 238, 21, { x1: 228, y1: 21, speed: 1.6 });
     B.add('met', 233);
     B.rect(242, 9, 251, 20, '=');
+    B.roof(242, 251, 9);
     B.add('turret', 255, F - 1);
     B.solid(258, 10, 270, 12);
+    B.roof(258, 270, 10);
     B.cave(258, 13, 270, 21);
     B.belt(259, 269, F, -1);
     B.add('crusher', 263, 13, { y1: F, phase: 20 });
@@ -396,6 +411,7 @@ const LAYOUTS = {
     B.add('cp', 310);
     B.ground(312, 352);
     B.solid(314, 1, 342, 21);
+    B.roof(314, 342, 1);
     B.cave(315, 3, 341, 21);
     B.cave(314, 18, 314, 21); // the way in
     B.add('plat', 318, 21, { x1: 318, y1: 14, speed: 0.7 });
@@ -412,6 +428,7 @@ const LAYOUTS = {
     B.ground(353, 425);
     B.spikes(355, 391);
     B.solid(357, 6, 390, 8); // the gantry the presses hang from
+    B.roof(357, 390, 6);
     for (const [x0, top] of [
       [356, 20],
       [361, 20],
@@ -458,6 +475,7 @@ const LAYOUTS = {
     B.solid(56, 8, 63, 43);
     B.solid(73, 8, 80, 43);
     B.solid(81, 2, 120, 43); // the summit: a wall of rock
+    B.roof(81, 120, 2); // over the magma chamber
     B.add('jet', 59, 8, { phase: 30 });
     B.add('jet', 77, 8, { phase: 100 });
     B.add('E', 79, 7);
@@ -491,6 +509,7 @@ const LAYOUTS = {
     B.add('plat', 131, 34, { x1: 136, y1: 34, speed: 1.1 });
     // --- the vent: climb it fast, the lava rises behind you
     B.solid(138, 4, 151, 43);
+    B.roof(138, 151, 4);
     B.cave(138, 30, 139, 36);
     B.cave(140, 6, 147, 36);
     B.ledge(140, 147, 37, '#');
@@ -591,6 +610,7 @@ const LAYOUTS = {
     B.ground(350, 425);
     B.add('cp', 351);
     B.lava(356, 388);
+    B.roof(356, 388, F, 1); // the lava lake over the tube
     B.shaft(353, F, 33);
     B.cave(352, 27, 391, 33);
     for (const [x0, phase] of [
@@ -631,6 +651,7 @@ const LAYOUTS = {
     // --- the beam hall: five beams firing one after another down the hall
     B.ground(19, 50);
     B.solid(19, 10, 50, 13);
+    B.roof(19, 50, 10);
     B.cave(20, 14, 50, 21);
     B.solid(19, 14, 19, 17);
     [24, 29, 34, 39, 44].forEach((x, i) => B.add('zap', x, 14, { y1: 21, phase: i * 30 }));
@@ -693,6 +714,7 @@ const LAYOUTS = {
     B.ground(196, 275);
     B.add('cp', 197);
     B.solid(200, 10, 234, 13);
+    B.roof(200, 234, 10);
     B.cave(201, 14, 233, 21);
     B.solid(200, 14, 200, 17);
     B.solid(234, 14, 234, 17);
@@ -713,6 +735,7 @@ const LAYOUTS = {
     // --- the last yard: a belt between two beams, a turret
     B.belt(242, 254, F, -1);
     B.solid(240, 9, 256, 11);
+    B.roof(240, 256, 9);
     B.add('zap', 244, 12, { y1: 21, phase: 0 });
     B.add('zap', 252, 12, { y1: 21, phase: 75 });
     B.add('E', 258);
@@ -756,6 +779,7 @@ const LAYOUTS = {
     B.ground(355, 425);
     B.add('cp', 357);
     B.spikes(362, 390);
+    B.roof(362, 390, F, 1); // the live floor over the duct
     B.shaft(359, F, 34);
     B.cave(358, 29, 392, 34);
     [365, 369, 373, 377].forEach((x, i) => B.add('zap', x, 29, { y1: 34, phase: i * 25 }));
@@ -822,6 +846,7 @@ const LAYOUTS = {
     B.ledge(113, 116, 8, 'C');
     B.pillar(117, 120, 8);
     B.solid(115, 2, 130, 3);
+    B.roof(115, 130, 2);
     [117, 120, 123, 126, 129].forEach(x => B.add('icicle', x, 4));
     B.pillar(124, 127, 7);
     B.ledge(128, 131, 7, 'C');
@@ -849,6 +874,7 @@ const LAYOUTS = {
     B.add('snowman', 180);
     B.add('cp', 184);
     B.solid(192, 6, 234, 25);
+    B.roof(192, 234, 6); // the glacier over the ice cave
     B.shaft(189, F, 36);
     B.cave(188, 26, 238, 36);
     [198, 202, 206, 214, 222].forEach(x => B.add('icicle', x, 26));
@@ -884,6 +910,7 @@ const LAYOUTS = {
     B.add('cp', 312);
     B.ground(315, 352);
     B.solid(317, 8, 349, 11);
+    B.roof(317, 349, 8);
     B.spikes(318, 348);
     for (const [x0, y] of [
       [319, 20],
@@ -919,6 +946,7 @@ const LAYOUTS = {
     B.ledge(395, 410, F, 'C');
     B.ground(411, 425);
     B.solid(398, 15, 408, 16);
+    B.roof(398, 408, 15);
     B.add('snowman', 400, 14);
     B.add('snowman', 406, 14);
     B.add('E', 415);
@@ -1072,6 +1100,7 @@ const LAYOUTS = {
     // --- the cavern: down ledge by ledge, two of them crumbling; the bottom is a bottomless drop
     B.ground(26, 140);
     B.cave(28, 20, 56, LEVEL_H - 1);
+    B.roof(28, 56, 20, 1); // the cavern's mouth: the route goes down into it, not across
     for (const [x0, x1, y, c] of [
       [29, 34, 24, '#'],
       [38, 43, 27, 'C'],
@@ -1187,6 +1216,7 @@ const LAYOUTS = {
     B.add('mole', 395);
     B.rect(399, F, 401, F + 1, 'Q');
     B.solid(405, 12, 410, 20); // slide under it
+    B.roof(405, 410, 12);
     B.add('mole', 414);
     B.solid(418, 20, 419, 21);
     B.add('turret', 418, 19);
@@ -1219,6 +1249,7 @@ function buildStage(key) {
     map,
     orig: map.map(r => r.slice()),
     ents: B.ents,
+    roofs: B.roofs,
     doorCol: B.doorCol || DOOR_COL,
     start: start ? spot(start) : { x: 3, y: FLOOR - 1 },
     cps: B.ents

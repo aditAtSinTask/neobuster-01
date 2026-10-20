@@ -285,13 +285,16 @@ const AURA_HITS = 3,
 // player; each one takes a hit in their place and is back HYPER_DOWN frames later on its own, whatever the others do
 const HYPER_HITS = 6,
   HYPER_DOWN = 480; // 8 s
-// Step Jump (shop part): STEP_JUMPS jumps off steps of light in mid-air, then the steps are gone for STEP_DOWN frames
-// before all of them come back; and a step only holds while the player is no more than STEP_RISE pixels (a normal
-// jump's height) above the last ground they stood on, so it saves a missed jump or carries over a gap but cannot climb
-// into the sky over a stage
-const STEP_JUMPS = 5,
-  STEP_DOWN = 300, // 5 s
-  STEP_RISE = 48;
+// Step Jump (shop part): as many jumps off steps of light in mid-air as you like, but no step may lift the feet above
+// a roof the route goes under while the player is near it (B.roof in the layouts: halls, towers, and fields of spikes,
+// lava or water over a route below), nor above the top of the map, so a stage cannot be skipped over the top
+function stepCeiling() {
+  const tx = Math.floor(pcx() / TILE);
+  let c = 8;
+  for (const r of level.roofs || [])
+    if (tx >= r.x0 - r.reach && tx <= r.x1 + r.reach) c = Math.max(c, r.top * TILE + 8);
+  return c;
+}
 // Attack and Defense levels (the shop's LEVEL tab), 1 to STAT_MAX: every Attack level adds 1% to the damage the
 // player deals, every Defense level makes the HP 1% thicker (the damage taken is divided by 1 + 1% a level), so level
 // 150 deals +149% damage and takes 60% less. The next level costs 500 points at level 1 and 3.5% more at every level
@@ -1385,12 +1388,6 @@ function updateAura(p) {
 function updatePlayer() {
   const p = player;
   if (p.inv > 0) p.inv--;
-  // Step Jump: where the player last stood (ground, a platform, a ladder), and its steps coming back after their wait
-  if (alive(p) && (p.onGround || p.state === 'climb')) p.groundY = p.y + p.h;
-  if (p.stepCd > 0 && --p.stepCd === 0) {
-    p.stepLeft = STEP_JUMPS;
-    if (hasPart('stepjump')) sfx.tick();
-  }
   if (p.shootT > 0) p.shootT--;
   updateStorm(p);
   updateShield(p);
@@ -1425,18 +1422,17 @@ function updatePlayer() {
     p.coyote = 0;
     p.jumpT = 0;
   };
-  // Step Jump (shop part): jump again off a step of light in mid-air (see STEP_JUMPS); each one is a new jump, so the
-  // air dash comes back too. canStep: a step is left and the player is not too high above the last ground
-  const canStep = () => p.stepLeft > 0 && p.y + p.h >= p.groundY - STEP_RISE;
+  // Step Jump (shop part): jump again off a step of light in mid-air; each one is a new jump, so the air dash comes back
+  // too. canStep: the jump it starts (a full one, higher with the Jetpack) keeps the feet under the roofs near here
+  const canStep = () => p.y + p.h - (jet ? 78 : 48) >= stepCeiling();
   const stepJump = () => {
     doJump();
     p.launched = false;
     p.airDashed = false;
-    if (--p.stepLeft <= 0) p.stepCd = STEP_DOWN; // the last step: they are all gone for a while
     sfx.step();
     part({ kind: 'step', x: p.x + p.w / 2, y: p.y + p.h, life: 14 });
   };
-  // no step to jump off: a faint fizzle under the feet, so the press does not feel lost
+  // no step to jump off here (under a roof's reach): a faint fizzle under the feet, so the press does not feel lost
   const stepFizzle = () => {
     spark(p.x + p.w / 2, p.y + p.h);
     sfx.tick();

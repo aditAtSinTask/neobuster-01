@@ -3094,6 +3094,7 @@ Object.assign(LAYOUTS, {
     B.ground(21, 70);
     B.cave(21, 22, 69, 38);
     B.flood(21, 22, 69, 38);
+    B.roof(21, 69, F, 1); // the canal: swim it
     B.spikes(24, 33, 39);
     B.spikes(38, 47, 39);
     B.spikes(51, 60, 39);
@@ -3117,6 +3118,7 @@ Object.assign(LAYOUTS, {
     B.ground(70, 78);
     B.add('cp', 72);
     B.solid(79, 6, 132, LEVEL_H - 1);
+    B.roof(79, 118, 6); // the dam over the sewer and its climb (the climb comes out on top at its right end)
     B.shaft(76, F, 37);
     B.cave(74, 30, 124, 37);
     B.flood(74, 30, 124, 37);
@@ -3155,6 +3157,7 @@ Object.assign(LAYOUTS, {
     B.solid(133, 6, 199, LEVEL_H - 1);
     B.cave(135, 6, 196, 20);
     B.flood(135, 6, 196, 20);
+    B.roof(135, 196, 6, 1); // the reservoir: swim it
     B.spikes(135, 196, 20);
     for (const [x0, y] of [
       [139, 12],
@@ -3219,9 +3222,9 @@ Object.assign(LAYOUTS, {
     B.pillar(307, 312, 6);
     B.add('cp', 309, 5);
     B.ground(313, 425);
-    B.solid(313, 10, 352, 12);
+    B.solid(313, 0, 352, 12); // the sluice house, up to the sky: the way on is through it
     B.cave(313, 13, 351, 21);
-    B.cave(314, 10, 315, 12); // the way down into it
+    B.cave(313, 3, 315, 12); // the way down into it, off the tower's landing
     B.solid(352, 13, 352, 17);
     B.flood(313, 13, 351, 21);
     [319, 327, 335, 343].forEach((x, i) => B.add('crusher', x, 13, { y1: F, phase: i * 50 }));
@@ -3235,6 +3238,7 @@ Object.assign(LAYOUTS, {
     B.spikes(358, 389, 30);
     B.rect(358, 31, 389, 33, '#');
     B.solid(358, 3, 389, 5); // the water main
+    B.roof(358, 389, 3);
     B.add('plat', 359, 20, { x1: 365, y1: 20, speed: 1 });
     B.add('plat', 368, 18, { x1: 374, y1: 18, speed: 1.2 });
     B.pillar(377, 379, 18);
@@ -3247,6 +3251,7 @@ Object.assign(LAYOUTS, {
     B.solid(406, 20, 408, 21);
     B.add('turret', 402, 17);
     B.solid(394, 6, 410, 7); // the crane
+    B.roof(394, 410, 6);
     [397, 404, 409].forEach((x, i) => B.add('drip', x, 8, { period: 70, phase: i * 23 }));
     B.add('jelly', 399, 13);
     B.add('jelly', 412, 14);
@@ -3268,6 +3273,7 @@ Object.assign(LAYOUTS, {
     // --- the compactors: presses slam down on the belt that carries you over the acid gutters
     B.ground(21, 62);
     B.solid(21, 9, 62, 12);
+    B.roof(21, 62, 9);
     B.cave(22, 13, 61, 21);
     B.solid(21, 13, 21, 17);
     B.solid(62, 13, 62, 17);
@@ -3337,6 +3343,7 @@ Object.assign(LAYOUTS, {
     B.pillar(206, 210, 13);
     B.ground(211, 275);
     B.solid(216, 9, 244, 11);
+    B.roof(216, 244, 9);
     [218, 223, 228, 233, 238, 243].forEach((x, i) => B.add('vent', x, F, { phase: i * 28 }));
     [220, 231, 241].forEach(x => B.add('slime', x, 14));
     B.lava(248, 250);
@@ -3376,6 +3383,7 @@ Object.assign(LAYOUTS, {
     B.ground(350, 425);
     B.add('cp', 352);
     B.solid(354, 3, 390, 21);
+    B.roof(354, 389, 3);
     B.cave(355, 5, 389, 21);
     B.cave(354, 18, 354, 21); // the way in
     for (const [x0, top] of [
@@ -3421,6 +3429,7 @@ Object.assign(LAYOUTS, {
     // --- the great hall: wait on the stone for the axe to swing past, then run (or slide under it) over the floor
     // that crumbles behind you
     B.solid(19, 6, 62, 11);
+    B.roof(19, 62, 6);
     B.solid(19, 12, 19, 17);
     B.ground(19, 23);
     B.ledge(24, 30, F, 'C');
@@ -3497,6 +3506,7 @@ Object.assign(LAYOUTS, {
     B.ground(247, 275);
     B.add('cp', 249);
     B.solid(251, 6, 275, 11);
+    B.roof(251, 275, 6);
     [256, 263, 270].forEach((x, i) => B.add('pendulum', x, 12, { len: 8.5, amp: 0.55, phase: i * 1.7, axe: true }));
     [253, 260, 267, 274].forEach(x => B.add('torch', x, 16));
     B.add('E', 273);
@@ -3505,6 +3515,7 @@ Object.assign(LAYOUTS, {
     // crumbling, ghosts in the dark
     B.ground(276, 316);
     B.solid(276, 6, 316, 11);
+    B.roof(276, 316, 6);
     B.spikes(280, 314);
     for (const [x0, top] of [
       [281, 20],
@@ -3523,6 +3534,7 @@ Object.assign(LAYOUTS, {
     // --- the moat: over the black moat on the drifting rafts, axes swinging down from the arches above it
     B.add('cp', 315);
     B.solid(319, 6, 352, 8); // the arches
+    B.roof(319, 352, 6);
     B.add('plat', 319, 20, { x1: 326, y1: 20, speed: 1 });
     B.add('pendulum', 323, 9, { len: 10, amp: 0.7, phase: 0, axe: true });
     B.pillar(329, 330, 18);
@@ -3636,6 +3648,7 @@ Object.assign(LAYOUTS, {
     // the roof is clear (to clear the amp stacks), and jump the drums under the spikes
     isle(276, 314);
     B.solid(278, 6, 312, 12); // the roof
+    B.roof(278, 312, 6);
     for (const [x, trap] of [
       [281, true],
       [285, false],
@@ -3704,6 +3717,7 @@ Object.assign(LAYOUTS, {
     // --- the laser hall
     B.ground(19, 58);
     B.solid(19, 12, 58, 15);
+    B.roof(19, 58, 12);
     B.solid(19, 16, 19, 17);
     laser('low', 23, 25, F, 0);
     laser('head', 29, 31, F, 50);
@@ -3716,6 +3730,7 @@ Object.assign(LAYOUTS, {
     // --- the prism spire: each floor is swept by lasers in turn; wait on the crystal blocks while they fire
     B.ground(59, 90);
     B.solid(59, 2, 90, 21);
+    B.roof(59, 88, 2);
     B.cave(60, 3, 89, 21);
     B.cave(59, 18, 59, 21);
     B.ledge(60, 89, 17, '#');
@@ -3755,6 +3770,7 @@ Object.assign(LAYOUTS, {
     B.ground(137, 275);
     B.add('cp', 139);
     B.spikes(145, 188);
+    B.roof(145, 188, F, 1); // the crystal spikes over the cave
     B.shaft(142, F, 37);
     B.cave(141, 27, 193, 37);
     B.ledge(141, 193, 38, 'I');
@@ -3771,6 +3787,7 @@ Object.assign(LAYOUTS, {
     // --- the gallery: lasers at feet and head over a slippery crystal floor
     B.add('cp', 197);
     B.solid(203, 12, 248, 15);
+    B.roof(203, 248, 12);
     B.solid(203, 16, 203, 17);
     B.ledge(204, 247, F, 'I');
     laser('low', 208, 210, F, 0);
@@ -3845,6 +3862,7 @@ Object.assign(LAYOUTS, {
     // --- the throne approach: a crystal wall to slide under, prismos, a turret on a crystal block
     B.ground(387, 425);
     B.solid(396, 10, 400, 20); // slide under it
+    B.roof(396, 400, 10);
     B.add('prismo', 405);
     B.solid(410, 20, 411, 21);
     B.add('turret', 410, 19);
@@ -3934,6 +3952,7 @@ Object.assign(LAYOUTS, {
     // --- the escapement: a narrow beam across the chasm, broken in places, under the great pendulums
     B.ground(276, 279);
     B.solid(281, 4, 312, 7); // the frame the pendulums hang from
+    B.roof(281, 312, 4);
     B.ledge(280, 287, 20);
     B.ledge(290, 297, 20);
     B.ledge(300, 306, 20);
@@ -3976,6 +3995,7 @@ Object.assign(LAYOUTS, {
     // --- the chime hall: the last pendulum, gearbots, the throne door
     B.ground(389, 425);
     B.solid(396, 9, 404, 11);
+    B.roof(396, 404, 9);
     B.add('pendulum', 400, 12, { len: 9, amp: 0.8, phase: 1 });
     B.add('gearbot', 408);
     B.add('E', 413);

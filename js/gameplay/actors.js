@@ -285,6 +285,13 @@ const AURA_HITS = 3,
 // player; each one takes a hit in their place and is back HYPER_DOWN frames later on its own, whatever the others do
 const HYPER_HITS = 6,
   HYPER_DOWN = 480; // 8 s
+// Step Jump (shop part): STEP_JUMPS jumps off steps of light in mid-air, then the steps are gone for STEP_DOWN frames
+// before all of them come back; and a step only holds while the player is no more than STEP_RISE pixels (a normal
+// jump's height) above the last ground they stood on, so it saves a missed jump or carries over a gap but cannot climb
+// into the sky over a stage
+const STEP_JUMPS = 5,
+  STEP_DOWN = 300, // 5 s
+  STEP_RISE = 48;
 // Attack and Defense levels (the shop's LEVEL tab), 1 to STAT_MAX: every Attack level adds 1% to the damage the
 // player deals, every Defense level makes the HP 1% thicker (the damage taken is divided by 1 + 1% a level), so level
 // 150 deals +149% damage and takes 60% less. The next level costs 500 points at level 1 and 3.5% more at every level
@@ -1378,6 +1385,12 @@ function updateAura(p) {
 function updatePlayer() {
   const p = player;
   if (p.inv > 0) p.inv--;
+  // Step Jump: where the player last stood (ground, a platform, a ladder), and its steps coming back after their wait
+  if (alive(p) && (p.onGround || p.state === 'climb')) p.groundY = p.y + p.h;
+  if (p.stepCd > 0 && --p.stepCd === 0) {
+    p.stepLeft = STEP_JUMPS;
+    if (hasPart('stepjump')) sfx.tick();
+  }
   if (p.shootT > 0) p.shootT--;
   updateStorm(p);
   updateShield(p);
@@ -1412,14 +1425,21 @@ function updatePlayer() {
     p.coyote = 0;
     p.jumpT = 0;
   };
-  // Step Jump (shop part): jump again off a step of light in mid-air, as many times as you like; each one is a new
-  // jump, so the air dash comes back too
+  // Step Jump (shop part): jump again off a step of light in mid-air (see STEP_JUMPS); each one is a new jump, so the
+  // air dash comes back too. canStep: a step is left and the player is not too high above the last ground
+  const canStep = () => p.stepLeft > 0 && p.y + p.h >= p.groundY - STEP_RISE;
   const stepJump = () => {
     doJump();
     p.launched = false;
     p.airDashed = false;
+    if (--p.stepLeft <= 0) p.stepCd = STEP_DOWN; // the last step: they are all gone for a while
     sfx.step();
     part({ kind: 'step', x: p.x + p.w / 2, y: p.y + p.h, life: 14 });
+  };
+  // no step to jump off: a faint fizzle under the feet, so the press does not feel lost
+  const stepFizzle = () => {
+    spark(p.x + p.w / 2, p.y + p.h);
+    sfx.tick();
   };
   const runTo = (target, accel) => {
     p.vx = onIce ? p.vx + clamp(target - p.vx, -accel, accel) : target;
@@ -1478,7 +1498,7 @@ function updatePlayer() {
     }
     case 'dash': {
       // flying level: ends after its time, at a wall, or when the player pushes the other way
-      if (hit.jump && hasPart('stepjump')) {
+      if (hit.jump && hasPart('stepjump') && canStep()) {
         // Step Jump: jump straight out of the dash
         p.state = 'normal';
         stepJump();
@@ -1565,7 +1585,10 @@ function updatePlayer() {
     return;
   }
   if (p.jumpBuf > 0 && (p.onGround || p.coyote > 0) && p.vy >= 0) doJump();
-  else if (hit.jump && !p.onGround && p.coyote <= 0 && hasPart('stepjump')) stepJump();
+  else if (hit.jump && !p.onGround && p.coyote <= 0 && hasPart('stepjump')) {
+    if (canStep()) stepJump();
+    else stepFizzle();
+  }
   // releasing jump cuts the jump short, but only after a minimum hop so quick taps still jump
   if (p.vy >= 0) p.launched = false;
   if (!inp.jump && p.vy < 0 && p.jumpT > 6 && !p.launched) p.vy = 0;
@@ -3904,7 +3927,20 @@ const BOSSES = {
 };
 
 // a boss's HP: the 28 the bar shows times its continent's bossHp (Azura 3x, Vespera 5x)
-const bossMaxHp = type => 28 * (CONTINENTS[continentOf(type)].bossHp || 1);
+// fighting a boss again: its n-th fight (save.beaten counts the wins) has BOSS_REMATCH[n - 1] times the HP and the
+// points, the last entry for every fight after it; the HP grows 1x a fight up to 5x, the points 0.5x a fight up to
+// 3x
+const BOSS_REMATCH = [
+  { hp: 1, pts: 1 },
+  { hp: 2, pts: 1.5 },
+  { hp: 3, pts: 2 },
+  { hp: 4, pts: 2.5 },
+  { hp: 5, pts: 3 },
+];
+const BOSS_POINTS = 10000;
+const bossFight = type => ((save.beaten && save.beaten[type]) || 0) + 1;
+const rematchOf = n => BOSS_REMATCH[Math.min(n, BOSS_REMATCH.length) - 1];
+const bossMaxHp = type => 28 * (CONTINENTS[continentOf(type)].bossHp || 1) * rematchOf(bossFight(type)).hp;
 function spawnBoss() {
   const type = game.stage;
   boss = {
@@ -3977,7 +4013,9 @@ function defeatBoss() {
   game.flash = 10;
   boss = null;
   eshots = [];
-  addScore(10000);
+  game.bossFightNo = bossFight(b.type); // which fight this was (counted as a win when the clear screen is done)
+  game.bossBonus = Math.round(BOSS_POINTS * rematchOf(game.bossFightNo).pts);
+  addScore(game.bossBonus);
   game.state = 'clear';
   game.t = 0;
   stopMusic();

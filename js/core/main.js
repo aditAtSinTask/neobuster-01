@@ -10,6 +10,10 @@ function normalizeSave(s) {
   s.parts = s.parts || {}; // shop wallet and bought parts ('on' / 'off')
   s.armors = s.armors || {}; // armors found in the secret rooms, by stage
   s.train = s.train || { wave: 0, kills: 0 }; // best training ground run
+  // how many times each boss has been beaten (a rematch has more HP and gives more points); saves from before count
+  // every cleared boss once
+  s.beaten = s.beaten || {};
+  for (const k in s.cleared) if (s.cleared[k] && !(s.beaten[k] >= 1)) s.beaten[k] = 1;
   const lv = v => clamp(Math.floor(+v) || 1, 1, STAT_MAX);
   s.stats = { atk: lv(s.stats && s.stats.atk), def: lv(s.stats && s.stats.def) }; // Attack / Defense levels (shop)
   return s;
@@ -155,6 +159,9 @@ function restartFromCheckpoint() {
     aura: AURA_HITS, // Aura Shield: hits it still takes, frames until it forms again, cover after a hit, flash
     auraCd: 0,
     hyperCd: Array(HYPER_HITS).fill(0), // Hyper Shield: frames until each of its shields is back (0: up)
+    stepLeft: STEP_JUMPS, // Step Jump: steps left, frames until they all come back, the last ground stood on
+    stepCd: 0,
+    groundY: LH * TILE * 2,
     auraT: 0,
     auraFx: 0,
     anim: 0,
@@ -387,8 +394,8 @@ const SHOP = [
     key: 'stepjump',
     cat: 'move',
     name: 'STEP JUMP',
-    price: 450000,
-    desc: 'TEKAN LOMPAT DI UDARA: LOMPAT LAGI TANPA BATAS',
+    price: 600000,
+    desc: 'LOMPAT LAGI DI UDARA 5X, LALU JEDA 5 DETIK',
   },
   { key: 'armor', cat: 'guard', name: 'ARMOR ANTI API', price: 40000, desc: 'MASUK DAN JALAN DI LAVA TANPA MATI' },
   { key: 'core', cat: 'guard', name: 'CORE', price: 420000, desc: 'KEBAL 5X LEBIH LAMA SETELAH KENA HIT' },
@@ -849,7 +856,10 @@ function step() {
       if (game.flash > 0) game.flash--;
       if (game.t === 120) sfx.victory();
       if (game.t > 300) {
+        // the win counts now; a rematch (the boss beaten before) shows its result instead of the weapon
+        game.rematch = game.bossFightNo > 1;
         save.cleared[game.stage] = true;
+        save.beaten[game.stage] = Math.max(save.beaten[game.stage] || 0, game.bossFightNo || 1);
         writeSave();
         player.weapon = game.stage;
         game.state = 'weaponget';
@@ -861,7 +871,9 @@ function step() {
       game.t++;
       if (game.t > 60 && go) {
         const ci = continentOf(game.stage);
-        if (allCleared()) {
+        if (game.rematch)
+          goSelect(ci); // a rematch: no ending and no conquered continent again
+        else if (allCleared()) {
           game.state = 'ending';
           game.t = 0;
           playMusic('title');
@@ -2199,6 +2211,12 @@ function drawHUD() {
         R(x, 48, 14, 2, '#3a2a08');
         R(x, 48, Math.round(14 * (1 - player.auraCd / AURA_DOWN)), 2, '#f8d800');
       }
+      if (it.key === 'stepjump') {
+        if (player.stepCd > 0) {
+          R(x, 48, 14, 2, '#1a2a3a');
+          R(x, 48, Math.round(14 * (1 - player.stepCd / STEP_DOWN)), 2, '#78f8fc');
+        } else for (let k = 0; k < STEP_JUMPS; k++) R(x + k * 3, 48, 2, 2, k < player.stepLeft ? '#78f8fc' : '#1c3a4a');
+      }
       if (it.key === 'hyper')
         for (let k = 0; k < HYPER_HITS; k++) R(x + k * 2.4, 48, 2, 2, player.hyperCd[k] > 0 ? '#1c3a4a' : '#78f8fc');
     });
@@ -2626,6 +2644,7 @@ const titleItems = () => [
 // armors and the Training Ground record; when logged in to Cloud Save, the cloud copy too (it uploads the empty save)
 function resetProgress() {
   save.cleared = {};
+  save.beaten = {};
   delete save.snap;
   save.points = 0;
   save.parts = {};
@@ -2856,7 +2875,11 @@ function drawSelect() {
     drawWeaponIcon(k, px + 44, py + 30);
     text(WEAPONS[k].short, px + 58, py + 32, cleared ? '#686878' : '#a8a8b8');
     text(st.place, px + PW / 2, py + 56, cleared ? '#686878' : st.color, 1, 'center');
-    if (cleared) text('CLEAR', px + PW - 4, py + 4, '#f8d800', 1, 'right');
+    if (cleared) {
+      text('CLEAR', px + PW - 4, py + 4, '#f8d800', 1, 'right');
+      // a rematch: the HP it has now
+      text('HP X' + rematchOf(bossFight(k)).hp, px + PW - 10 - textWidth('CLEAR'), py + 4, '#f87858', 1, 'right');
+    }
     drawArmorIcon(px + 3, py + 2, save.armors[k]); // the stage's secret armor: lit once found
     if (game.sel === i && (frameCount >> 3) & 1) {
       ctx.strokeStyle = '#f8d800';
@@ -3480,7 +3503,19 @@ function drawIntro() {
   if (t > 50) {
     const n = Math.min(def.name.length, (t - 50) >> 2);
     text(def.name.slice(0, n), 150, VH / 2 - 18, '#fcfcfc', 3);
-    if (t > 50 + def.name.length * 4 + 10) text(st.intro, 150, VH / 2 + 14, st.color, 1);
+    if (t > 50 + def.name.length * 4 + 10) {
+      text(st.intro, 150, VH / 2 + 14, st.color, 1);
+      const n = bossFight(k),
+        r = rematchOf(n);
+      if (n > 1)
+        text(
+          'REMATCH KE-' + n + ': HP X' + r.hp + '  POIN X' + String(r.pts).replace('.', ','),
+          150,
+          VH / 2 + 28,
+          '#f87858',
+          1,
+        );
+    }
   }
 }
 
@@ -3501,28 +3536,49 @@ function drawWeaponGet() {
     ctx.lineTo(x - VH, VH);
     ctx.fill();
   }
-  text('WEAPON GET!', VW / 2, 18, '#f8d800', 2, 'center');
+  text(game.rematch ? 'REMATCH MENANG!' : 'WEAPON GET!', VW / 2, 18, '#f8d800', 2, 'center');
   glow(70, 110, 50, w.pal.b, 0.35);
   ctx.save();
   ctx.translate(34, 70);
   ctx.scale(3, 3);
   drawRobot(0, 0, 1, 'stand', 0, (t >> 4) % 3 === 0, w.pal);
   ctx.restore();
-  // demo projectile
-  const px = 110 + ((t * 3) % 260),
-    py = 110;
-  const save_ = [camX, camY];
-  camX = 0;
-  camY = 0;
-  const demo = WEAPONS[game.stage].demo; // the shot shown flying across the screen
-  drawPlayerShot(Object.assign({ x: px, y: py - 6, w: 12, h: 10, t, level: 0 }, demo));
-  [camX, camY] = save_;
-  text('YOU GOT', 150, 64, '#a8c8f8', 1);
-  text(w.name, 150, 78, '#fcfcfc', 2);
-  text(w.desc, 150, 140, w.pal.b, 1);
-  text('SENJATA UNLIMITED - TIDAK HABIS', 150, 154, '#a8a8b8', 1);
-  text('Q / E UNTUK GANTI SENJATA', 150, 168, '#a8a8b8', 1);
-  text('TAHAN X: ' + w.charged, 150, 182, w.pal.b, 1);
+  // demo projectile (not after a rematch: the weapon is not new, and the result's lines are where it flies)
+  if (!game.rematch) {
+    const px = 110 + ((t * 3) % 260),
+      py = 110;
+    const save_ = [camX, camY];
+    camX = 0;
+    camY = 0;
+    const demo = WEAPONS[game.stage].demo; // the shot shown flying across the screen
+    drawPlayerShot(Object.assign({ x: px, y: py - 6, w: 12, h: 10, t, level: 0 }, demo));
+    [camX, camY] = save_;
+  }
+  if (game.rematch) {
+    // a rematch: which fight it was, its HP and points, the bonus, and what the next one holds
+    const n = game.bossFightNo,
+      r = rematchOf(n),
+      next = rematchOf(n + 1),
+      x = v => 'X' + String(v).replace('.', ',');
+    text('MENANG LAGI!', 150, 64, '#a8c8f8', 1);
+    text(BOSSES[game.stage].name, 150, 78, '#fcfcfc', 2);
+    text('PERTARUNGAN KE-' + n + ':  HP ' + x(r.hp) + '   POIN ' + x(r.pts), 150, 112, '#f87858', 1);
+    text('BONUS ' + fmtNum(game.bossBonus) + ' POIN', 150, 126, '#f8d800', 1);
+    text(
+      next === r ? 'SUDAH MAKSIMAL: HP X5, POIN X3' : 'BERIKUTNYA: HP ' + x(next.hp) + '   POIN ' + x(next.pts),
+      150,
+      148,
+      '#a8a8b8',
+      1,
+    );
+  } else {
+    text('YOU GOT', 150, 64, '#a8c8f8', 1);
+    text(w.name, 150, 78, '#fcfcfc', 2);
+    text(w.desc, 150, 140, w.pal.b, 1);
+    text('SENJATA UNLIMITED - TIDAK HABIS', 150, 154, '#a8a8b8', 1);
+    text('Q / E UNTUK GANTI SENJATA', 150, 168, '#a8a8b8', 1);
+    text('TAHAN X: ' + w.charged, 150, 182, w.pal.b, 1);
+  }
   if (t > 60 && (frameCount >> 4) & 1) text('PRESS ENTER', VW / 2, 202, '#f8d800', 1, 'center');
 }
 

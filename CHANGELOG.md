@@ -2,6 +2,19 @@
 
 Semua perubahan NEOBUSTER, versi terbaru di atas. Versi ditulis di konstanta `VERSION` di `js/core/engine.js`.
 
+## 1.15.0
+
+- **Step Jump tidak lagi seperti cheat**:
+  - **Jatah 5 kali**: setelah 5 Step Jump, jeda **5 detik**, lalu terisi penuh lagi.
+  - **Batas tinggi**: Step Jump hanya bisa dipakai selama kaki tidak lebih tinggi dari satu lompatan biasa (3 tile) di atas pijakan terakhir (tanah, platform, atau tangga). Masih bisa menyelamatkan lompatan yang meleset atau menyeberangi celah, tapi tidak bisa memanjat ke langit untuk melewati stage dari atas. Dalam uji, menekan lompat terus-menerus hanya membawa pemain sekitar 4,5 tile di atas tanah (5,2 tile dengan Jetpack).
+  - Lima titik di bawah ikonnya di HUD menunjukkan sisa Step Jump, bar menunjukkan jedanya, dan percikan kecil muncul di kaki kalau Step Jump sedang tidak bisa dipakai.
+- **Harga Step Jump naik** dari 450.000 menjadi **600.000**.
+- **Rematch boss**: boss yang sudah dikalahkan makin kuat setiap kali dilawan lagi, dan bonus POIN-nya makin besar:
+  - HP 1x, 2x, 3x, 4x, lalu mentok di 5x. POIN 1x, 1,5x, 2x, 2,5x, lalu mentok di 3x (bonus dasar 10.000).
+  - Panel boss di Stage Select menampilkan HP rematch berikutnya (**HP X2** di samping CLEAR), dan intro boss menampilkan "REMATCH KE-n".
+  - Menang rematch menampilkan layar **REMATCH MENANG!** dengan bonus POIN dan kelipatan berikutnya, lalu kembali ke Stage Select. Ending dan pesan benua ditaklukkan tidak diputar ulang; sebelumnya, setelah semua boss kalah, setiap kemenangan memutar ending lagi.
+  - Jumlah kemenangan per boss tersimpan di save (`save.beaten`, ikut Cloud Save, terhapus saat reset progress). Save lama menghitung setiap boss yang sudah dikalahkan sebagai satu kemenangan.
+
 ## 1.14.0
 
 - **Menu Settings baru** (pilihan **SETTINGS** di title, atau `C` di Peta Dunia), berisi:

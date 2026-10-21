@@ -276,7 +276,7 @@ function updatePlay() {
       if (game.lives < 0) {
         game.state = 'gameover';
         game.t = 0;
-        sfx.gameover();
+        playJingle('gameover', sfx.gameover);
       } else restartFromCheckpoint();
     }
     return;
@@ -514,6 +514,7 @@ function shopAction(it) {
 function openShop(from) {
   game.shopFrom = from;
   game.state = 'shop';
+  playMusic('shop');
   game.shopTab = game.shopTab || 0;
   game.shopSel = 0;
   game.shopMsg = '';
@@ -715,6 +716,7 @@ function step() {
       }
       if (hit.shoot || hit.back) {
         game.state = game.shopFrom || 'select';
+        playMusic('title');
         sfx.pause();
         break;
       }
@@ -851,7 +853,7 @@ function step() {
       game.t++;
       updateParticles();
       if (game.flash > 0) game.flash--;
-      if (game.t === 120) sfx.victory();
+      if (game.t === 120) playJingle('victory', sfx.victory);
       if (game.t > 300) {
         // the win counts now; a rematch (the boss beaten before) shows its result instead of the weapon
         game.rematch = game.bossFightNo > 1;
@@ -861,7 +863,7 @@ function step() {
         player.weapon = game.stage;
         game.state = 'weaponget';
         game.t = 0;
-        sfx.weaponGet();
+        if (!fm.want) sfx.weaponGet(); // not over the victory song still playing
       }
       break;
     case 'weaponget':
@@ -1816,6 +1818,53 @@ function drawPickup(k) {
   }
 }
 
+// Nexo's jetpack (shop part) in a 9 x 16 box at x, y, behind him (f: the way he faces): a royal-blue fuel pod in his
+// armour's colours with a gold cap, a cyan power cell and a steel nozzle, a darker pod behind it. flame: 0 none, 1 a
+// small blue pilot flame, 2 the full flame tapering down from the nozzle
+function drawJetpack(x, y, f, flame) {
+  sprite(
+    x,
+    y,
+    f,
+    9,
+    [
+      [1, 2, 4, 10, '#16306e'],
+      [3, 1, 5, 12, PAL_HERO.B],
+      [3, 0, 5, 2, '#f8b800'],
+      [7, 4, 2, 5, '#3a3e58'],
+      [3, 12, 5, 2, '#9aa2b8'],
+      [2, 13, 7, 2, '#6a7288'],
+    ],
+    [
+      [4, 4, 3, 4, '#3cbcfc'],
+      [5, 5, 1, 2, '#e8fcff'],
+      [4, 10, 3, 1, '#14285a'],
+      [3, 2, 1, 9, PAL_HERO.b],
+    ],
+  );
+  if (!flame) return;
+  const nx = f > 0 ? x + 5.5 : x + 3.5, // the nozzle's middle
+    ny = y + 15;
+  if (flame === 1) {
+    if (frameCount & 2) circle(nx, ny + 1, 1, '#78f8fc');
+    return;
+  }
+  // the full flame: orange outside, gold, a white core, flickering in length
+  const len = 6 + ((frameCount >> 1) % 3);
+  for (const [w0, col, l] of [
+    [5, '#f86000', len],
+    [3.5, '#f8b800', len - 1.5],
+    [1.5, '#fcf8c0', len - 3.5],
+  ])
+    for (let r = 0; r < l; r += HP) {
+      const w = Math.round(w0 * (1 - r / l) * 2) / 2;
+      if (w <= 0) continue;
+      ctx.fillStyle = col;
+      ctx.fillRect(Math.round((nx - w / 2) * 2) / 2, ny + r, w, HP);
+    }
+  glow(nx, ny + 3, 10, '#f86000', 0.55);
+}
+
 function drawPlayer() {
   const p = player;
   if (!alive(p)) return;
@@ -1886,18 +1935,15 @@ function drawPlayer() {
     glow(hx - p.facing * 3, fy, 10, '#3cbcfc', 0.7);
   }
   if (hasPart('jet') && pose !== 'slide') {
-    // jetpack on the back, flaming while rising (in the air dash it follows the back leaning forward)
-    const lean = pose === 'dash' ? 2 : 0,
-      bx = (p.facing > 0 ? sx - 3 : sx + 9) + p.facing * lean,
-      by = sy + lean;
-    R(bx, by + 7, 6, 10, '#0a0a16');
-    R(bx + 1, by + 8, 4, 8, '#8a8a9a');
-    R(bx + 1, by + 8, 1, 8, '#c8c8d8');
-    if (!p.onGround && p.vy < 0) {
-      R(bx + 1, by + 17, 4, 3 + (frameCount & 2), '#f8a800');
-      R(bx + 2, by + 17, 2, 2, '#fcf8c0');
-      glow(bx + 3, by + 19, 8, '#f86000', 0.6);
-    }
+    // the jetpack on his back (in the air dash it follows the back leaning forward): full flames while it lifts him,
+    // a pilot flame in the air otherwise
+    const lean = pose === 'dash' ? 2 : 0;
+    drawJetpack(
+      (p.facing > 0 ? sx - 7 : sx + p.w - 2) + p.facing * lean,
+      sy + 2 + lean,
+      p.facing,
+      p.onGround ? 0 : p.vy < 0 ? 2 : 1,
+    );
   }
   drawRobot(
     sx + p.w / 2 - 12,
@@ -2955,21 +3001,30 @@ function drawPartIcon(key, x, y) {
         ],
       );
       break;
-    case 'jet':
+    case 'jet': // the jetpack: twin royal-blue pods with gold caps and cyan cells, flames under their nozzles
       sprite(
         x,
         y,
         1,
         14,
         [
-          [2, 1, 4, 10, '#8a8a9a'],
-          [8, 1, 4, 10, '#8a8a9a'],
+          [1, 1, 5, 9, PAL_HERO.B],
+          [8, 1, 5, 9, PAL_HERO.B],
+          [1, 0, 5, 2, '#f8b800'],
+          [8, 0, 5, 2, '#f8b800'],
+          [2, 9, 3, 2, '#9aa2b8'],
+          [9, 9, 3, 2, '#9aa2b8'],
+          [5, 3, 4, 4, '#3a3e58'],
         ],
         [
-          [3, 11, 2, 3, '#f8a800'],
-          [9, 11, 2, 3, '#f8a800'],
-          [3, 2, 1, 6, '#c8c8d8'],
-          [9, 2, 1, 6, '#c8c8d8'],
+          [2, 3, 3, 3, '#3cbcfc'],
+          [9, 3, 3, 3, '#3cbcfc'],
+          [3, 4, 1, 1, '#e8fcff'],
+          [10, 4, 1, 1, '#e8fcff'],
+          [2, 11, 3, 2, '#f86000'],
+          [9, 11, 3, 2, '#f86000'],
+          [3, 11, 1, 3, '#fcf8c0'],
+          [10, 11, 1, 3, '#fcf8c0'],
         ],
       );
       break;
@@ -3780,6 +3835,7 @@ function validateContent() {
 finishContent();
 validateContent();
 cloudBoot();
+playMusic('title'); // heard from the first touch or key (browsers only play sound after one)
 
 // ================= LOOP =================
 // Logic runs at a fixed 60 steps/s. Rendering interpolates positions between the last two steps so motion

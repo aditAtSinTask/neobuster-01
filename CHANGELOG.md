@@ -2,6 +2,28 @@
 
 Semua perubahan NEOBUSTER, versi terbaru di atas. Versi ditulis di konstanta `VERSION` di `js/core/engine.js`.
 
+## 1.16.0
+
+- **Musik latar dari file MP3** di folder `music/`, menggantikan musik chip:
+  - `title.mp3`: layar title, Settings, Cloud Save, Peta Dunia, Stage Select, layar hasil Training Ground, dan ending.
+  - `shop.mp3`: Shop. `stage.mp3`: semua stage dan Training Ground. `boss.mp3`: pertarungan boss.
+  - `victory.mp3` (boss kalah) dan `gameover.mp3` (game over) diputar sekali, menggantikan jingle chip.
+  - Lagu berganti dengan fade singkat, berhenti saat tab atau aplikasi tidak terlihat, dan ikut dimatikan oleh SUARA OFF (`M`). Keras-pelan antar lagu disamakan (`shop.mp3` direkam sekitar 6 dB lebih pelan, jadi diperkeras 2x).
+  - Lagu title diunduh saat game dibuka, lagu lain satu per satu di latar (jingle lebih dulu), sekitar 16 MB sekali saja. Service worker menyimpannya, jadi musik tetap ada saat offline.
+  - Di HP, musik mulai dari sentuhan pertama, termasuk di iOS yang hanya mengizinkan suara dimulai saat layar disentuh.
+  - Kalau file tidak ada atau gagal dimuat, musik chip bawaan diputar. Saat game dibuka langsung dari file, lagu diputar langsung dari disk.
+  - Pengaturan per lagu (`gain`, `once`, titik loop `loopStart` / `loopEnd`) ada di `MUSIC_FILES` di `js/core/engine.js`. Cara mengganti lagu ada di README, bagian Musik.
+- Service worker hanya menyimpan respons utuh (status 200). Saat offline, file selain halaman yang belum tersimpan gagal dimuat, bukan diganti halaman game, supaya game bisa memakai musik chip.
+- **Jurang lebih dalam.** Kegelapan abyss (jatuh ke dalamnya berarti mati) sekarang mulai 6 tile di bawah permukaan; sebelumnya 2 tile, jadi baru masuk sedikit sudah mati.
+  - Berlaku untuk semua jurang terbuka dan lubang `B.pit`. Pemain sekarang jatuh sekitar 6 tile sebelum mati, kamera ikut turun, dan masih sempat diselamatkan dengan Step Jump.
+  - Bagian jurang di atas abyss makin gelap ke bawah, supaya terlihat dalam. Uji jangkauan ke-12 stage tetap lolos.
+- **Jetpack digambar ulang** dengan gaya karakter yang sekarang (sprite bergaris tepi dan berbayang):
+  - Tabung bahan bakar biru armor Nexo dengan tutup emas, sel energi cyan, nosel baja, dan tabung kedua di belakangnya.
+  - Saat naik: api oranye-emas dengan inti putih yang meruncing dan berkedip. Di udara selain itu: nyala pilot biru kecil.
+  - Ikon di Shop dan HUD ikut diganti.
+- **Background parallax lebih HD.** Layer background kini digambar sampai 4x resolusi game (sebelumnya 2x), mengikuti ukuran layar, jadi lereng gunung dan muka jam tidak lagi tampak bergerigi di layar besar. Layer depan tetap bertepi tegas. Hanya background dua tema terakhir yang disimpan, supaya memori di HP tetap aman.
+- Dokumentasi: AGENTS.md (file MP3 di `music/` kini boleh, efek suara tetap lewat kode, dan musik diuji juga lewat server lokal), README (bagian Musik baru, kedalaman jurang), dan docs/MENAMBAH-KONTEN.md (lagu stage, kedalaman jurang).
+
 ## 1.15.1
 
 - **Step Jump kembali tanpa batas.** Jatah 5 kali, jeda 5 detik, dan batas tinggi 3 tile di atas pijakan terakhir dari versi 1.15.0 dihapus. Batas tinggi itu membuat Step Jump berturut-turut kadang gagal di tengah jalan, padahal jatahnya belum habis.

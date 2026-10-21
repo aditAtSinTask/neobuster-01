@@ -22,6 +22,9 @@
 // slide passes under a gap 1 tile high; ladders are 1 tile wide. Check every stage with the reachability test
 // (every checkpoint and the boss door reachable from the start).
 
+// the abyss of a pit starts ABYSS_DEPTH rows under the surface floor (or under the pit's own top), so a player who
+// slips in falls well into the dark before it is over (and a Step Jump can still save them on the way down)
+const ABYSS_DEPTH = 6;
 const LEVEL_H = 44,
   FLOOR = 22,
   LEVEL_W = 450,
@@ -212,11 +215,11 @@ function makeBuilder() {
       B.cave(x - 1, y0 + 2, x + 1, y1);
       B.ladder(x, y0, y1);
     },
-    // surface pit with an abyss under it, deep enough to fill the bottom of the screen; row FLOOR + 5 stays solid
-    // so a cave can run underneath (caves start at row FLOOR + 6 or lower)
+    // surface pit, ABYSS_DEPTH rows deep before its abyss (falling in is death only once the player is well inside
+    // it); the rows from FLOOR + ABYSS_DEPTH + 3 down stay solid, so a cave can run underneath from there
     pit(x0, x1) {
-      B.rect(x0, FLOOR, x1, FLOOR + 1, '.');
-      B.rect(x0, FLOOR + 2, x1, FLOOR + 4, 'X');
+      B.rect(x0, FLOOR, x1, FLOOR + ABYSS_DEPTH - 1, '.');
+      B.rect(x0, FLOOR + ABYSS_DEPTH, x1, FLOOR + ABYSS_DEPTH + 2, 'X');
     },
     add(type, x, y = FLOOR - 1, o = {}) {
       ents.push(Object.assign({ type, x, y }, o));
@@ -1236,7 +1239,7 @@ function buildStage(key) {
     if (map[LEVEL_H - 1][x] !== '.') continue;
     let top = LEVEL_H - 1;
     while (top > 0 && map[top - 1][x] === '.') top--;
-    for (let y = Math.max(top + 2, FLOOR + 2); y < LEVEL_H; y++) map[y][x] = 'X';
+    for (let y = Math.max(top + 2, FLOOR + ABYSS_DEPTH); y < LEVEL_H; y++) map[y][x] = 'X';
   }
   const st = STAGES[key];
   const spot = e => ({ x: e.x, y: e.y });

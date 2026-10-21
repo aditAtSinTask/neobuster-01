@@ -655,17 +655,23 @@ const _bgCache = {};
 // Backgrounds are painted at fine-pixel density (2x) and drawn without smoothing, so they stay as crisp as the rest
 // of the pixel art at any screen scale. The nearer layers (silhouettes) also get their edges hardened: their
 // anti-aliased alpha is thresholded, so they read as clean pixel shapes against the sky.
+// The backdrop layers are painted at up to 4x the game's pixels, following the screen (SCALE), so slopes and round
+// shapes (mountains, clock faces) stay smooth on a big screen; the near layer keeps hard edges. Only the backdrops of
+// the last two themes are kept (at 4x a layer is about 14 MB).
 function getBackground(theme) {
-  if (!_bgCache[theme]) {
+  const s = Math.min(4, Math.max(2, SCALE)),
+    key = theme + '@' + s;
+  if (!_bgCache[key]) {
+    for (const k of Object.keys(_bgCache).slice(0, -1)) delete _bgCache[k];
     const rnd = mulberry(theme.length * 977 + 13);
-    _bgCache[theme] = BG_PAINTERS[theme].map((L, idx) => ({
+    _bgCache[key] = BG_PAINTERS[theme].map((L, idx) => ({
       k: L.k,
       ky: L.ky,
-      c: makeCanvas(BG_W * 2, BG_H * 2, g => {
-        g.scale(2, 2);
+      c: makeCanvas(BG_W * s, BG_H * s, g => {
+        g.scale(s, s);
         L.paint(g, rnd);
         if (idx > 0) {
-          const img = g.getImageData(0, 0, BG_W * 2, BG_H * 2),
+          const img = g.getImageData(0, 0, BG_W * s, BG_H * s),
             d = img.data;
           for (let i = 3; i < d.length; i += 4) d[i] = d[i] >= 128 ? 255 : 0;
           g.putImageData(img, 0, 0);
@@ -673,7 +679,7 @@ function getBackground(theme) {
       }),
     }));
   }
-  return _bgCache[theme];
+  return _bgCache[key];
 }
 function drawBackground(theme, cx, cy, maxCy) {
   const frac = maxCy > 0 ? Math.min(1, cy / maxCy) : 1,
@@ -1021,6 +1027,14 @@ function paintTiles(g, art, x0, x1) {
           if (above === 'X') F(x, y, 16, 16, '#000000');
           else for (let r = 0; r < 16; r += 2) F(x, y + r, 16, 2, `rgba(0,0,0,${(0.15 + r / 18).toFixed(2)})`);
           continue;
+        }
+        if (t === '.' && lv.theme !== 'wind') {
+          // the open drop over an abyss darkens on the way down, so a pit reads as deep
+          let k = 1;
+          while (k <= 4 && ty + k < lv.LH && lv.map[ty + k][tx] === '.') k++;
+          if (k <= 4 && ty + k < lv.LH && lv.map[ty + k][tx] === 'X')
+            for (let r = 0; r < 16; r += 2)
+              F(x, y + r, 16, 2, `rgba(0,0,0,${((4 - k) * 0.035 + r / 16 / 28).toFixed(3)})`);
         }
         if (t === '#') {
           ts.ground(F, x, y, v, exp, tx);

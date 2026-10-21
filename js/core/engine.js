@@ -2,7 +2,7 @@
 // NEOBUSTER — core: canvas, helpers, input, audio, music, text, sprite + glow primitives.
 
 // bump on every change (and add an entry to CHANGELOG.md)
-const VERSION = '1.15.1';
+const VERSION = '1.16.0';
 document.title = 'Neobuster v' + VERSION;
 
 const TILE = 16,
@@ -292,7 +292,8 @@ addEventListener('keyup', e => {
 addEventListener('blur', () => {
   for (const k in kHeld) kHeld[k] = false;
 });
-addEventListener('pointerdown', ensureAudio);
+// a click or a touch wakes the sound too (on phones only lifting the finger counts as one, so both ends do)
+for (const type of ['pointerdown', 'pointerup', 'touchend']) addEventListener(type, ensureAudio);
 
 function pollInput() {
   let gp = null;
@@ -347,7 +348,8 @@ function ensureAudio() {
     master.gain.value = muted ? 0 : 0.5;
     master.connect(actx.destination);
   }
-  if (actx.state === 'suspended') actx.resume();
+  if (actx.state === 'suspended' || actx.state === 'interrupted') actx.resume(); // interrupted: iOS, after a call
+  unlockSongs();
 }
 function toggleMute() {
   muted = !muted;
@@ -656,7 +658,173 @@ let music = null,
   musicName = '',
   musicStep = 0,
   musicTick = 0;
+// ---------- music from files ----------
+// The songs come from MP3 files in music/ (see README, Musik): every song name the game plays maps to a file in
+// MUSIC_FILES, and a stage's own song name (cut, fire, ..., train) maps to 'stage'. A file is fetched whole the first
+// time it is needed (the service worker keeps it, so it plays offline too) and played from memory through the sound
+// system, so the volume and MUTE apply; once one has loaded, the rest are fetched one by one in the background, the
+// jingles first (they are small, and a jingle not in memory yet plays its chip tune), then in the order of this table.
+// A song whose file will not load plays the built-in chip tune (SONGS) instead.
+// gain: evens out how loud the files are (measured: shop.mp3 is about 6 dB quieter than the rest); once: a jingle,
+// played one time; loopStart / loopEnd (seconds, optional): loop only that part of the file instead of all of it.
+const MUSIC_FILES = {
+  title: { src: 'music/title.mp3', gain: 0.97 }, // title, Settings, world map, stage select, ending
+  stage: { src: 'music/stage.mp3', gain: 1 }, // every stage and the Training Ground
+  boss: { src: 'music/boss.mp3', gain: 0.93 },
+  shop: { src: 'music/shop.mp3', gain: 2 },
+  victory: { src: 'music/victory.mp3', gain: 0.93, once: true }, // a boss beaten
+  gameover: { src: 'music/gameover.mp3', gain: 0.86, once: true },
+};
+const MUSIC_VOLUME = 0.6;
+const songFile = name => MUSIC_FILES[name] || MUSIC_FILES.stage;
+// the game opened as a local file (development): browsers will not fetch() from disk, so the player plays the files
+// straight from there, with its own volume, outside the sound system
+const DISK_MUSIC = location.protocol === 'file:';
+const diskVolume = f => Math.min(1, MUSIC_VOLUME * (f.gain || 1) * 0.5); // what the sound system's master would make it
+// the file player: want (the song asked for), cur (the one on the player), blob / bad / busy (files in memory, failed,
+// being fetched), restart (start the song over), fadeEnd (when the fade-out of the song before ends), unlocked (a song
+// has played, so the browser lets the game start the player)
+const fm = {
+  el: null,
+  gain: null,
+  want: null,
+  wantName: '',
+  cur: null,
+  blob: {},
+  bad: {},
+  busy: {},
+  restart: false,
+  fadeEnd: 0,
+  unlocked: false,
+};
+// a song's file is in memory, ready to play at once (a jingle otherwise plays its chip tune)
+const hasSongFile = name => !!fm.blob[songFile(name).src] && !fm.bad[songFile(name).src];
+// a song's file failed: the chip tune instead, if it was the one asked for
+function songFailed(f) {
+  fm.bad[f.src] = true;
+  if (fm.want !== f) return;
+  music = SONGS[fm.wantName] || (f.once ? null : SONGS.title);
+  musicStep = musicTick = 0;
+  fm.want = null;
+}
+function loadSong(f) {
+  if (fm.blob[f.src] || fm.bad[f.src] || fm.busy[f.src]) return;
+  if (DISK_MUSIC) {
+    // straight from disk, every song at once (the player reports a missing file when it plays it)
+    for (const o of Object.values(MUSIC_FILES)) if (!fm.blob[o.src]) fm.blob[o.src] = o.src;
+    return;
+  }
+  fm.busy[f.src] = true;
+  fetch(f.src)
+    .then(r => {
+      if (!r.ok || !/audio|mpeg|octet/.test(r.headers.get('content-type') || 'audio')) throw new Error(r.status);
+      return r.blob();
+    })
+    .then(b => (fm.blob[f.src] = URL.createObjectURL(b)))
+    .catch(() => songFailed(f))
+    .finally(() => {
+      delete fm.busy[f.src];
+      // then the next song not fetched yet, one at a time (the jingles first)
+      const next = Object.values(MUSIC_FILES)
+        .sort((a, b) => !!b.once - !!a.once)
+        .find(o => !fm.blob[o.src] && !fm.bad[o.src] && !fm.busy[o.src]);
+      if (next) loadSong(next);
+    });
+}
+// the player the songs play on, made once the sound system is there: routed through it, or (from disk) on its own
+function songPlayer() {
+  if (fm.el) return fm.el;
+  const el = (fm.el = new Audio());
+  fm.gain = actx.createGain();
+  fm.gain.gain.value = 0;
+  if (!DISK_MUSIC) {
+    actx.createMediaElementSource(el).connect(fm.gain);
+    fm.gain.connect(master);
+  }
+  el.addEventListener('playing', () => (fm.unlocked = true));
+  el.addEventListener('ended', () => {
+    const f = fm.cur;
+    if (f && !f.once && fm.want === f) {
+      // a song with a loop part played to the end of its file: on from the loop start
+      el.currentTime = f.loopStart || 0;
+      el.play().catch(() => {});
+      return;
+    }
+    if (fm.want === f) fm.want = null; // a jingle is over
+    fm.cur = null;
+  });
+  // a file the browser cannot play (missing, broken): the chip tune instead
+  el.addEventListener('error', () => {
+    const f = fm.cur;
+    fm.cur = null;
+    if (f) songFailed(f);
+  });
+  return el;
+}
+// from a touch or a key (ensureAudio): some browsers (iOS) let a page start a player later only if it was started
+// during one, so it is started there (and stopped at once unless a song waits for it) until a song has played
+function unlockSongs() {
+  if (fm.unlocked || !actx || !master) return;
+  const el = songPlayer();
+  el.play().catch(() => {});
+  if (!fm.cur || muted) el.pause();
+}
+// one step of the file player (from updateMusic): fade the song out when another is asked for, start the asked one once
+// its file is in memory, keep its loop, and stay silent while muted or hidden
+function updateFileMusic() {
+  if (!actx || !master) return;
+  const el = songPlayer(),
+    now = actx.currentTime;
+  if (fm.cur && (fm.want !== fm.cur || fm.restart)) {
+    if (!fm.fadeEnd) {
+      fm.fadeEnd = now + 0.25;
+      fm.gain.gain.setTargetAtTime(0, now, 0.06);
+    }
+    if (DISK_MUSIC) el.volume = diskVolume(fm.cur) * Math.max(0, (fm.fadeEnd - now) / 0.25);
+    if (now < fm.fadeEnd) return;
+    el.pause();
+    fm.cur = null;
+    fm.fadeEnd = 0;
+  }
+  const w = fm.want;
+  if (!fm.cur && w && fm.blob[w.src]) {
+    fm.cur = w;
+    fm.restart = false;
+    fm.fadeEnd = 0; // (a song that ended during its fade-out left one)
+    el.src = fm.blob[w.src];
+    el.loop = !w.once && !w.loopStart && !w.loopEnd; // a loop part is kept by hand (below, and when the file ends)
+    el.currentTime = 0;
+    fm.gain.gain.cancelScheduledValues(now);
+    fm.gain.gain.setValueAtTime(0, now);
+    fm.gain.gain.setTargetAtTime(MUSIC_VOLUME * (w.gain || 1), now, 0.08);
+    if (DISK_MUSIC) el.volume = diskVolume(w); // from disk the player is not in the sound system: its own volume
+  }
+  if (!fm.cur) return;
+  if (fm.cur.loopEnd && el.currentTime >= fm.cur.loopEnd) el.currentTime = fm.cur.loopStart || 0;
+  if (muted || document.hidden) {
+    if (!el.paused) el.pause();
+  } else if (el.paused && !el.ended) el.play().catch(() => {});
+}
+// a tab or app in the background goes quiet at once (the game's loop stops there, so updateFileMusic does not run)
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && fm.el) fm.el.pause();
+});
+
 function playMusic(name) {
+  const f = songFile(name);
+  if (!fm.bad[f.src]) {
+    // from its file (the chip tune stays quiet)
+    if (fm.wantName === name && fm.want === f) return;
+    music = null;
+    musicName = name;
+    fm.want = f;
+    fm.wantName = name;
+    fm.restart = true;
+    loadSong(f);
+    return;
+  }
+  fm.want = null;
+  fm.wantName = '';
   if (musicName === name && music) return;
   music = SONGS[name] || null;
   musicName = name;
@@ -666,8 +834,19 @@ function playMusic(name) {
 function stopMusic() {
   music = null;
   musicName = '';
+  fm.want = null;
+  fm.wantName = '';
+}
+// a jingle (victory, gameover): its file when it is in memory, else its chip tune (synth: an sfx)
+function playJingle(name, synth) {
+  if (hasSongFile(name)) playMusic(name);
+  else {
+    stopMusic();
+    synth();
+  }
 }
 function updateMusic() {
+  updateFileMusic();
   if (!music || !actx || muted) return;
   if (musicTick-- > 0) return;
   musicTick = music.step;

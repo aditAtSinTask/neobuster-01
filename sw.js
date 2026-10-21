@@ -2,7 +2,8 @@
 // The service worker that makes NEOBUSTER an installable app (see js/core/pwa.js) that also plays offline. Every file
 // of the game comes from the network first, so an update shows up at once, and the copy kept here is used when there
 // is no connection. On install it keeps the page, the manifest, the icons and every script index.html loads (read from
-// the page itself, so new scripts are kept without listing them here). The Cloud Save API is never cached.
+// the page itself, so new scripts are kept without listing them here). The songs in music/ are kept as the game fetches
+// them (all of them, in the background, the first time it is played). The Cloud Save API is never cached.
 
 const CACHE = 'neobuster';
 const FILES = [
@@ -33,12 +34,18 @@ self.addEventListener('fetch', e => {
   e.respondWith(
     fetch(req)
       .then(res => {
-        if (res.ok) {
+        if (res.status === 200) {
           const copy = res.clone();
           caches.open(CACHE).then(c => c.put(req, copy));
         }
         return res;
       })
-      .catch(async () => (await caches.match(req, { ignoreSearch: true })) || caches.match('./')),
+      // offline: the kept copy; a page with none falls back to the game, anything else (a song not kept yet) fails, so
+      // the game can play its own instead
+      .catch(
+        async () =>
+          (await caches.match(req, { ignoreSearch: true })) ||
+          (req.mode === 'navigate' ? caches.match('./') : Response.error()),
+      ),
   );
 });

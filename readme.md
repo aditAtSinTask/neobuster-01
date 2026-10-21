@@ -2,7 +2,7 @@
 
 > Game action-platformer 2D bergaya **Mega Man** untuk browser — pixel art dengan kepadatan pixel 2x yang detail, tapi tetap ringan dan optimal untuk web.
 
-**Versi saat ini: `1.15.1`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
+**Versi saat ini: `1.16.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
 
 ---
 
@@ -19,6 +19,7 @@
 - [Training Ground](#training-ground)
 - [Peta Dunia & Menu Pause](#peta-dunia--menu-pause)
 - [Settings](#settings)
+- [Musik](#musik)
 - [Shop & Part](#shop--part)
 - [Progress & Save](#progress--save)
 - [Cloud Save](#cloud-save)
@@ -50,7 +51,7 @@ Tidak perlu build atau install apa pun — cukup HTML + JavaScript murni.
 | Langsung           | Buka `index.html` di browser (Chrome, Edge, Firefox, Safari).                   |
 | Lewat server lokal | `npx serve .` atau `python3 -m http.server`, lalu buka alamat yang ditampilkan. |
 
-> Suara aktif setelah tombol pertama ditekan (aturan autoplay browser).
+> Suara dan musik mulai setelah tombol pertama ditekan atau layar pertama kali disentuh (aturan autoplay browser).
 
 ## Kontrol
 
@@ -284,6 +285,36 @@ Pilih **SETTINGS** di layar title, atau tekan `C` di Peta Dunia. Pilih baris den
 | RESET PROGRESS | Menghapus semua progress. Pilih sekali untuk peringatan merah, lalu pilih lagi dalam 3 detik untuk menghapus (pindah baris membatalkannya; `R` sama dengan memilih baris ini). Lihat [Progress & Save](#progress--save) |
 | KEMBALI        | Kembali ke layar title atau Peta Dunia                                                                                                                                                                                  |
 
+## Musik
+
+Musik latar berupa file MP3 di folder `music/`. Efek suara (tembakan, lompatan, ledakan, dan lainnya) tetap dibuat lewat kode.
+
+| File           | Diputar di                                                                                           |
+| -------------- | ---------------------------------------------------------------------------------------------------- |
+| `title.mp3`    | Layar title, Settings, Cloud Save, Peta Dunia, Stage Select, layar hasil Training Ground, dan ending |
+| `shop.mp3`     | Shop                                                                                                 |
+| `stage.mp3`    | Semua stage dan Training Ground                                                                      |
+| `boss.mp3`     | Pertarungan boss, mulai saat pintu boss tertutup                                                     |
+| `victory.mp3`  | Sekali, saat boss kalah (terus terdengar di layar senjata baru)                                      |
+| `gameover.mp3` | Sekali, di layar game over                                                                           |
+
+- Lagu diulang terus, kecuali `victory.mp3` dan `gameover.mp3`. Pergantian lagu memakai fade singkat. Berpindah antara title, Settings, Peta Dunia, dan Stage Select tidak memutar ulang `title.mp3`; lagu stage mulai dari awal setiap masuk stage dan setelah lanjut dari checkpoint.
+- **SETTINGS → SUARA** (atau `M`) juga mematikan musik. Musik berhenti sementara saat tab atau aplikasi tidak terlihat.
+- Lagu title mulai diunduh saat game dibuka, lalu lagu lain diunduh satu per satu di latar (jingle lebih dulu). Totalnya sekitar 16 MB, diunduh sekali dan disimpan service worker, jadi musik tetap ada saat offline.
+- Kalau sebuah file tidak ada atau gagal dimuat, game memutar musik chip bawaannya (dibuat lewat kode).
+
+**Mengganti lagu:** timpa file di `music/` dengan file MP3 bernama sama (44,1 atau 48 kHz, 128–192 kbps sudah cukup). Lagu diulang dari awal sampai akhir file, jadi pilih lagu yang ujungnya enak disambung ke awal, atau atur titik loop-nya. Pengaturan per lagu ada di `MUSIC_FILES` di `js/core/engine.js`:
+
+| Kolom       | Isi                                                                                                                                              |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `src`       | Lokasi file                                                                                                                                      |
+| `gain`      | Menyamakan keras-pelan antar lagu: 1 apa adanya, 2 dua kali lebih keras (+6 dB). `shop.mp3` memakai 2 karena rekamannya sekitar 6 dB lebih pelan |
+| `once`      | Diputar sekali, tidak diulang (jingle)                                                                                                           |
+| `loopStart` | Opsional, dalam detik: setelah sampai di akhir file, lagu diulang dari titik ini (misalnya supaya intro tidak terdengar lagi)                    |
+| `loopEnd`   | Opsional, dalam detik: lagu kembali ke `loopStart` (atau ke awal) saat sampai di titik ini, misalnya untuk melewati fade-out di akhir file       |
+
+Lagu baru untuk satu stage saja: tambahkan baris di `MUSIC_FILES` dengan key yang sama dengan `music` stage itu (misalnya `fire`). Nama lagu yang tidak ada di `MUSIC_FILES` memakai `stage.mp3`.
+
 ## Shop & Part
 
 Setiap poin skor yang kamu dapat (musuh, pickup, boss 10.000) juga masuk ke dompet **POIN**. Dompet ini tersimpan permanen dan tidak hilang walau game over. Saldonya terlihat di Stage Select, Shop, dan menu pause.
@@ -408,6 +439,7 @@ neobuster/
 ├── manifest.webmanifest  # PWA: nama, ikon, layar penuh, landscape
 ├── sw.js           # service worker: game bisa dipasang dan dimainkan offline
 ├── icons/          # ikon aplikasi (digambar oleh game sendiri lewat tools/icons.js)
+├── music/          # musik latar MP3: title, shop, stage, boss, victory, gameover (lihat Musik)
 ├── tools/
 │   ├── reach.js    # tes jangkauan stage (dijalankan di console browser)
 │   └── icons.js    # membuat ulang ikon aplikasi dari gambar game (dijalankan di console browser)
@@ -445,9 +477,12 @@ Detail teknis:
 - Semua karakter (Nexo dan keduabelas boss) digambar native di kode (`js/characters/chars.js`, satu file per karakter), dengan lembar karakter sebagai referensi desain: kerangka yang digerakkan lewat sudut sendi, diberi bentuk (rambut, helm, armor, sarung tangan, sepatu, senjata), lalu dirasterisasi tanpa anti-alias pada kerapatan layar (1, 2, atau 3 pixel kecil per satuan; tampilan 3x di layar judul, intro, dan ending memakai kerapatan 3), dengan outline 1 pixel per bagian dan cel shading dari kiri atas. Mata digambar pixel demi pixel, dan semua karakter memakai wajah bersama (satu untuk pria, satu untuk wanita) supaya wajahnya seragam. Kaki saat berlari diletakkan dengan inverse kinematics pada lintasan yang bergerak mundur persis secepat karakter berlari, jadi kaki yang menapak tidak meluncur. Rambut, sarung tangan, buster, dan sepatu Nexo diwarnai ulang sesuai senjata. Logo dibuat dari huruf poligon yang dirasterisasi ke pixel kecil dengan efek krom, api, outline, dan ekstrusi.
 - Tata letak memakai ruang logis **384 × 224**, tapi pixel art-nya 2x lebih rapat: satu pixel lama dipecah jadi 2×2 pixel kecil yang tetap tajam. Karakter punya outline 1 pixel kecil, sudut terpotong, dan shading berlapis; teks dan tile juga 2x lebih detail. Kanvas digambar di resolusi layar (kelipatan genap) agar setiap pixel kecil tetap pas di pixel layar.
 - Peta level digambar per potongan 32 kolom saat terlihat, supaya hemat memori.
+- Background parallax digambar sampai **4x** resolusi game, mengikuti ukuran layar, supaya lereng dan bentuk bulat (gunung, muka jam) tetap halus di layar besar. Hanya background dua tema terakhir yang disimpan di memori.
+- Jurang: kegelapan abyss (jatuh ke dalamnya berarti mati) dimulai **6 tile** di bawah permukaan, dan bagian di atasnya makin gelap ke bawah. Jadi pemain yang terpeleset jatuh cukup dalam dulu sebelum mati, dan masih sempat diselamatkan dengan Step Jump.
 - Level berukuran **450 × 44 tile** (16 px), pintu boss di kolom 426. Kamera mengikuti player ke segala arah, kecuali di ruang boss.
 - Logika berjalan tetap **60 langkah/detik**. Render diinterpolasi agar mulus di layar 120/144 Hz.
-- Semua grafik dan suara dibuat lewat kode (Canvas 2D + Web Audio), tanpa file aset. Satu-satunya file gambar adalah ikon aplikasi PWA di `icons/`, dan ikon itu pun digambar oleh game sendiri (`tools/icons.js`).
+- Semua grafik dan efek suara dibuat lewat kode (Canvas 2D + Web Audio). File aset hanya musik latar MP3 di `music/` (lihat [Musik](#musik)) dan ikon aplikasi PWA di `icons/`, yang juga digambar oleh game sendiri (`tools/icons.js`).
+- Musik diunduh utuh lalu diputar dari memori lewat Web Audio, jadi volume dan tombol SUARA berlaku untuk musik juga, dan service worker bisa menyimpan file utuhnya untuk offline. Saat game dibuka langsung dari file (`file://`), browser tidak mengizinkan unduhan itu, jadi lagu diputar langsung dari disk.
 
 ## Menambah Konten
 

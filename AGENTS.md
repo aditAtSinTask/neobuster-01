@@ -4,7 +4,7 @@ File ini untuk siapa pun yang melanjutkan NEOBUSTER, manusia maupun AI coding ag
 
 ## Proyek
 
-- Game action platformer bergaya Mega Man X untuk browser: HTML + JavaScript murni dan Canvas 2D, tanpa build step dan tanpa file aset. Semua grafik dan suara dibuat lewat kode.
+- Game action platformer bergaya Mega Man X untuk browser: HTML + JavaScript murni dan Canvas 2D, tanpa build step. Semua grafik dan efek suara dibuat lewat kode; file aset hanya musik latar MP3 di `music/` dan ikon aplikasi di `icons/`.
 - Jalankan dengan membuka `index.html` di browser.
 - Teks di layar dan dokumentasi memakai Bahasa Indonesia; komentar di kode memakai bahasa Inggris.
 - Penjelasan lengkap fitur ada di [README.md](README.md); riwayat perubahan di [CHANGELOG.md](CHANGELOG.md).
@@ -23,10 +23,12 @@ File ini untuk siapa pun yang melanjutkan NEOBUSTER, manusia maupun AI coding ag
 1. Setiap perubahan menaikkan `VERSION` di `js/core/engine.js` (patch untuk perbaikan, minor untuk fitur), menambah catatan di **paling atas** `CHANGELOG.md`, dan memperbarui baris "Versi saat ini" di `README.md`.
 2. Jalankan `yarn format` (Prettier) sebelum commit. Cek dengan `yarn format:check`.
 3. Repo memakai satu branch: `main`.
-4. Jangan menambah dependensi, build step, atau file gambar/suara. Satu-satunya pengecualian adalah ikon aplikasi PWA di `icons/`, yang digambar oleh game sendiri: buat ulang dengan [tools/icons.js](tools/icons.js) kalau tampilan Nexo berubah.
+4. Jangan menambah dependensi, build step, atau file gambar/suara. Pengecualiannya hanya dua:
+   - Musik latar MP3 di `music/`: daftar lagu, cara mengganti, dan pengaturannya (`MUSIC_FILES` di `js/core/engine.js`) ada di [README.md, bagian Musik](README.md#musik). Efek suara tetap dibuat lewat kode.
+   - Ikon aplikasi PWA di `icons/`, yang digambar oleh game sendiri: buat ulang dengan [tools/icons.js](tools/icons.js) kalau tampilan Nexo berubah.
 5. Perbarui dokumentasi (`README.md`, `docs/`) di commit yang sama dengan perubahan yang dijelaskannya.
 6. Game juga dimainkan di HP lewat tombol sentuh (`js/core/touch.js`). Petunjuk di layar game ditulis dengan nama tombol keyboard (`ENTER`, `ESC`, `X`, ...); tombol sentuh menampilkan padanannya, jadi aksi baru perlu tombol keyboard di `KEYMAP` dan, kalau dipakai di HP, tombol di `TOUCH_BUTTONS`. Layar menu memakai widget di `js/core/ui.js`: `drawHints()` untuk bar petunjuk tombol (keycap) dan `drawButtonRow()` untuk tombol menu. Keduanya otomatis tetap di bagian tengah yang tidak tertutup tombol sentuh saat HP dipegang miring (`touchClearWidth()`).
-7. Game bisa dipasang sebagai aplikasi (PWA: `manifest.webmanifest`, `sw.js`, `js/core/pwa.js`). Service worker mengambil semua script yang dimuat `index.html` dengan sendirinya; file lain yang dibutuhkan saat offline (selain script) perlu ditambahkan ke daftar `FILES` di `sw.js`.
+7. Game bisa dipasang sebagai aplikasi (PWA: `manifest.webmanifest`, `sw.js`, `js/core/pwa.js`). Service worker mengambil semua script yang dimuat `index.html` dengan sendirinya; file lain yang dibutuhkan saat offline (selain script) perlu ditambahkan ke daftar `FILES` di `sw.js`. Lagu di `music/` tidak perlu: game mengunduh semuanya di latar saat pertama dimainkan, dan service worker menyimpannya saat itu.
 
 ## Aturan konten baru (wajib)
 
@@ -48,3 +50,4 @@ Setiap benua (pulau), stage, dan boss baru harus memenuhi checklist di [docs/MEN
 4. Pastikan ruang rahasia bisa dibuka dengan senjata segelnya, dan tembakan senjata lain memantul.
 5. Cheat (`P` + `O`) selalu terbuka saat game dibuka dari file atau dari `localhost` / `127.0.0.1` (mode development), jadi bisa dipakai untuk menguji. Di hosting asli, cheat baru terbuka setelah rekor Training Ground mencapai wave 50.
 6. Kalau mengubah save atau Cloud Save: uji masuk akun baru (password diminta dua kali), masuk dari perangkat kosong (progress cloud termuat), perangkat dengan progress berbeda (diminta memilih), dan sinkron otomatis setelah ada perubahan. Pakai akun uji, bukan akun pemain.
+7. Kalau mengubah musik atau `sw.js`: uji juga lewat server lokal (`python3 -m http.server`), bukan hanya dengan membuka `index.html`. Dari file, lagu diputar langsung dari disk; lewat server, lagu diunduh, diputar lewat sistem suara game, dan disimpan untuk offline.

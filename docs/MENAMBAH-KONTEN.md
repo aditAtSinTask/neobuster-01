@@ -120,7 +120,9 @@ File benua cukup mengisi tabel dan **registry** yang sudah ada dengan `Object.as
 
 ### Lagu (`js/core/engine.js`)
 
-`SONGS[music]`, bisa juga diisi dari file benua dengan `Object.assign(SONGS, {...})`.
+Semua stage memutar `music/stage.mp3` (lihat [README, bagian Musik](../readme.md#musik)): nama `music` yang tidak ada di `MUSIC_FILES` memakai lagu stage. Untuk lagu sendiri, taruh file MP3-nya di `music/` dan tambahkan baris di `MUSIC_FILES` dengan key yang sama dengan `music` stage itu.
+
+`SONGS[music]` tetap wajib diisi (validator memeriksanya): musik chip ini diputar kalau file lagunya gagal dimuat. Bisa diisi dari file benua dengan `Object.assign(SONGS, {...})`.
 
 ### Mekanik bawaan yang bisa dipakai
 
@@ -128,6 +130,7 @@ File benua cukup mengisi tabel dan **registry** yang sudah ada dengan `Object.as
 - `game.timeStop = n`: membekukan musuh, peluru musuh, hazard, dan boss selama `n` frame.
 - `player.stun = n`: pemain tidak bisa bergerak selama `n` frame.
 - HP boss: `bossMaxHp(k)` (`js/gameplay/actors.js`) = 28 × `bossHp` benuanya. Bar HP boss selalu 28 kotak dan menampilkan HP secara proporsional; boss mengamuk (`enraged`) di setengah HP.
+- Jurang: kolom yang terbuka sampai dasar level otomatis diberi abyss mulai `ABYSS_DEPTH` (6) baris di bawah lantai permukaan. `B.pit(x0, x1)` menggali lubang di tanah dengan kedalaman yang sama, dan baris dari `FLOOR + 9` ke bawah tetap padat, jadi gua di bawah lubang harus mulai dari baris itu atau lebih bawah.
 - Atap (wajib untuk setiap atap yang dilalui jalur dari bawah): `B.roof(x0, x1, top, reach = 8)` menandai atap aula, menara, atau balok tempat slide, yang permukaan atasnya di baris `top` di kolom `x0..x1`. Step Jump tidak bisa mengangkat pemain melewati permukaan itu selama pemain berada dalam `reach` kolom darinya, jadi bagian stage tidak bisa dilewati lewat atas. Untuk medan duri, lava, atau air yang menutupi jalur di bawahnya (terowongan, saluran, kanal), pakai `reach` 1: tidak bisa diseberangi dengan Step Jump. Atap juga tidak boleh bisa dicapai dengan gerakan biasa; kalau bisa, tinggikan sampai batas atas peta (baris 0).
 - Ruang rahasia (wajib, satu per stage): `B.secret(x0, y0, x1, y1, sx, weapon, ax)` menggali ruangan `x0..x1`, `y0..y1` (lantainya baris di bawah `y1`), memasang dinding segel setinggi 3 tile di kolom `sx` yang berdiri di lantai yang sama, dan armor di kolom `ax`. Dinding segel hanya hancur oleh `weapon` (senjata boss lain, bukan senjata stage itu sendiri), dan ruangannya tampak seperti batu sampai segelnya hancur. Letakkan segel di samping jalur utama, di lantai tempat pemain bisa berdiri menghadapnya, dan pastikan ruangan tertutup (tidak terbuka ke jurang atau ruang lain). Tampilan dinding segel per senjata ada di `SEAL_LOOKS` (`js/gameplay/actors.js`); senjata baru yang dipakai untuk segel perlu tampilan di sana. Uji dengan tes jangkauan: tanpa membuka segel armor tidak boleh terjangkau, dengan segel terbuka armor harus terjangkau.
 - Platform melingkar: `B.add('plat', x, y, { r: 3, speed: 0.02, phase: 0 })` (pusat di tile `x`, `y`, jari-jari `r` tile). Beberapa platform dengan pusat yang sama dan `phase` berbeda menjadi roda (contoh: muka jam di stage Time).

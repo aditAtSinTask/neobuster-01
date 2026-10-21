@@ -943,7 +943,7 @@ function updateShot(s) {
         s.x = camX;
         s.w = Math.max(1, p.x - 2 - camX);
       }
-      s.y = p.y + 11 - s.h / 2;
+      s.y = (p.h < 22 ? p.y + p.h - SLIDE_GUN_H : p.y) + 11 - s.h / 2; // low with the buster in a slide
       if (s.t % 10 === 0) for (const e of [...s.hits]) if (e !== boss) s.hits.delete(e);
       burnShots(s);
       if (--s.life <= 0 || !alive(p)) s.dead = true;
@@ -1242,6 +1242,24 @@ function startSlide(p) {
   }
   dust(p.x + p.w / 2 - p.facing * 6, p.y + p.h, 3);
 }
+// a slide holds the buster low and further forward: its shots leave it 7 px over the floor and 3 px further on. Every
+// weapon places its shots from a standing player's box (the buster 13 px under its top), so in a slide they are fired
+// from a box only as tall as SLIDE_GUN_H, moved on by SLIDE_GUN_AHEAD
+const SLIDE_GUN_H = 20,
+  SLIDE_GUN_AHEAD = 3;
+function slideShoot(p) {
+  const { x, y, h } = p;
+  p.x += p.facing * SLIDE_GUN_AHEAD;
+  p.y = y + h - SLIDE_GUN_H;
+  p.h = SLIDE_GUN_H;
+  try {
+    handleShoot(p, true);
+  } finally {
+    p.x = x;
+    p.y = y;
+    p.h = h;
+  }
+}
 // the air dash: once per jump, flying level for a moment (holding a direction picks it)
 function startAirDash(p, dir) {
   if (dir) p.facing = dir;
@@ -1478,7 +1496,7 @@ function updatePlayer() {
       runTo(p.facing * 2.6, 0.08);
       const wall = moveX(p, p.vx);
       applyGravity(p);
-      handleShoot(p, false);
+      slideShoot(p);
       if (frameCount % 6 === 0) dust(p.x + p.w / 2 - p.facing * 6, p.y + p.h, 1);
       if (p.jumpBuf > 0 && !inp.downKey && headroom(p) && p.onGround) {
         standUp(p);
@@ -1649,7 +1667,9 @@ function killPlayer(withOrbs) {
   p.hp = 0;
   p.charge = 0;
   game.deadT = 0;
-  stopMusic();
+  // the game over song is the death song too: it plays at every death, and on into the game over screen
+  if (hasSongFile('gameover')) playMusic('gameover');
+  else stopMusic();
   sfx.death();
   if (withOrbs) orbs(p.x + p.w / 2, p.y + p.h / 2, WEAPONS[p.weapon].pal.b);
 }

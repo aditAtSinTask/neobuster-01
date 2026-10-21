@@ -668,13 +668,15 @@ function step() {
         game.state = 'intro';
         game.t = 0;
         game.introKey = CONTINENTS[game.continent].stages[game.sel];
-        stopMusic();
+        // the intro song while the boss is shown, or the chip fanfare (below) while its file is not in memory yet
+        if (hasSongFile('intro')) playMusic('intro');
+        else stopMusic();
       }
       break;
     }
     case 'intro':
       game.t++;
-      if (game.t === 20)
+      if (game.t === 20 && !fm.want)
         notes(
           [
             [64, 0],
@@ -1945,15 +1947,7 @@ function drawPlayer() {
       p.onGround ? 0 : p.vy < 0 ? 2 : 1,
     );
   }
-  drawRobot(
-    sx + p.w / 2 - 12,
-    sy + p.h - 24,
-    p.facing,
-    pose,
-    fr,
-    p.shootT > 0 && pose !== 'slide' && pose !== 'hurt',
-    pal,
-  );
+  drawRobot(sx + p.w / 2 - 12, sy + p.h - 24, p.facing, pose, fr, p.shootT > 0 && pose !== 'hurt', pal);
   if (hasPart('shield') && p.shieldCd)
     for (let i = 0; i < 2; i++) {
       const a = (p.shieldAng || 0) + i * Math.PI,

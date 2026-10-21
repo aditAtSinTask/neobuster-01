@@ -2,7 +2,7 @@
 
 > Game action-platformer 2D bergaya **Mega Man** untuk browser — pixel art dengan kepadatan pixel 2x yang detail, tapi tetap ringan dan optimal untuk web.
 
-**Versi saat ini: `1.16.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
+**Versi saat ini: `1.16.1`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
 
 ---
 
@@ -55,23 +55,23 @@ Tidak perlu build atau install apa pun — cukup HTML + JavaScript murni.
 
 ## Kontrol
 
-| Aksi                                             | Keyboard                                                                        | Gamepad                    | Layar sentuh                       |
-| ------------------------------------------------ | ------------------------------------------------------------------------------- | -------------------------- | ---------------------------------- |
-| Gerak                                            | `←` `→` / `A` `D`                                                               | D-pad / stik kiri          | D-pad                              |
-| Naik / turun tangga                              | `↑` `↓` / `W` `S`                                                               | D-pad / stik kiri          | D-pad atas / bawah                 |
-| Lompat (di udara: Step Jump, part Shop)          | `Z` / `J` / `Space`                                                             | A                          | JUMP                               |
-| Tembak                                           | `X` / `K`                                                                       | X / B                      | SHOOT                              |
-| Charge shot (semua senjata)                      | Tahan `X` lalu lepas                                                            | Tahan tombol tembak        | Tahan SHOOT lalu lepas             |
-| Slide (di udara: Air Dash, part Shop)            | `C` / `L` (atau `↓` + lompat)                                                   | RT / Y                     | SLIDE                              |
-| Ganti senjata                                    | `Q` / `E`                                                                       | LB / RB                    | ◀ W / W ▶                        |
-| Pause: ganti senjata & ON/OFF tools              | `Enter` / `Esc`; panah untuk bergerak di grid senjata dan pindah ke kolom tools | Start                      | START / BACK, D-pad                |
-| Suara ON/OFF                                     | `M`, atau **SETTINGS → SUARA**                                                  | SETTINGS → SUARA           | MUTE, atau SETTINGS → SUARA        |
-| Kembali ke layar sebelumnya (menu, peta, select) | `Esc` / `Backspace`                                                             | Select                     | BACK                               |
-| Buka Shop (di Peta Dunia atau Stage Select)      | `X`                                                                             | X / B                      | SHOOT                              |
-| Buka Settings (di Peta Dunia)                    | `C`                                                                             | RT / Y                     | SLIDE                              |
-| Layar Kelemahan Boss (di Stage Select)           | `C`                                                                             | RT / Y                     | SLIDE                              |
-| Reset progress                                   | **SETTINGS → RESET PROGRESS** dua kali (di Settings juga `R`)                   | SETTINGS → RESET, dua kali | SETTINGS → RESET (START), dua kali |
-| Buka cheat box                                   | Tekan `P` + `O` bersamaan                                                       | —                          | —                                  |
+| Aksi                                                        | Keyboard                                                                        | Gamepad                    | Layar sentuh                       |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------- | -------------------------- | ---------------------------------- |
+| Gerak                                                       | `←` `→` / `A` `D`                                                               | D-pad / stik kiri          | D-pad                              |
+| Naik / turun tangga                                         | `↑` `↓` / `W` `S`                                                               | D-pad / stik kiri          | D-pad atas / bawah                 |
+| Lompat (di udara: Step Jump, part Shop)                     | `Z` / `J` / `Space`                                                             | A                          | JUMP                               |
+| Tembak                                                      | `X` / `K`                                                                       | X / B                      | SHOOT                              |
+| Charge shot (semua senjata)                                 | Tahan `X` lalu lepas                                                            | Tahan tombol tembak        | Tahan SHOOT lalu lepas             |
+| Slide, bisa sambil menembak (di udara: Air Dash, part Shop) | `C` / `L` (atau `↓` + lompat)                                                   | RT / Y                     | SLIDE                              |
+| Ganti senjata                                               | `Q` / `E`                                                                       | LB / RB                    | ◀ W / W ▶                        |
+| Pause: ganti senjata & ON/OFF tools                         | `Enter` / `Esc`; panah untuk bergerak di grid senjata dan pindah ke kolom tools | Start                      | START / BACK, D-pad                |
+| Suara ON/OFF                                                | `M`, atau **SETTINGS → SUARA**                                                  | SETTINGS → SUARA           | MUTE, atau SETTINGS → SUARA        |
+| Kembali ke layar sebelumnya (menu, peta, select)            | `Esc` / `Backspace`                                                             | Select                     | BACK                               |
+| Buka Shop (di Peta Dunia atau Stage Select)                 | `X`                                                                             | X / B                      | SHOOT                              |
+| Buka Settings (di Peta Dunia)                               | `C`                                                                             | RT / Y                     | SLIDE                              |
+| Layar Kelemahan Boss (di Stage Select)                      | `C`                                                                             | RT / Y                     | SLIDE                              |
+| Reset progress                                              | **SETTINGS → RESET PROGRESS** dua kali (di Settings juga `R`)                   | SETTINGS → RESET, dua kali | SETTINGS → RESET (START), dua kali |
+| Buka cheat box                                              | Tekan `P` + `O` bersamaan                                                       | —                          | —                                  |
 
 Di layar sentuh, setiap tombol juga menampilkan tombol keyboard padanannya (misalnya SHOOT bertuliskan `X`), jadi petunjuk di layar game tetap bisa diikuti.
 
@@ -289,14 +289,14 @@ Pilih **SETTINGS** di layar title, atau tekan `C` di Peta Dunia. Pilih baris den
 
 Musik latar berupa file MP3 di folder `music/`. Efek suara (tembakan, lompatan, ledakan, dan lainnya) tetap dibuat lewat kode.
 
-| File           | Diputar di                                                                                           |
-| -------------- | ---------------------------------------------------------------------------------------------------- |
-| `title.mp3`    | Layar title, Settings, Cloud Save, Peta Dunia, Stage Select, layar hasil Training Ground, dan ending |
-| `shop.mp3`     | Shop                                                                                                 |
-| `stage.mp3`    | Semua stage dan Training Ground                                                                      |
-| `boss.mp3`     | Pertarungan boss, mulai saat pintu boss tertutup                                                     |
-| `victory.mp3`  | Sekali, saat boss kalah (terus terdengar di layar senjata baru)                                      |
-| `gameover.mp3` | Sekali, di layar game over                                                                           |
+| File           | Diputar di                                                                                                                                         |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `title.mp3`    | Layar title, Settings, Cloud Save, Peta Dunia, Stage Select, layar hasil Training Ground, dan ending                                               |
+| `shop.mp3`     | Shop                                                                                                                                               |
+| `stage.mp3`    | Semua stage dan Training Ground                                                                                                                    |
+| `boss.mp3`     | Layar intro boss setelah stage dipilih, dan pertarungan boss (mulai saat pintu boss tertutup)                                                      |
+| `victory.mp3`  | Sekali, saat boss kalah (terus terdengar di layar senjata baru)                                                                                    |
+| `gameover.mp3` | Sekali, setiap kali mati (jatuh ke jurang atau HP habis), di stage maupun Training Ground. Kalau nyawa habis, lagunya berlanjut di layar game over |
 
 - Lagu diulang terus, kecuali `victory.mp3` dan `gameover.mp3`. Pergantian lagu memakai fade singkat. Berpindah antara title, Settings, Peta Dunia, dan Stage Select tidak memutar ulang `title.mp3`; lagu stage mulai dari awal setiap masuk stage dan setelah lanjut dari checkpoint.
 - **SETTINGS → SUARA** (atau `M`) juga mematikan musik. Musik berhenti sementara saat tab atau aplikasi tidak terlihat.
@@ -312,6 +312,8 @@ Musik latar berupa file MP3 di folder `music/`. Efek suara (tembakan, lompatan, 
 | `once`      | Diputar sekali, tidak diulang (jingle)                                                                                                           |
 | `loopStart` | Opsional, dalam detik: setelah sampai di akhir file, lagu diulang dari titik ini (misalnya supaya intro tidak terdengar lagi)                    |
 | `loopEnd`   | Opsional, dalam detik: lagu kembali ke `loopStart` (atau ke awal) saat sampai di titik ini, misalnya untuk melewati fade-out di akhir file       |
+
+Layar intro boss punya baris sendiri, `intro`, yang sekarang memakai `boss.mp3`. Untuk lagu intro khusus, taruh filenya di `music/` dan ganti `src` baris itu; layar intro tampil sekitar 3 detik, jadi lagu 3–4 detik sudah cukup.
 
 Lagu baru untuk satu stage saja: tambahkan baris di `MUSIC_FILES` dengan key yang sama dengan `music` stage itu (misalnya `fire`). Nama lagu yang tidak ada di `MUSIC_FILES` memakai `stage.mp3`.
 

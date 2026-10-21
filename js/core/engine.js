@@ -2,7 +2,7 @@
 // NEOBUSTER — core: canvas, helpers, input, audio, music, text, sprite + glow primitives.
 
 // bump on every change (and add an entry to CHANGELOG.md)
-const VERSION = '1.16.0';
+const VERSION = '1.16.1';
 document.title = 'Neobuster v' + VERSION;
 
 const TILE = 16,
@@ -669,11 +669,12 @@ let music = null,
 // played one time; loopStart / loopEnd (seconds, optional): loop only that part of the file instead of all of it.
 const MUSIC_FILES = {
   title: { src: 'music/title.mp3', gain: 0.97 }, // title, Settings, world map, stage select, ending
+  intro: { src: 'music/boss.mp3', gain: 0.93 }, // the boss shown once a stage is picked (the boss song, for now)
   stage: { src: 'music/stage.mp3', gain: 1 }, // every stage and the Training Ground
   boss: { src: 'music/boss.mp3', gain: 0.93 },
   shop: { src: 'music/shop.mp3', gain: 2 },
   victory: { src: 'music/victory.mp3', gain: 0.93, once: true }, // a boss beaten
-  gameover: { src: 'music/gameover.mp3', gain: 0.86, once: true },
+  gameover: { src: 'music/gameover.mp3', gain: 0.86, once: true }, // every death, on into the game over screen
 };
 const MUSIC_VOLUME = 0.6;
 const songFile = name => MUSIC_FILES[name] || MUSIC_FILES.stage;

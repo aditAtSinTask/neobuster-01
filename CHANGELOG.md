@@ -2,6 +2,14 @@
 
 Semua perubahan NEOBUSTER, versi terbaru di atas. Versi ditulis di konstanta `VERSION` di `js/core/engine.js`.
 
+## 1.16.1
+
+- **Musik saat mati di stage.** Setiap kali pemain mati (jatuh ke jurang atau HP habis), di stage maupun Training Ground, `gameover.mp3` diputar sekali; sebelumnya musik langsung berhenti dan hanya bunyi ledakan yang terdengar. Kalau nyawa habis, lagunya berlanjut di layar game over, tidak diulang.
+- **Musik di layar intro boss** (setelah stage dipilih): `boss.mp3` diputar, menggantikan fanfare chip singkat; fanfare chip masih dipakai selama file lagunya belum termuat. Layar ini punya baris sendiri di `MUSIC_FILES` (`intro`), jadi bisa diberi lagu intro khusus.
+- **Bisa menembak saat slide.** Sebelumnya tombol tembak tidak berfungsi selama slide; yang bisa hanya mengisi charge. Sekarang semua tembakan bisa dipakai sambil slide: tembakan biasa, charge shot, senjata spesial, dan ultra attack.
+  - Nexo menodongkan buster sambil slide, dan pelurunya keluar dari buster yang dipegang rendah, sekitar 7 px di atas lantai (saat berdiri 9 px), jadi juga bisa dipakai di lorong rendah. Sinar Hyper Beam ikut turun mengikuti buster selama slide.
+- README (bagian Musik, tabel kontrol) diperbarui.
+
 ## 1.16.0
 
 - **Musik latar dari file MP3** di folder `music/`, menggantikan musik chip:

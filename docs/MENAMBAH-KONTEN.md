@@ -118,6 +118,13 @@ File benua cukup mengisi tabel dan **registry** yang sudah ada dengan `Object.as
 | `HAZARD_KINDS[type]` | hazard: `make(d)`, `update(h, p)`, `draw(h)`; pasang di layout dengan `B.add(type, x, y, {...})`                                                                                                                                                       |
 | `EN[name]`           | musuh (lihat [Menambah musuh](#menambah-musuh))                                                                                                                                                                                                        |
 
+Helper untuk `update(b, enraged)` boss (lihat `BOSSES.earth`, Terralyn, sebagai contoh boss yang agresif):
+
+- `pick(b, ['a', 'b'])` atau `pickBy(b, { a: 3, b: 1 })` (berbobot) memilih serangan berikutnya, tidak pernah sama dua kali berturut-turut. `bossToIdle(b)` kembali ke jeda.
+- `faceP(b)` menghadap pemain, `jumpAt(b, vy, frames, maxV)` melompat ke arah pemain, `airborne(b)` bergerak di udara.
+- `leadX(f)`: posisi tengah pemain `f` frame lagi kalau terus berlari ke arah yang sama, untuk membidik ke arah larinya.
+- `vanish(b)` menyembunyikan boss (keluar ruangan dan kebal, misalnya saat warp atau menggali), dan `show(b, x)` memunculkannya lagi di lantai pada posisi `x`.
+
 ### Lagu (`js/core/engine.js`)
 
 Semua stage memutar `music/stage.mp3` (lihat [README, bagian Musik](../readme.md#musik)): nama `music` yang tidak ada di `MUSIC_FILES` memakai lagu stage. Untuk lagu sendiri, taruh file MP3-nya di `music/` dan tambahkan baris di `MUSIC_FILES` dengan key yang sama dengan `music` stage itu.

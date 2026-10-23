@@ -1279,6 +1279,17 @@ function drawIcicle(x, y) {
     R(x + (8 - w) / 2, y + r, 1, 1, '#fcfcfc');
   }
 }
+// a meteor of the Rock Breaker ultra, size px across, its flames trailing up behind it
+function drawMeteor(x, y, size) {
+  const r = size / 2,
+    q = size / 40;
+  for (let k = 4; k >= 1; k--) circle(x + r, y + r - k * 11 * q, (14 - k * 2.5) * q, k & 1 ? '#f8a800' : '#f83800');
+  glow(x + r, y + r, size, '#f86000', 0.8);
+  circle(x + r, y + r, r, '#0a0a16');
+  circle(x + r, y + r, r - 1, '#7a5a3a');
+  circle(x + r - 5 * q, y + r - 5 * q, 8 * q, '#9a7a5a');
+  circle(x + r + 7 * q, y + r + 6 * q, 4 * q, '#5a3a2a');
+}
 function drawRock(x, y, s) {
   sprite(
     x,
@@ -1579,12 +1590,11 @@ function drawPlayerShot(s) {
       ctx.globalAlpha = 1;
       return;
     case 'meteor':
-      for (let k = 4; k >= 1; k--) circle(x + 20, y + 20 - k * 11, 14 - k * 2.5, k & 1 ? '#f8a800' : '#f83800');
-      glow(x + 20, y + 20, 40, '#f86000', 0.8);
-      circle(x + 20, y + 20, 20, '#0a0a16');
-      circle(x + 20, y + 20, 19, '#7a5a3a');
-      circle(x + 15, y + 15, 8, '#9a7a5a');
-      circle(x + 27, y + 26, 4, '#5a3a2a');
+      drawMeteor(x, y, 40);
+      return;
+    case 'mmeteor':
+      if (s.delay > 0) return;
+      drawMeteor(x, y, 24);
       return;
     case 'pquake':
       drawRock(x, y + 4, 16);

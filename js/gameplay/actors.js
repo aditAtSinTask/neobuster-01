@@ -705,7 +705,9 @@ function fireUltra(p) {
             ultra: true,
           });
         break;
-      case 'earth': // meteor: falls ahead of the player and explodes into shockwaves and rocks
+      case 'earth': {
+        // meteor: falls ahead of the player and explodes into shockwaves and rocks, while 4 medium meteors rain down
+        // at random spots over the screen (one in each quarter of it, in a random order) and burst into fragments
         addShot({
           kind: 'meteor',
           weapon: 'earth',
@@ -720,7 +722,27 @@ function fireUltra(p) {
           charged: true,
           ultra: true,
         });
+        const order = [0, 1, 2, 3].sort(() => Math.random() - 0.5);
+        order.forEach((q, i) =>
+          addShot({
+            kind: 'mmeteor',
+            weapon: 'earth',
+            x: camX + ((q + 0.15 + Math.random() * 0.7) * VW) / 4 - 12,
+            y: camY - 34 - Math.random() * 30,
+            w: 24,
+            h: 24,
+            vx: (Math.random() - 0.5) * 1.2,
+            vy: 2.5,
+            delay: 4 + i * 9 + Math.floor(Math.random() * 6),
+            dmg: 5,
+            bossDmg: 4,
+            pierce: true,
+            charged: true,
+            ultra: true,
+          }),
+        );
         break;
+      }
     }
   game.flash = 8;
   game.shake = 10;
@@ -808,6 +830,7 @@ function meteorImpact(s) {
       vy: -4 - Math.random() * 2,
       grav: 0.22,
       dmg: 2,
+      bossDmg: 2,
     });
   }
   for (const e of enemies)
@@ -815,6 +838,36 @@ function meteorImpact(s) {
       hitEnemy({ kind: 'blast', weapon: 'earth', x: e.x, y: e.y, w: e.w, h: e.h, dmg: 6 }, e);
   if (boss && Math.hypot(bcx(boss) - cx, boss.y + boss.h / 2 - gy) < 90)
     hitBoss({ kind: 'blast', weapon: 'earth', x: boss.x, y: boss.y, w: boss.w, h: boss.h, bossDmg: 6, ultra: true });
+}
+// a medium meteor of the Meteor ultra lands: a small blast, and a fan of rock fragments that hurt the enemies they hit
+function meteorShatter(s) {
+  s.dead = true;
+  const cx = s.x + s.w / 2,
+    gy = s.y + s.h;
+  game.shake = Math.max(game.shake, 9);
+  sfx.shatter();
+  sfx.quake();
+  boom(cx, gy - 8);
+  debris(cx, gy - 6, '#9a7a5a', 8, 2.6);
+  for (const v of [-2.8, -1.7, -0.6, 0.6, 1.7, 2.8])
+    addShot({
+      kind: 'frag',
+      weapon: 'earth',
+      x: cx - 3,
+      y: gy - 12,
+      w: 6,
+      h: 6,
+      vx: v,
+      vy: -3.4 - Math.random() * 1.6,
+      grav: 0.22,
+      dmg: 2,
+      bossDmg: 2,
+    });
+  for (const e of enemies)
+    if (!e.dead && !e.hidden && Math.hypot(e.x + e.w / 2 - cx, e.y + e.h / 2 - gy) < 40)
+      hitEnemy({ kind: 'blast', weapon: 'earth', x: e.x, y: e.y, w: e.w, h: e.h, dmg: 3 }, e);
+  if (boss && Math.hypot(bcx(boss) - cx, boss.y + boss.h / 2 - gy) < 44)
+    hitBoss({ kind: 'blast', weapon: 'earth', x: boss.x, y: boss.y, w: boss.w, h: boss.h, bossDmg: 3, ultra: true });
 }
 
 function chargeTick(p) {
@@ -1011,6 +1064,18 @@ function updateShot(s) {
         part({ kind: 'ember', x: s.x + 8 + Math.random() * 24, y: s.y + 4, vx: 0, vy: -1.2, life: 16 });
       if (s.y > camY && solidPx(s.x + s.w / 2, s.y + s.h)) meteorImpact(s);
       if (s.y > camY + VH + 64) s.dead = true;
+      return;
+    case 'mmeteor':
+      if (s.delay > 0) {
+        s.delay--;
+        return;
+      }
+      s.vy = Math.min(s.vy + 0.18, 8);
+      s.x += s.vx;
+      s.y += s.vy;
+      if (s.t % 3 === 0) part({ kind: 'ember', x: s.x + 4 + Math.random() * 16, y: s.y + 2, vx: 0, vy: -1, life: 12 });
+      if (s.y > camY && solidPx(s.x + s.w / 2, s.y + s.h)) meteorShatter(s);
+      if (s.y > camY + VH + 48) s.dead = true;
       return;
     case 'whirl':
       s.x += s.vx;
@@ -3246,6 +3311,32 @@ function pick(b, opts) {
   b.t = 0;
   b.fired = false;
 }
+// pick() with weights ({ attack: weight }), also never the last attack again
+function pickBy(b, weights) {
+  const o = Object.keys(weights).filter(a => a !== b.last);
+  let r = Math.random() * o.reduce((n, a) => n + weights[a], 0);
+  b.state = b.last = o.find(a => (r -= weights[a]) < 0) || o[o.length - 1];
+  b.t = 0;
+  b.fired = false;
+}
+// where the player's middle will be in f frames if they keep running the way they are
+const leadX = f => pcx() + clamp(player.vx, -1.6, 1.6) * f;
+// hide a boss (warping, digging: out of the room, invulnerable); show() puts it back on the floor at x
+const vanish = b => {
+  b.warpY = b.y;
+  b.y = -400;
+  b.inv = 999;
+  b.vx = b.vy = 0;
+};
+const show = (b, x) => {
+  const Rm = ROOM();
+  b.x = clamp(x, Rm.l + 4, Rm.r - b.w - 4);
+  b.y = Rm.floor - b.h;
+  b.inv = 0;
+  b.onGround = true;
+  faceP(b);
+  dust(bcx(b), b.y + b.h, 5);
+};
 function jumpAt(b, vy, frames, maxV) {
   b.vy = vy;
   b.vx = clamp((pcx() - bcx(b)) / frames, -maxV, maxV);
@@ -3277,6 +3368,132 @@ Object.assign(ESHOT_KINDS, {
           4,
         );
       glow(x + s.w / 2, y + s.h, 8, '#58b8f8', 0.35);
+    },
+  },
+});
+
+// Terralyn's own: the mound of earth over her while she tunnels (shaking, the floor cracking green round it, just
+// before she bursts out), the pillar of rock she bursts out in, and the stones circling her, which stop the player's
+// shots until she hurls them
+Object.assign(ESHOT_KINDS, {
+  tmound: {
+    update(s) {
+      // earth thrown up over her as she tunnels; before the burst it spurts, and the floor shakes
+      if (s.t % (s.warn ? 2 : 4) === 0)
+        part({
+          kind: 'debris',
+          x: s.x + 6 + Math.random() * (s.w - 12),
+          y: s.y + 1,
+          vx: (Math.random() - 0.5) * (s.warn ? 2.4 : 1.6),
+          vy: (s.warn ? -2.4 : -1.4) - Math.random(),
+          grav: 0.2,
+          life: 18,
+          col: '#8a6a4a',
+          size: 2,
+        });
+      if (s.warn) {
+        game.shake = Math.max(game.shake, 2);
+        if (s.t % 3 === 0) dust(s.x + s.w / 2, s.y + s.h, 1);
+      }
+    },
+    draw(s, x, y) {
+      const j = s.warn ? (frameCount & 2 ? 1 : -1) : 0,
+        cx = x + s.w / 2,
+        fy = y + s.h; // the floor
+      if (s.warn) {
+        // bright cracks running out along the floor from it, pulsing (they stand out on grass, rock and dirt alike)
+        const on = Math.sin(s.t * 0.7) > -0.3;
+        glow(cx, fy, 34, '#f8f058', on ? 0.9 : 0.5);
+        for (const d of [-1, 1])
+          for (const [a, b, dy] of [
+            [16, 9, 0],
+            [27, 6, 1],
+            [35, 4, 0],
+          ])
+            R(d > 0 ? cx + a - b : cx - a, fy - 2 + dy, b, 2, on ? '#fcf8c0' : '#f8e058');
+      }
+      // a mound of broken earth over her
+      R(x + 1 + j, y + 5, s.w - 2, 5, '#5a3a2a');
+      R(x + 5 + j, y + 2, s.w - 10, 4, '#7a5a3a');
+      R(cx - 5 + j, y, 10, 3, s.warn && frameCount & 4 ? '#e8d8a8' : '#9a7a5a');
+      R(x + 5 + j, y + 6, 3, 1, '#3a2418');
+      R(x + s.w - 9 + j, y + 4, 3, 1, '#3a2418');
+      R(cx - 2 + j, y + 3, 2, 2, '#a88a6a');
+      if (s.warn) R(cx + j, y + 1, 1, 6, '#fcf8c0');
+    },
+  },
+  tspike: {
+    pierce: true,
+    update(s) {
+      // shoots up out of the floor in a few frames (after its delay), stands, then crumbles away
+      s.age = (s.age || 0) + 1;
+      s.h = Math.max(1, Math.round(s.full * Math.min(1, s.age / 4)));
+      s.y = s.base - s.h;
+      if (--s.life <= 0) {
+        s.dead = true;
+        debris(s.x + s.w / 2, s.base - 12, '#8a6a4a', 6, 2);
+      }
+    },
+    draw(s, x, y) {
+      if (s.delay > 0) return;
+      // a jagged column narrowing to a point, a green glow at its root
+      const rows = Math.ceil(s.h / 4);
+      for (let i = 0; i < rows; i++) {
+        const w = Math.max(2, Math.round(s.w * (1 - (i / Math.max(1, rows - 1)) * 0.8))),
+          ox = x + Math.round((s.w - w) / 2) + (i & 1);
+        R(ox, y + s.h - (i + 1) * 4, w, 4, '#7a5a3a');
+        R(ox, y + s.h - (i + 1) * 4, 1, 4, '#a88a6a');
+        R(ox + w - 1, y + s.h - (i + 1) * 4, 1, 4, '#4a3020');
+      }
+      glow(x + s.w / 2, y + s.h, 20, '#8ae858', 0.5);
+    },
+  },
+  tstone: {
+    pierce: true,
+    update(s) {
+      const o = s.owner;
+      if (!s.go) {
+        // circling her; knocked out of the attack (a weakness hit), she lets the stones drop and break
+        if (!boss || boss !== o || o.state !== 'orbit') {
+          s.dead = true;
+          debris(s.x + 6, s.y + 6, '#8a6a4a', 4, 1.5);
+          return;
+        }
+        s.r = Math.min(30, s.r + 1.5);
+        s.ang += o.hp <= o.maxHp / 2 ? 0.11 : 0.085;
+        s.x = bcx(o) + Math.cos(s.ang) * s.r - 6;
+        s.y = o.y + 4 + Math.sin(s.ang) * s.r * 0.55 - 6;
+      } else {
+        s.x += s.vx;
+        s.y += s.vy;
+        if (solidPx(s.x + 6, s.y + 6)) {
+          s.dead = true;
+          debris(s.x + 6, s.y + 6, '#8a6a4a', 5, 2);
+          sfx.crumble();
+          return;
+        }
+      }
+      // a stone stops the player's shots; a shot that goes through enemies (or an ultra) breaks it and flies on
+      for (const q of pshots) {
+        if (q.dead || q.deflected || q.delay > 0 || !q.w || !q.h || !overlap(q, s)) continue;
+        s.hp -= q.ultra ? 99 : q.pierce ? 3 : Math.max(1, q.dmg || 1);
+        spark(q.x + q.w / 2, q.y + q.h / 2);
+        if (!q.pierce && !q.ultra) {
+          if (isRock(q)) shatterRock(q);
+          else q.dead = true;
+        }
+        if (s.hp <= 0) {
+          s.dead = true;
+          debris(s.x + 6, s.y + 6, '#8a6a4a', 6, 2);
+          sfx.shatter();
+          return;
+        }
+        sfx.deflect();
+      }
+    },
+    draw(s, x, y) {
+      glow(x + 6, y + 6, 12, '#8ae858', s.go ? 0.5 : 0.3);
+      drawRock(x, y, 12);
     },
   },
 });
@@ -3852,18 +4069,100 @@ const BOSSES = {
     pal: { B: '#7a4a20', b: '#d8b070', S: SKIN },
     weapon: 'earth',
     weak: 'elec',
-    pose: (b, pose) => (b.state === 'stagger' ? 'hurt' : pose),
+    // arms up while the stones rise round her; running when she closes in
+    pose: (b, pose) =>
+      b.state === 'stagger'
+        ? 'hurt'
+        : b.state === 'orbit' && b.t < 26
+          ? 'raise'
+          : b.vx && b.onGround && (b.state === 'idle' || b.state === 'orbit')
+            ? 'run'
+            : pose,
+    // She keeps the pressure on: short pauses, walking in on a player who keeps away, the attack picked for the
+    // distance, everything she throws aimed where the player is running to, and rock spikes for a player who crowds
+    // her or jumps over her. Enraged (half HP) she is faster still, slams twice, throws three boulders, tunnels faster
+    // and the spikes reach further.
     update(b, enr) {
-      const Rm = ROOM();
+      const Rm = ROOM(),
+        dx = pcx() - bcx(b),
+        far = Math.abs(dx);
       if (b.landT > 0) b.landT--; // the rock spikes bursting up where she landed
       switch (b.state) {
         case 'idle':
           faceP(b);
+          b.again = false;
+          b.mode = '';
+          b.vx = far > 110 ? Math.sign(dx) * (enr ? 1.6 : 1.2) : 0;
+          if (b.vx) {
+            if (moveX(b, b.vx)) b.vx = 0;
+            b.anim++;
+          }
           physics(b);
-          if (b.t > (enr ? 18 : 32)) pick(b, ['quake', 'boulder', 'rockrain']);
+          // a player jumping over her, or crowding her, gets the rock spikes at once
+          if (
+            b.t > 6 &&
+            b.last !== 'spikes' &&
+            (far < 30 || (far < 48 && !player.onGround && player.y + player.h < b.y + 6))
+          ) {
+            b.vx = 0;
+            b.state = b.last = 'spikes';
+            b.t = 0;
+            break;
+          }
+          if (b.t > (enr ? 14 : 24)) {
+            b.vx = 0;
+            // up close the spikes, the slam and the stones, from afar the boulders, the rain and the dig
+            pickBy(
+              b,
+              far < 72
+                ? { spikes: 2, quake: 3, orbit: 3, boulder: 1, dig: 1 }
+                : far < 150
+                  ? { quake: 2, boulder: 3, rockrain: 2, dig: 2, orbit: 1 }
+                  : { boulder: 3, rockrain: 3, dig: 3, quake: 1 },
+            );
+          }
           break;
-        case 'quake':
-          if (b.t === 1) jumpAt(b, -6.8, 56, 2);
+        case 'spikes': // stamps (the floor trembles round her first), and rock spikes burst up on both sides of her
+          physics(b);
+          if (b.t === 1) {
+            faceP(b);
+            sfx.rumble();
+          }
+          if (b.t < 12 && b.t % 2 === 0) dust(bcx(b) + (Math.random() - 0.5) * 60, Rm.floor, 1);
+          if (b.t === 12) {
+            b.landT = 14;
+            game.shake = 8;
+            sfx.quake();
+            for (const d of [-1, 1])
+              for (const k of enr ? [1, 2, 3] : [1, 2])
+                eshots.push({
+                  kind: 'tspike',
+                  x: bcx(b) - 7 + d * (4 + k * 15),
+                  y: Rm.floor - 1,
+                  base: Rm.floor,
+                  full: k === 1 ? 38 : 30,
+                  w: 14,
+                  h: 1,
+                  life: 18,
+                  dmg: 3,
+                  t: 0,
+                  delay: (k - 1) * 4,
+                  big: true,
+                });
+          }
+          if (b.t >= 36) bossToIdle(b);
+          break;
+        case 'quake': // leaps onto where the player is running to; the landing sends a rock wave both ways along the floor
+          if (b.t < 1) {
+            physics(b); // the crouch before the second leap
+            break;
+          }
+          if (b.t === 1) {
+            const m = enr ? 3 : 2.6;
+            b.vy = -6.8;
+            b.vx = clamp((leadX(30) - bcx(b)) / 54, -m, m);
+            b.onGround = false;
+          }
           airborne(b);
           if (b.onGround && b.t > 3) {
             game.shake = 18;
@@ -3885,23 +4184,34 @@ const BOSSES = {
                 big: true,
               });
             b.landT = 14;
-            bossToIdle(b);
+            if (enr && !b.again) {
+              // enraged: a second leap after a short crouch
+              b.again = true;
+              b.t = -10;
+              b.vx = 0;
+            } else bossToIdle(b);
           }
           break;
-        case 'boulder':
+        case 'boulder': {
+          // hurls boulders one after another from her rock fist, each aimed where the player is running to; they burst
+          // into fragments where they land
           physics(b);
+          const throws = enr ? [14, 30, 46] : [14, 36];
+          b.mode = throws.some(t => b.t > t - 10 && b.t < t) ? 'charge' : '';
           if (b.t === 1) faceP(b);
-          if (b.t === 14) {
+          if (throws.includes(b.t)) {
+            faceP(b);
             b.arm = 14;
             sfx.rock();
-            // hurled from her rock fist
+            // about 37 frames in the air: led by most of that, so running on at the same pace does not escape it
+            const x0 = bcx(b) + b.facing * 14;
             eshots.push({
               kind: 'boulder',
-              x: bcx(b) + b.facing * 14 - 8,
+              x: x0 - 8,
               y: b.y + 2,
               w: 16,
               h: 16,
-              vx: clamp((pcx() - bcx(b)) / 45, -3, 3),
+              vx: clamp((leadX(26) - x0) / 37, -3.4, 3.4),
               vy: -4.5,
               grav: 0.25,
               dmg: 4,
@@ -3910,33 +4220,173 @@ const BOSSES = {
               big: true,
             });
           }
-          if (b.t >= 36) bossToIdle(b);
+          if (b.t >= throws[throws.length - 1] + 22) bossToIdle(b);
           break;
-        case 'rockrain':
+        }
+        case 'rockrain': // calls down rocks: on the player, where the player is running to, and all over the room
           physics(b);
           if (b.t === 10) {
             b.arm = 24;
             sfx.quake();
             game.shake = 10;
-            const xs = [pcx()],
-              n = enr ? 5 : 4;
-            for (let i = 0; i < n; i++) xs.push(Rm.l + 16 + Math.random() * (Rm.r - Rm.l - 32));
+            const xs = [pcx(), leadX(42)];
+            for (let i = 0; i < (enr ? 5 : 4); i++) xs.push(Rm.l + 16 + Math.random() * (Rm.r - Rm.l - 32));
             xs.forEach((x, i) =>
               enemyShot(x, Rm.ceil, 0, 0, 3, {
                 kind: 'fallrock',
-                x: x - 7,
+                x: clamp(x, Rm.l + 8, Rm.r - 8) - 7,
                 y: Rm.ceil,
                 w: 14,
                 h: 14,
                 grav: 0.3,
-                delay: 35 + i * 5,
+                delay: (enr ? 26 : 32) + i * 4,
                 solidDie: true,
                 big: true,
               }),
             );
           }
-          if (b.t >= 60) bossToIdle(b);
+          if (b.t >= 58) bossToIdle(b);
           break;
+        case 'dig': {
+          // smashes into the ground and tunnels after the player (the mound of earth over her shows where), stops when
+          // under them or out of time, the floor cracks green, and she bursts up in a pillar of rock, fragments flying
+          if (b.t < 12) {
+            if (b.t === 1) {
+              faceP(b);
+              b.landT = 12;
+              game.shake = 6;
+              sfx.quake();
+            }
+            physics(b);
+            break;
+          }
+          if (b.t === 12) {
+            b.digX = bcx(b);
+            b.phase = 'tunnel';
+            dust(b.digX, b.y + b.h, 8);
+            debris(b.digX, b.y + b.h - 6, '#8a6a4a', 10, 2.5);
+            sfx.crumble();
+            vanish(b);
+            b.mound = {
+              kind: 'tmound',
+              x: b.digX - 14,
+              y: Rm.floor - 10,
+              w: 28,
+              h: 10,
+              harmless: true,
+              t: 0,
+              delay: 0,
+            };
+            eshots.push(b.mound);
+          }
+          if (b.phase === 'tunnel') {
+            // faster than the player runs, so she gets under them unless they keep running for the whole of it
+            const d = pcx() - b.digX,
+              sp = enr ? 3.2 : 2.6;
+            b.digX = clamp(b.digX + clamp(d, -sp, sp), Rm.l + 14, Rm.r - 14);
+            if (b.t % 20 === 0) sfx.rumble();
+            if (b.t >= 12 + (enr ? 90 : 110) || (Math.abs(d) < 2 && b.t > 30)) {
+              b.phase = 'warn';
+              b.warnT = enr ? 18 : 26;
+              b.mound.warn = true;
+              sfx.rumble();
+            }
+          } else if (b.phase === 'warn' && --b.warnT <= 0) {
+            b.phase = 'up';
+            b.mound.dead = true;
+            show(b, b.digX - b.w / 2);
+            b.vy = -7.2;
+            b.onGround = false;
+            game.shake = 14;
+            sfx.quake();
+            sfx.shatter();
+            eshots.push({
+              kind: 'tspike',
+              x: b.digX - 9,
+              y: Rm.floor - 1,
+              base: Rm.floor,
+              full: 44,
+              w: 18,
+              h: 1,
+              life: 20,
+              dmg: 4,
+              t: 0,
+              delay: 0,
+              big: true,
+            });
+            for (const v of enr ? [-3, -1.8, -0.7, 0.7, 1.8, 3] : [-2.6, -1.2, 1.2, 2.6])
+              enemyShot(b.digX, Rm.floor - 24, v, -4.4 - Math.abs(v) * 0.3, 3, {
+                kind: 'frag',
+                grav: 0.22,
+                solidDie: true,
+              });
+          }
+          if (b.mound) b.mound.x = b.digX - 14;
+          if (b.phase === 'up') {
+            airborne(b);
+            if (b.onGround && b.vy >= 0) {
+              b.landT = 10;
+              b.phase = '';
+              bossToIdle(b);
+            }
+          }
+          break;
+        }
+        case 'orbit': {
+          // raises four stones that circle her and stop the player's shots, walks in behind them, then hurls them at the
+          // player one by one
+          physics(b);
+          const fling = enr ? 66 : 86;
+          if (b.t === 1) {
+            faceP(b);
+            game.shake = 4;
+            sfx.quake();
+            b.stones = [];
+            for (let i = 0; i < 4; i++) {
+              const s = {
+                kind: 'tstone',
+                owner: b,
+                ang: (i * Math.PI) / 2,
+                r: 4,
+                x: bcx(b) - 6,
+                y: b.y + b.h - 10,
+                w: 12,
+                h: 12,
+                hp: 3,
+                dmg: 3,
+                t: 0,
+                delay: 0,
+                big: true,
+              };
+              eshots.push(s);
+              b.stones.push(s);
+            }
+          }
+          b.vx = 0;
+          if (b.t > 26 && b.t < fling) {
+            faceP(b);
+            if (far > 44) {
+              b.vx = Math.sign(dx) * (enr ? 0.9 : 0.7);
+              if (moveX(b, b.vx)) b.vx = 0;
+              b.anim++;
+            }
+          }
+          if (b.t >= fling && (b.t - fling) % 8 === 0 && b.t < fling + 32) {
+            const s = b.stones.find(q => !q.go && !q.dead);
+            if (s) {
+              faceP(b);
+              b.arm = 10;
+              sfx.rock();
+              const sp = enr ? 4.4 : 3.8,
+                a = Math.atan2(pcy() - (s.y + 6), leadX(14) - (s.x + 6));
+              s.go = true;
+              s.vx = Math.cos(a) * sp;
+              s.vy = Math.sin(a) * sp;
+            }
+          }
+          if (b.t >= fling + 36) bossToIdle(b);
+          break;
+        }
       }
     },
   },

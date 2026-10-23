@@ -2222,23 +2222,7 @@ function drawWave(x, y, w, h, dir) {
 }
 
 // ================= BOSSES =================
-// hide a boss while it warps (out of the room, invulnerable); show() puts it back on the floor at x
-const vanish = b => {
-  b.warpY = b.y;
-  b.y = -400;
-  b.inv = 999;
-  b.vx = b.vy = 0;
-};
-const show = (b, x) => {
-  const Rm = ROOM();
-  b.x = clamp(x, Rm.l + 4, Rm.r - b.w - 4);
-  b.y = Rm.floor - b.h;
-  b.inv = 0;
-  b.onGround = true;
-  faceP(b);
-  dust(bcx(b), b.y + b.h, 5);
-};
-
+// (hiding a boss while it warps: vanish() and show() in js/gameplay/actors.js)
 Object.assign(BOSSES, {
   hydro: {
     name: 'HYDROS',

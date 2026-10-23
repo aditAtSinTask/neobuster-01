@@ -23,6 +23,21 @@ const TERRALYN_TONES = {
   w: '#f4e8d0',
 };
 const TERRA_BODY = { hipW: 2.5, shB: [18.8, 19.8], shF: [30.4, 20.2], upper: 3.6, fore: 4.8 };
+// running in on the player: heavy strides, leaning in, the rock fist swinging
+const TERRA_GAIT = {
+  stride: 46,
+  stance: 0.32,
+  hipW: 2.5,
+  lift: 5,
+  kick: 0.5,
+  reach: 3.2,
+  hip: 33,
+  sink: 0.8,
+  rise: 0.8,
+  lean: 9,
+  arm: 30,
+  elbow: 70,
+};
 const TERRA_POSES = {
   stand: { legs: { b: [-26, -18, 0], f: [30, -6, 0] }, arms: { b: [-18, 16], f: [14, 48] }, lean: 2 },
   // the boulder: the rock fist drawn back as green energy gathers in it, then thrust out in a burst
@@ -72,7 +87,7 @@ const _terraPoses = {};
 function terraPose(id) {
   return _terraPoses[id] || (_terraPoses[id] = ncPose(id, TERRA_POSES[id]));
 }
-// the energy gathers in her fist before the boulder (thrown at tick 14; see BOSSES.earth), bursts as it leaves, and her
+// the energy gathers in her fist before each boulder (see BOSSES.earth: mode 'charge'), bursts as it leaves, and her
 // arm stays out for a moment; the quake leap rises, punches at the top, falls and lands in a burst of rock spikes
 function terraFrame(pose, fr, arm, big, opt) {
   if (big || pose === 'action') return terraPose('action');
@@ -82,9 +97,18 @@ function terraFrame(pose, fr, arm, big, opt) {
     const vy = opt.vy || 0;
     return terraPose(vy < -2.5 ? 'jumpR' : vy < 2 ? 'jumpP' : 'jumpF');
   }
+  if (pose === 'run') {
+    // the cycle advances with the distance run (fr counts 1.4 px steps); ten frames a stride
+    const n = 10,
+      i = Math.floor(((fr * 1.4 * 2) / TERRA_GAIT.stride) * n) % n;
+    return (
+      _terraPoses['run' + i] ||
+      (_terraPoses['run' + i] = ncPose('run' + i, ncGait(Object.assign({}, NC_BODY, TERRA_BODY), TERRA_GAIT, i / n)))
+    );
+  }
   if (opt.landT > 0) return terraPose('land');
   if (arm) return terraPose(opt.armT > 9 ? 'fire' : 'shoot');
-  if (opt.state === 'boulder' && opt.t < 14) return terraPose('charge');
+  if (opt.state === 'boulder' && (opt.t < 14 || opt.mode === 'charge')) return terraPose('charge');
   return terraPose('stand');
 }
 

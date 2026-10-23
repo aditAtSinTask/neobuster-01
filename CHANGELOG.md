@@ -2,6 +2,32 @@
 
 Semua perubahan NEOBUSTER, versi terbaru di atas. Versi ditulis di konstanta `VERSION` di `js/core/engine.js`.
 
+## 1.17.0
+
+- **Ultra Rock Breaker (Meteor) diperkuat.** Selain meteor besar, kini **4 meteor sedang** jatuh di posisi acak: satu di tiap seperempat layar, dengan urutan dan waktu yang acak.
+  - Meteor sedang menembus musuh yang dilewatinya. Saat menghantam tanah, ia meledak kecil dan pecah jadi 6 serpihan.
+  - Semua serpihan, juga dari meteor besar, melukai musuh dan boss yang terkena: 2 damage ke musuh dan 2 ke boss (sebelumnya 1).
+  - Dalam uji dengan 9 musuh di satu layar, serpihan mengenai musuh 28–31 kali per ultra, dan semua musuh terluka.
+- **Terralyn lebih jago:**
+  - Jeda antar-serangan lebih singkat: 24 frame, saat marah 14 (sebelumnya 32 dan 18). Ia berjalan mendekat kalau kamu menjauh.
+  - Serangan dipilih sesuai jarak, dan semua lemparannya dibidik ke arah larimu. Sebelumnya batu besarnya selalu jatuh di depanmu.
+  - Lompatan hentakan menuju arah larimu. Saat marah, ia langsung melompat lagi (dua hentakan).
+  - Melempar 2 batu besar beruntun, saat marah 3. Setiap batu pecah jadi serpihan.
+  - Hujan batu lebih rapat: 6 batu, saat marah 7, termasuk satu di depan arah larimu.
+  - Baru, **menggali**: ia menghantam tanah dan mengejarmu di bawah tanah, sedikit lebih cepat dari larimu. Gundukan tanah menunjukkan posisinya.
+    - Begitu berhenti, lantai retak dan bercahaya kuning sebentar, lalu ia muncul di pilar batu dengan serpihan beterbangan.
+    - Selama di bawah tanah, ia tidak bisa diserang.
+  - Baru, **batu orbit**: 4 batu mengitarinya dan menahan tembakan sementara ia berjalan mendekat, lalu batu-batu itu dilempar satu per satu ke arahmu.
+    - Neo Buster biasa perlu 3 tembakan untuk memecahkan satu batu. Tembakan yang menembus musuh, seperti Thunder Beam (kelemahannya), langsung memecahkannya.
+    - Kalau ia terkena kelemahannya, batu-batu itu jatuh dan pecah.
+  - Baru, **duri batu**: kalau kamu terlalu dekat atau melompatinya, lantai di sekitarnya bergetar, lalu duri batu meletus di kedua sisinya. Saat marah, jangkauannya lebih jauh.
+  - Siklus lari native saat ia berjalan mendekat, dan pose ancang-ancang sebelum setiap lemparan batu.
+  - Uji: dengan bot yang menghindar dan memakai Thunder Beam, Terralyn baru membuat bot kehilangan 44–55 HP per pertarungan (versi lama 20–39 HP), dan pertarungan tetap bisa dimenangkan. Semua serangan selesai tanpa macet.
+- Helper boss bersama di `js/gameplay/actors.js`:
+  - `vanish()` / `show()` dipindah dari `vespera.js`.
+  - Baru: `pickBy()` (memilih serangan dengan bobot) dan `leadX()` (posisi pemain beberapa frame lagi).
+- README: tabel serangan boss Azura (baru) dan ultra Meteor. docs/MENAMBAH-KONTEN.md: helper untuk AI boss.
+
 ## 1.16.1
 
 - **Musik saat mati di stage.** Setiap kali pemain mati (jatuh ke jurang atau HP habis), di stage maupun Training Ground, `gameover.mp3` diputar sekali; sebelumnya musik langsung berhenti dan hanya bunyi ledakan yang terdengar. Kalau nyawa habis, lagunya berlanjut di layar game over, tidak diulang.

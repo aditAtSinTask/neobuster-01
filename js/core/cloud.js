@@ -249,6 +249,7 @@ const cloudHasProgress = s =>
     Object.keys(s.armors || {}).length ||
     s.snap ||
     (s.train && s.train.wave) ||
+    (s.arena && s.arena.wave) ||
     (s.stats && (s.stats.atk > 1 || s.stats.def > 1))
   );
 
@@ -568,6 +569,7 @@ const cloudSummary = s => [
   ['ARMOR', String(Object.keys(s.armors || {}).length)],
   ['PART', String(Object.keys(s.parts || {}).length)],
   ['TRAINING', 'WAVE ' + ((s.train && s.train.wave) || 0)],
+  ['BOSS ARENA', 'WAVE ' + ((s.arena && s.arena.wave) || 0)],
   ['LEVEL', 'ATK ' + ((s.stats && s.stats.atk) || 1) + ' DEF ' + ((s.stats && s.stats.def) || 1)],
 ];
 // ---------- the account badge ----------

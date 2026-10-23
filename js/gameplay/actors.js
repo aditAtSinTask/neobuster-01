@@ -42,7 +42,10 @@ let enemies = [],
   hazards = [],
   plats = [],
   spawns = [];
-let boss = null;
+let boss = null; // the boss of a stage's boss room (none in the Boss Arena)
+let bosses = []; // every boss in play: [boss] in a boss room, several at once in the Boss Arena
+// a boss that area attacks can reach (not dropping in or posing at its intro)
+const bossOpen = b => b.hp > 0 && b.state !== 'drop' && b.state !== 'pose';
 const crumbling = new Map();
 
 const maxCamY = () => LH * TILE - VH;
@@ -514,7 +517,7 @@ function fireCharged(p) {
       const targets = enemies
         .filter(e => !e.dead && !e.hidden && onScreen(e.x + e.w / 2, e.y + e.h / 2, 0))
         .map(e => [e.x + e.w / 2, e.y + e.h]);
-      if (boss && boss.state !== 'drop' && boss.state !== 'pose') targets.push([bcx(boss), boss.y + boss.h]);
+      for (const b of bosses) if (bossOpen(b)) targets.push([bcx(b), b.y + b.h]);
       if (!targets.length)
         for (const d of [48, 104, 160]) {
           const tx = pcx() + f * d;
@@ -763,10 +766,11 @@ function absoluteZero(p) {
       s.dead = true;
       debris(s.x + s.w / 2, s.y + s.h / 2, '#c8f0fc', 3, 1);
     }
-  if (boss && boss.hp > 0 && boss.state !== 'drop' && boss.state !== 'pose' && BOSSES[boss.type].weapon !== 'snow') {
-    hitBoss({ kind: 'zero', weapon: 'snow', x: boss.x, y: boss.y, w: boss.w, h: boss.h, bossDmg: 5, ultra: true });
-    if (boss) boss.frozenT = 150;
-  }
+  for (const b of [...bosses])
+    if (bossOpen(b) && BOSSES[b.type].weapon !== 'snow') {
+      hitBoss({ kind: 'zero', weapon: 'snow', x: b.x, y: b.y, w: b.w, h: b.h, bossDmg: 5, ultra: true }, b);
+      if (b.hp > 0) b.frozenT = 150;
+    }
   for (let k = -7; k <= 7; k++) {
     const x = pcx() + k * 26;
     if (x < camX || x > camX + VW) continue;
@@ -836,8 +840,9 @@ function meteorImpact(s) {
   for (const e of enemies)
     if (!e.dead && !e.hidden && Math.hypot(e.x + e.w / 2 - cx, e.y + e.h / 2 - gy) < 80)
       hitEnemy({ kind: 'blast', weapon: 'earth', x: e.x, y: e.y, w: e.w, h: e.h, dmg: 6 }, e);
-  if (boss && Math.hypot(bcx(boss) - cx, boss.y + boss.h / 2 - gy) < 90)
-    hitBoss({ kind: 'blast', weapon: 'earth', x: boss.x, y: boss.y, w: boss.w, h: boss.h, bossDmg: 6, ultra: true });
+  for (const b of [...bosses])
+    if (Math.hypot(bcx(b) - cx, b.y + b.h / 2 - gy) < 90)
+      hitBoss({ kind: 'blast', weapon: 'earth', x: b.x, y: b.y, w: b.w, h: b.h, bossDmg: 6, ultra: true }, b);
 }
 // a medium meteor of the Meteor ultra lands: a small blast, and a fan of rock fragments that hurt the enemies they hit
 function meteorShatter(s) {
@@ -866,8 +871,9 @@ function meteorShatter(s) {
   for (const e of enemies)
     if (!e.dead && !e.hidden && Math.hypot(e.x + e.w / 2 - cx, e.y + e.h / 2 - gy) < 40)
       hitEnemy({ kind: 'blast', weapon: 'earth', x: e.x, y: e.y, w: e.w, h: e.h, dmg: 3 }, e);
-  if (boss && Math.hypot(bcx(boss) - cx, boss.y + boss.h / 2 - gy) < 44)
-    hitBoss({ kind: 'blast', weapon: 'earth', x: boss.x, y: boss.y, w: boss.w, h: boss.h, bossDmg: 3, ultra: true });
+  for (const b of [...bosses])
+    if (Math.hypot(bcx(b) - cx, b.y + b.h / 2 - gy) < 44)
+      hitBoss({ kind: 'blast', weapon: 'earth', x: b.x, y: b.y, w: b.w, h: b.h, bossDmg: 3, ultra: true }, b);
 }
 
 function chargeTick(p) {
@@ -997,7 +1003,7 @@ function updateShot(s) {
         s.w = Math.max(1, p.x - 2 - camX);
       }
       s.y = (p.h < 22 ? p.y + p.h - SLIDE_GUN_H : p.y) + 11 - s.h / 2; // low with the buster in a slide
-      if (s.t % 10 === 0) for (const e of [...s.hits]) if (e !== boss) s.hits.delete(e);
+      if (s.t % 10 === 0) for (const e of [...s.hits]) if (!bosses.includes(e)) s.hits.delete(e);
       burnShots(s);
       if (--s.life <= 0 || !alive(p)) s.dead = true;
       return;
@@ -1027,7 +1033,7 @@ function updateShot(s) {
         const ts = enemies
           .filter(e => !e.dead && !e.hidden && onScreen(e.x + e.w / 2, e.y + e.h / 2, 0))
           .map(e => [e.x + e.w / 2, e.y + e.h]);
-        if (boss && boss.state !== 'drop' && boss.state !== 'pose') ts.push([bcx(boss), boss.y + boss.h]);
+        for (const b of bosses) if (bossOpen(b)) ts.push([bcx(b), b.y + b.h]);
         let tx, ty;
         if (ts.length) [tx, ty] = ts[s.n++ % ts.length];
         else {
@@ -1090,7 +1096,7 @@ function updateShot(s) {
         s.vy = 0;
       }
       s.x += s.vx;
-      if (s.t % 15 === 0) for (const e of [...s.hits]) if (e !== boss) s.hits.delete(e);
+      if (s.t % 15 === 0) for (const e of [...s.hits]) if (!bosses.includes(e)) s.hits.delete(e);
       burnShots(s);
       if (solidPx(s.vx > 0 ? s.x + s.w : s.x, s.y + s.h - 8) || --s.life <= 0) {
         s.dead = true;
@@ -1194,9 +1200,8 @@ function hitEnemy(s, e) {
   else if (!s.pierce) s.dead = true;
 }
 
-function hitBoss(s) {
-  const b = boss,
-    def = BOSSES[b.type];
+function hitBoss(s, b = boss) {
+  const def = BOSSES[b.type];
   if (b.inv > 0 || b.state === 'drop' || b.state === 'pose') return;
   if (s.hits && s.kind !== 'flame') {
     if (s.hits.has(b)) return;
@@ -1232,7 +1237,7 @@ function hitBoss(s) {
   } else sfx.bossHit();
   if (isRock(s)) shatterRock(s);
   else if (!s.pierce) s.dead = true;
-  if (!(b.hp > 0)) defeatBoss();
+  if (!(b.hp > 0)) defeatBoss(b);
 }
 
 function updatePlayerShots() {
@@ -1260,7 +1265,10 @@ function updatePlayerShots() {
       else if (!s.pierce) s.dead = true;
       break;
     }
-    if (!s.dead && !s.deflected && boss && overlap(s, boss)) hitBoss(s);
+    for (const b of [...bosses]) {
+      if (s.dead || s.deflected) break;
+      if (overlap(s, b)) hitBoss(s, b);
+    }
   }
   pshots = pshots.filter(s => !s.dead);
 }
@@ -1433,10 +1441,13 @@ function updateShield(p) {
         blocked = true;
         break;
       }
-    if (!blocked && boss && boss.inv === 0 && overlap(o, boss)) {
-      hitBoss({ kind: 'orb', weapon: 'shield', x: o.x, y: o.y, w: 10, h: 10, bossDmg: 1 });
-      blocked = true;
-    }
+    if (!blocked)
+      for (const b of [...bosses])
+        if (b.inv === 0 && overlap(o, b)) {
+          hitBoss({ kind: 'orb', weapon: 'shield', x: o.x, y: o.y, w: 10, h: 10, bossDmg: 1 }, b);
+          blocked = true;
+          break;
+        }
     if (blocked) {
       p.shieldCd[i] = SHIELD_DOWN;
       spark(o.x + 5, o.y + 5);
@@ -3206,7 +3217,7 @@ function updateEnemyShots() {
       switch (s.kind) {
         case 'bcutter': {
           const o = s.owner;
-          if (!boss || boss !== o) {
+          if (!bosses.includes(o)) {
             s.dead = true;
             break;
           }
@@ -3454,7 +3465,7 @@ Object.assign(ESHOT_KINDS, {
       const o = s.owner;
       if (!s.go) {
         // circling her; knocked out of the attack (a weakness hit), she lets the stones drop and break
-        if (!boss || boss !== o || o.state !== 'orbit') {
+        if (!bosses.includes(o) || o.state !== 'orbit') {
           s.dead = true;
           debris(s.x + 6, s.y + 6, '#8a6a4a', 4, 1.5);
           return;
@@ -4407,18 +4418,18 @@ const BOSS_POINTS = 10000;
 const bossFight = type => ((save.beaten && save.beaten[type]) || 0) + 1;
 const rematchOf = n => BOSS_REMATCH[Math.min(n, BOSS_REMATCH.length) - 1];
 const bossMaxHp = type => 28 * (CONTINENTS[continentOf(type)].bossHp || 1) * rematchOf(bossFight(type)).hp;
-function spawnBoss() {
-  const type = game.stage;
-  boss = {
+// a boss of the given type standing ready to drop in at (x, y), with hp HP
+function makeBoss(type, x, y, hp) {
+  return {
     type,
-    x: (level.doorCol + 17) * TILE,
-    y: 13 * TILE,
+    x,
+    y,
     w: 18,
     h: 24,
     vx: 0,
     vy: 0,
-    hp: bossMaxHp(type),
-    maxHp: bossMaxHp(type),
+    hp,
+    maxHp: hp,
     state: 'drop',
     t: 0,
     facing: -1,
@@ -4430,18 +4441,26 @@ function spawnBoss() {
     hasCutter: true,
     fired: false,
   };
+}
+// the boss of the stage drops into its room
+function spawnBoss() {
+  const type = game.stage;
+  boss = makeBoss(type, (level.doorCol + 17) * TILE, 13 * TILE, bossMaxHp(type));
+  bosses = [boss];
   game.bossBar = 0;
 }
-function updateBoss() {
-  const b = boss;
-  if (!b) return;
+function updateBosses() {
+  for (const b of [...bosses]) updateBoss(b);
+}
+function updateBoss(b) {
   b.t++;
   if (b.inv > 0) b.inv--;
   if (b.arm > 0) b.arm--;
   if (b.state === 'drop') {
     physics(b);
     if (b.onGround) {
-      b.state = 'pose';
+      // a boss room's boss poses for its intro; in the Boss Arena they come straight at the player
+      b.state = inArena() ? 'idle' : 'pose';
       b.t = 0;
       sfx.land();
       dust(bcx(b), b.y + b.h, 4);
@@ -4470,13 +4489,17 @@ function updateBoss() {
     part({ kind: 'ember', x: bcx(b) + (Math.random() - 0.5) * 6, y: b.y - 4, vy: -0.8, life: 18 });
   if (alive(player) && overlap(b, player)) damagePlayer(4);
 }
-function defeatBoss() {
-  const b = boss;
+function defeatBoss(b = boss) {
   b.hp = 0;
   orbs(bcx(b), b.y + b.h / 2, BOSSES[b.type].pal.b);
   orbs(bcx(b), b.y + b.h / 2, '#f8d800', 0.6);
   sfx.bigBoom();
   game.flash = 10;
+  bosses = bosses.filter(o => o !== b);
+  if (inArena()) {
+    arenaBossDown(b); // the Boss Arena (js/world/arena.js): the others fight on
+    return;
+  }
   boss = null;
   eshots = [];
   game.bossFightNo = bossFight(b.type); // which fight this was (counted as a win when the clear screen is done)

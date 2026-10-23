@@ -1028,7 +1028,7 @@ POST_FX.shadow = () => {
       hole(x - camX, y - camY, r);
       if (col) tints.push([x - camX, y - camY, r * 0.7, col]);
     }
-  if (boss && boss.hp > 0) hole(bcx(boss) - camX, boss.y + 12 - camY, 34); // the boss's violet eyes give it away
+  for (const b of bosses) if (b.hp > 0) hole(bcx(b) - camX, b.y + 12 - camY, 34); // the boss's violet eyes give it away
   // a secret room's armor glows once its wall is broken
   if (!hazards.some(h => h.kind === 'seal' && !h.broken))
     for (const k of pickups)
@@ -1562,8 +1562,9 @@ function areaHit(weapon, dmg, bossDmg) {
     if (e.dead || e.hidden || !onScreen(e.x + e.w / 2, e.y + e.h / 2, 0)) continue;
     hitEnemy({ kind: 'area', weapon, x: e.x, y: e.y, w: e.w, h: e.h, dmg }, e);
   }
-  if (bossDmg && boss && boss.hp > 0 && boss.state !== 'drop' && boss.state !== 'pose')
-    hitBoss({ kind: 'area', weapon, x: boss.x, y: boss.y, w: boss.w, h: boss.h, bossDmg, ultra: true });
+  if (bossDmg)
+    for (const b of [...bosses])
+      if (bossOpen(b)) hitBoss({ kind: 'area', weapon, x: b.x, y: b.y, w: b.w, h: b.h, bossDmg, ultra: true }, b);
 }
 // a shot that rolls along the floor (tidal wave, shadow clones, bass waves): falls onto the ground, dies at walls
 function rollAlong(s) {
@@ -1577,7 +1578,7 @@ function rollAlong(s) {
   if (solidPx(s.vx > 0 ? s.x + s.w : s.x, s.y + s.h - 8) || --s.life <= 0) s.dead = true;
 }
 const reHit = (s, every) => {
-  if (s.t % every === 0 && s.hits) for (const e of [...s.hits]) if (e !== boss) s.hits.delete(e);
+  if (s.t % every === 0 && s.hits) for (const e of [...s.hits]) if (!bosses.includes(e)) s.hits.delete(e);
 };
 const RAINBOW = ['#f85858', '#f8a838', '#f8e858', '#78e858', '#58c8f8', '#7878f8', '#c878f8'];
 
@@ -2031,7 +2032,7 @@ Object.assign(SHOT_KINDS, {
     update(s) {
       if (s.t % 8 === 1) {
         const ts = enemies.filter(e => !e.dead && !e.hidden && onScreen(e.x + e.w / 2, e.y + e.h / 2, 0));
-        if (boss && boss.hp > 0 && boss.state !== 'drop' && boss.state !== 'pose') ts.push(boss);
+        ts.push(...bosses.filter(bossOpen));
         const t = ts.length
           ? ts[s.n++ % ts.length]
           : { x: camX + 40 + Math.random() * (VW - 80), y: camY + 60 + Math.random() * 100, w: 0, h: 0 };
@@ -2152,10 +2153,11 @@ Object.assign(SHOT_KINDS, {
           hitEnemy({ kind: 'area', weapon: 'light', x: e.x, y: e.y, w: e.w, h: e.h, dmg: 6 }, e);
         }
       }
-      if (boss && !s.hit.has(boss) && Math.abs(Math.hypot(bcx(boss) - cx, boss.y + 12 - cy) - s.r) < 16) {
-        s.hit.add(boss);
-        hitBoss({ kind: 'area', weapon: 'light', x: boss.x, y: boss.y, w: boss.w, h: boss.h, bossDmg: 4, ultra: true });
-      }
+      for (const b of [...bosses])
+        if (!s.hit.has(b) && Math.abs(Math.hypot(bcx(b) - cx, b.y + 12 - cy) - s.r) < 16) {
+          s.hit.add(b);
+          hitBoss({ kind: 'area', weapon: 'light', x: b.x, y: b.y, w: b.w, h: b.h, bossDmg: 4, ultra: true }, b);
+        }
       for (const e of eshots) if (!e.big && Math.hypot(e.x - cx, e.y - cy) < s.r) e.dead = true;
       if (--s.life <= 0) s.dead = true;
     },
@@ -3033,7 +3035,7 @@ Object.assign(ESHOT_KINDS, {
     update(s) {
       // flies to where the player was, then back to Chronia
       const o = s.owner;
-      if (!boss || boss !== o) {
+      if (!bosses.includes(o)) {
         s.dead = true;
         return;
       }

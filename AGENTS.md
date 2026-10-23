@@ -11,10 +11,11 @@ File ini untuk siapa pun yang melanjutkan NEOBUSTER, manusia maupun AI coding ag
 
 ## Struktur kode
 
-`js/` dikelompokkan per fungsi: `core/` (mesin dan alur game), `art/` (gambar), `characters/` (karakter native, satu folder per benua), `stages/` (data stage dan layout Azura), `gameplay/` (pemain, senjata, musuh, boss, hazard, cheat), `continents/` (satu file per benua tambahan), dan `world/` (peta dunia dan Training Ground).
+`js/` dikelompokkan per fungsi: `core/` (mesin dan alur game), `art/` (gambar), `characters/` (karakter native, satu folder per benua), `stages/` (data stage dan layout Azura), `gameplay/` (pemain, senjata, musuh, boss, hazard, cheat), `continents/` (satu file per benua tambahan), dan `world/` (peta dunia, Training Ground, dan Boss Arena).
 
 - Semua script berbagi satu scope global dan dimuat berurutan di `index.html`. Urutan itu penting, dan nama `const` / `function` di level atas setiap file harus unik.
 - Konten disimpan di tabel yang dikunci dengan key yang sama: stage, boss, dan senjata satu boss memakai satu key.
+- Boss bisa lebih dari satu sekaligus (Boss Arena): kode yang mengenai boss memakai daftar `bosses` dan `hitBoss(shot, b)`, bukan hanya `boss`. Lihat docs/MENAMBAH-KONTEN.md.
 - `validateContent()` di `js/core/main.js` mencetak peringatan `[neobuster] ...` di console untuk data yang belum lengkap.
 - Progress pemain ada di objek `save` (localStorage `neobuster-save-v1`) dan, kalau pemain masuk Cloud Save, ikut diunggah ke cloud (`js/core/cloud.js`). Setiap field baru di `save` harus diberi nilai bawaan di `normalizeSave()` (`js/core/main.js`), supaya save lama dan save dari cloud tetap bisa dimuat. Simpan perubahan lewat `writeSave()`, jangan menulis localStorage langsung: fungsi ini juga mencatat waktu perubahan dan memicu unggahan cloud. Request ke API cloud ditandatangani TOTP (`x-external-uid` + `x-external-totp`); jangan mengirim token API mentah di header.
 

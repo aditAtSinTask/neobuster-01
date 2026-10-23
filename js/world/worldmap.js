@@ -934,10 +934,12 @@ const MAP_LANDMARKS = {
 // ---------- the islands on the map ----------
 const _mapIslands = new Map(),
   _mapTerrains = new Map();
-// the island of continent i (CONTINENTS.length: the one still to come; 'train': the Training Ground) and its terrain
+// the island of continent i (CONTINENTS.length: the one still to come; 'train': the Training Ground; 'arena': the Boss
+// Arena) and its terrain
 // (computed once)
 function mapIslandOf(i) {
   if (i === 'train') return MAP_TRAINING; // the Training Ground (js/world/training.js)
+  if (i === 'arena') return MAP_ARENA; // the Boss Arena (js/world/arena.js)
   const c = CONTINENTS[i];
   if (!c) return MAP_UNKNOWN;
   return (

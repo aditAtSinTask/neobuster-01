@@ -2,7 +2,8 @@
 // The Training Ground: an island of its own on the world map (after the continents) with a wide arena where waves of
 // enemies come forever. Each wave brings more enemies than the last and they are tougher (more HP); they drop health
 // often. The run ends when you fall (no life is lost) or leave from the pause menu. The best wave is saved, and every
-// point scored goes into the POIN wallet as usual, plus a bonus for each wave cleared.
+// point scored goes into the POIN wallet as usual, plus a bonus for each wave cleared. The Boss Arena
+// (js/world/arena.js) runs on the same machinery, with game.train.mode 'boss'.
 
 const TRAIN_W = 128; // the arena's width in tiles (five screens and a bit)
 
@@ -173,7 +174,18 @@ function startTraining() {
       const under = tileAt(tx, ty + 1);
       if (trainOpen(tx, ty) && trainOpen(tx, ty - 1) && isSolidTile(under) && under !== 'U') ground.push([tx, ty]);
     }
-  game.train = { wave: 0, toSpawn: 0, spawnT: 0, maxAlive: 0, hpMul: 1, rest: 120, kills: 0, t: 0, ground };
+  game.train = {
+    mode: 'train',
+    wave: 0,
+    toSpawn: 0,
+    spawnT: 0,
+    maxAlive: 0,
+    hpMul: 1,
+    rest: 120,
+    kills: 0,
+    t: 0,
+    ground,
+  };
   game.train.points = save.points;
   game.train.best = save.train.wave;
   game.train.banner = { text: 'TRAINING GROUND', t: 100 };
@@ -227,6 +239,7 @@ function updateTraining() {
   const T = game.train;
   T.t++;
   if (T.banner && --T.banner.t <= 0) T.banner = null;
+  if (T.mode === 'boss') return updateArena(T);
   if (T.rest > 0) {
     if (--T.rest === 0) nextWave();
     return;
@@ -249,9 +262,10 @@ function updateTraining() {
 }
 // the run is over (fallen, or left from the pause menu): the results
 function endTraining() {
-  const T = game.train;
-  save.train.wave = Math.max(save.train.wave, T.wave);
-  save.train.kills = Math.max(save.train.kills || 0, T.kills);
+  const T = game.train,
+    rec = T.mode === 'boss' ? save.arena : save.train;
+  rec.wave = Math.max(rec.wave, T.wave);
+  rec.kills = Math.max(rec.kills || 0, T.kills);
   writeSave();
   T.record = T.wave > T.best;
   game.state = 'trainover';
@@ -261,9 +275,11 @@ function endTraining() {
   playMusic('title');
 }
 function leaveTraining() {
+  const arena = inArena();
   game.train = null;
+  bosses = [];
   goMap();
-  game.mapSel = CONTINENTS.length + 1;
+  game.mapSel = CONTINENTS.length + (arena ? 2 : 1);
   game.mapX = game.mapSel * MAP_SLOT;
   sfx.confirm();
 }
@@ -273,7 +289,8 @@ function drawTrainingHUD() {
   const T = game.train;
   if (T.wave) {
     text('WAVE ' + T.wave, VW / 2, 6, '#78f8fc', 1, 'center');
-    text('MUSUH ' + (T.rest > 0 ? 0 : T.toSpawn + enemies.length), VW / 2, 18, '#a8c8f8', 1, 'center');
+    const left = T.rest > 0 ? 0 : T.toSpawn + (T.mode === 'boss' ? bosses.length : enemies.length);
+    text((T.mode === 'boss' ? 'BOSS ' : 'MUSUH ') + left, VW / 2, 18, '#a8c8f8', 1, 'center');
   }
   if (T.banner) {
     const s = T.banner.text.length > 16 ? 1 : 2,
@@ -285,16 +302,17 @@ function drawTrainingHUD() {
 }
 function drawTrainOver() {
   const T = game.train,
-    sec = Math.floor(T.t / 60);
+    sec = Math.floor(T.t / 60),
+    arena = T.mode === 'boss';
   ctx.fillStyle = 'rgba(4,8,24,0.82)';
   ctx.fillRect(0, 0, VW, VH);
-  text('LATIHAN SELESAI', VW / 2, 34, '#78f8fc', 2, 'center');
+  text(arena ? 'ARENA SELESAI' : 'LATIHAN SELESAI', VW / 2, 34, arena ? '#f8a838' : '#78f8fc', 2, 'center');
   const rows = [
     ['WAVE', String(T.wave)],
-    ['MUSUH DIKALAHKAN', String(T.kills)],
+    [arena ? 'BOSS DIKALAHKAN' : 'MUSUH DIKALAHKAN', String(T.kills)],
     ['WAKTU', Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0')],
     ['POIN DIDAPAT', fmtNum(save.points - T.points)],
-    ['REKOR WAVE', String(save.train.wave)],
+    ['REKOR WAVE', String((arena ? save.arena : save.train).wave)],
   ];
   rows.forEach(([k, v], i) => {
     text(k, 110, 76 + i * 16, '#a8c8f8');

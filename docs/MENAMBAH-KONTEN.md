@@ -74,7 +74,7 @@ Satu benua = **6 boss** dalam **satu file** sendiri, misalnya `js/continents/bor
 3. Isi keenam boss di file itu (lihat bagian berikut).
 4. Susun kelemahan supaya **setiap senjata benua itu menjadi kelemahan tepat satu boss di benua yang sama**. Validator memperingatkan kalau aturan ini dilanggar. Layar kelemahan dan urutan saran dihitung otomatis dari aturan ini.
 
-File di `js/` dikelompokkan per fungsi: `core/` (mesin dan alur game), `art/` (gambar), `characters/` (karakter native, satu folder per benua), `stages/` (data stage dan layout Azura), `gameplay/` (pemain, senjata, musuh, boss, hazard, cheat), `continents/` (satu file per benua tambahan), dan `world/` (peta dunia dan Training Ground). Urutan pemuatannya ada di `index.html`.
+File di `js/` dikelompokkan per fungsi: `core/` (mesin dan alur game), `art/` (gambar), `characters/` (karakter native, satu folder per benua), `stages/` (data stage dan layout Azura), `gameplay/` (pemain, senjata, musuh, boss, hazard, cheat), `continents/` (satu file per benua tambahan), dan `world/` (peta dunia, Training Ground, dan Boss Arena). Urutan pemuatannya ada di `index.html`.
 
 Semua script berbagi satu scope global, jadi nama `const` / `function` di level atas file benua tidak boleh sama dengan nama di file lain (helper lokal sebaiknya diberi nama yang khas).
 
@@ -124,6 +124,8 @@ Helper untuk `update(b, enraged)` boss (lihat `BOSSES.earth`, Terralyn, sebagai 
 - `faceP(b)` menghadap pemain, `jumpAt(b, vy, frames, maxV)` melompat ke arah pemain, `airborne(b)` bergerak di udara.
 - `leadX(f)`: posisi tengah pemain `f` frame lagi kalau terus berlari ke arah yang sama, untuk membidik ke arah larinya.
 - `vanish(b)` menyembunyikan boss (keluar ruangan dan kebal, misalnya saat warp atau menggali), dan `show(b, x)` memunculkannya lagi di lantai pada posisi `x`.
+- Boss tidak selalu sendirian: di **Boss Arena** sampai 4 boss bertarung bersama di ruangan biasa (tanpa gimmick `BOSS_ROOMS`). Semua boss yang sedang main ada di `bosses` (di ruang boss stage isinya hanya `boss`). Senjata atau ultra yang mengenai boss harus memeriksa setiap boss di `bosses` dan memanggil `hitBoss(shot, b)`; pakai `bossOpen(b)` untuk serangan area. Proyektil yang kembali ke pemiliknya memeriksa `bosses.includes(owner)`, bukan `boss`.
+- Boss baru otomatis ikut Boss Arena setelah dikalahkan sekali. Pastikan AI-nya tetap jalan tanpa gimmick ruangannya.
 
 ### Lagu (`js/core/engine.js`)
 

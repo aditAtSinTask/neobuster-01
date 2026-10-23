@@ -10,6 +10,7 @@ function normalizeSave(s) {
   s.parts = s.parts || {}; // shop wallet and bought parts ('on' / 'off')
   s.armors = s.armors || {}; // armors found in the secret rooms, by stage
   s.train = s.train || { wave: 0, kills: 0 }; // best training ground run
+  s.arena = s.arena || { wave: 0, kills: 0 }; // best Boss Arena run
   // how many times each boss has been beaten (a rematch has more HP and gives more points); saves from before count
   // every cleared boss once
   s.beaten = s.beaten || {};
@@ -114,6 +115,7 @@ function restartFromCheckpoint() {
   eshots = [];
   particles = [];
   boss = null;
+  bosses = [];
   hazards = level.ents.filter(e => HAZARD_TYPES.includes(e.type) || HAZARD_KINDS[e.type]).map(makeHazard);
   plats = level.ents.filter(e => e.type === 'plat').map(makePlat);
   pickups = game.placed
@@ -252,7 +254,7 @@ function updatePlay() {
   if (!game.bossLocked) updateSpawns();
   updateEnemies();
   updateHazards();
-  updateBoss();
+  updateBosses();
   updatePlayerShots();
   updateEnemyShots();
   updatePickups();
@@ -343,7 +345,7 @@ function updateDoor() {
 function updateBossIntro() {
   game.t++;
   applyGravity(player);
-  updateBoss();
+  updateBosses();
   updateParticles();
   if (boss.state === 'pose' && boss.t > 30 && frameCount % 3 === 0) {
     game.bossBar++;
@@ -735,8 +737,8 @@ function step() {
     case 'map': {
       game.t++;
       if (game.mapMsgT > 0) game.mapMsgT--;
-      // the continents, then the next continent still to come, then the Training Ground
-      const slots = CONTINENTS.length + 2;
+      // the continents, then the next continent still to come, then the Training Ground and the Boss Arena
+      const slots = CONTINENTS.length + 3;
       if (hit.left && game.mapSel > 0) {
         game.mapSel--;
         sfx.select();
@@ -759,7 +761,13 @@ function step() {
           game.mapMsgT = 150;
           sfx.deflect();
         };
-        if (i === CONTINENTS.length + 1) {
+        if (i === CONTINENTS.length + 2) {
+          if (!arenaPool().length) no('KALAHKAN SATU BOSS DULU');
+          else {
+            sfx.confirm();
+            startArena();
+          }
+        } else if (i === CONTINENTS.length + 1) {
           sfx.confirm();
           startTraining();
         } else if (i >= CONTINENTS.length) no('SEGERA HADIR');
@@ -2060,9 +2068,10 @@ function drawHyper(p, cx, cy) {
   if (up) R(cx + Math.cos(s) * (r - 1.5) - 0.5, cy + Math.sin(s) * (r - 1.5) - 0.5, 1, 1, '#fcfcfc');
 }
 
-function drawBoss() {
-  const b = boss;
-  if (!b) return;
+function drawBosses() {
+  for (const b of bosses) drawBoss(b);
+}
+function drawBoss(b) {
   const def = BOSSES[b.type];
   const sx = Math.round(b.x) - camX,
     sy = Math.round(b.y) - camY;
@@ -2104,6 +2113,7 @@ function drawBoss() {
     dash: b.dash,
   });
   if (def.draw) def.draw(b, sx, sy);
+  if (inArena()) drawArenaBossHp(b, sx, sy);
   if (b.frozenT > 0) {
     ctx.globalAlpha = 0.55;
     R(sx - 3, sy - 3, b.w + 6, b.h + 6, '#a8e8fc');
@@ -2240,7 +2250,7 @@ function drawHUD() {
     R(8, 100, textWidth(max) + 6, 11, 'rgba(5,5,20,0.75)');
     text(max, 11, 102, dark);
   }
-  if (game.bossLocked)
+  if (game.bossLocked && !game.train)
     drawBar(26, 12, boss ? (game.state === 'bossintro' ? game.bossBar : (boss.hp * 28) / boss.maxHp) : 0, '#f87858');
   if (game.bossLocked && boss && boss.hp > 0) drawWeakness();
   text(String(game.score).padStart(7, '0'), VW - 8, 8, '#fcfcfc', 1, 'right');
@@ -2293,7 +2303,7 @@ function renderWorld() {
       R(x + 2, y + 3, 1, 2, '#fcfcfc');
     }
   }
-  drawBoss();
+  drawBosses();
   if (game.state !== 'ready') drawPlayer();
   for (const s of pshots) drawPlayerShot(s);
   for (const s of eshots) drawEnemyShot(s);
@@ -2691,6 +2701,7 @@ function resetProgress() {
   save.parts = {};
   save.armors = {};
   save.train = { wave: 0, kills: 0 };
+  save.arena = { wave: 0, kills: 0 };
   save.stats = { atk: 1, def: 1 };
   writeSave();
   player.weapon = 'buster';
@@ -2788,12 +2799,38 @@ function drawMap() {
   text('PETA DUNIA', VW / 2, 8, '#fcfcfc', 2, 'center');
   text('POIN ' + fmtNum(save.points), VW - 10, 12, '#f8d800', 1, 'right');
   drawCloudStatus(4, 4);
-  for (let i = 0; i <= CONTINENTS.length + 1; i++) {
+  for (let i = 0; i <= CONTINENTS.length + 2; i++) {
     const cx = Math.round(VW / 2 + i * MAP_SLOT - game.mapX);
     if (cx < -120 || cx > VW + 120) continue;
     const real = i < CONTINENTS.length,
       open = real && continentUnlocked(i),
       sel = game.mapSel === i;
+    if (i === CONTINENTS.length + 2) {
+      // the Boss Arena: open once a boss is beaten; a few of the beaten bosses wait in front of the colosseum
+      const pool = arenaPool(),
+        on = pool.length > 0;
+      drawIsland('arena', cx - 100, 40, on);
+      if (on) {
+        const [ix, iy] = islandIconAt('arena', 'arena');
+        pool.slice(-4).forEach((k, j) => {
+          const dx = [-20, 20, -34, 34][j];
+          ctx.save();
+          ctx.translate(cx - 100 + ix - 7 + dx, 40 + iy - 12);
+          ctx.scale(0.6, 0.6);
+          drawRobot(0, 0, dx < 0 ? 1 : -1, 'stand', 0, false, BOSSES[k].pal, BOSSES[k].style);
+          ctx.restore();
+        });
+      }
+      text('BOSS ARENA', cx, 162, sel ? '#fcfcfc' : '#8888a0', 1, 'center');
+      const info = !on
+        ? 'KALAHKAN SATU BOSS DULU'
+        : save.arena.wave
+          ? 'REKOR WAVE ' + save.arena.wave
+          : pool.length + ' BOSS';
+      text(info, cx, 173, on ? '#f8a838' : '#686878', 1, 'center');
+      if (sel && (frameCount >> 3) & 1) drawMapBrackets(cx);
+      continue;
+    }
     if (i === CONTINENTS.length + 1) {
       // the Training Ground: always open, Nexo waiting by the arena
       drawIsland('train', cx - 100, 40, true);
@@ -3696,7 +3733,8 @@ function drawPause() {
   // details of the selected weapon
   const it = grid[game.pr][game.pc],
     iy = 44 + Math.min(grid.length, PAUSE_ROWS) * 21 + 4;
-  if (it === 'exit') text(game.train ? 'AKHIRI LATIHAN' : 'KEMBALI KE STAGE SELECT', 20, iy, '#8888a0');
+  if (it === 'exit')
+    text(game.train ? (inArena() ? 'AKHIRI ARENA' : 'AKHIRI LATIHAN') : 'KEMBALI KE STAGE SELECT', 20, iy, '#8888a0');
   else if (owned.includes(it)) {
     text(WEAPONS[it].name, 20, iy, '#fcfcfc');
     text('CHARGE: ' + (WEAPONS[it].charged || 'BUSTER + STORM'), 20, iy + 11, '#8888a0');
@@ -3854,7 +3892,7 @@ const deltas = [];
 
 function interpTargets() {
   const list = [player, ...enemies, ...pshots, ...eshots, ...pickups, ...particles, ...plats, ...hazards];
-  if (boss) list.push(boss);
+  list.push(...bosses);
   return list;
 }
 function snapshot() {

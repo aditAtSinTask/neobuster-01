@@ -2,7 +2,7 @@
 
 > Game action-platformer 2D bergaya **Mega Man** untuk browser — pixel art dengan kepadatan pixel 2x yang detail, tapi tetap ringan dan optimal untuk web.
 
-**Versi saat ini: `1.17.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
+**Versi saat ini: `1.18.0`** — versi juga tampil di pojok kanan bawah layar title & pause, dan di judul tab browser.
 
 ---
 
@@ -17,6 +17,7 @@
 - [Boss & Senjata](#boss--senjata)
 - [Ruang Rahasia & Armor](#ruang-rahasia--armor)
 - [Training Ground](#training-ground)
+- [Boss Arena](#boss-arena)
 - [Peta Dunia & Menu Pause](#peta-dunia--menu-pause)
 - [Settings](#settings)
 - [Musik](#musik)
@@ -269,7 +270,7 @@ Di **Stage Select**, pojok kiri atas setiap panel boss menunjukkan armor stage i
 
 ## Training Ground
 
-Pulau **TRAINING GROUND** ada di ujung kanan peta dunia (sesudah pulau "???") dan selalu terbuka. Di dalamnya ada arena luas bertingkat (langkan, tangga, dan pad lontar ke jembatan di tengah) dengan musuh yang datang bergelombang **tanpa akhir**:
+Pulau **TRAINING GROUND** ada di sisi kanan peta dunia (sesudah pulau "???", sebelum [Boss Arena](#boss-arena)) dan selalu terbuka. Di dalamnya ada arena luas bertingkat (langkan, tangga, dan pad lontar ke jembatan di tengah) dengan musuh yang datang bergelombang **tanpa akhir**:
 
 - Setiap wave membawa lebih banyak musuh, dan HP mereka makin tebal (+0,5x per wave: wave 5 = 3x, wave 10 = 5,5x). Musuh baru ikut muncul dari wave 3 dan wave 5, termasuk musuh khas setiap stage.
 - Musuh sering menjatuhkan **health** (kapsul kecil dan besar).
@@ -277,9 +278,21 @@ Pulau **TRAINING GROUND** ada di ujung kanan peta dunia (sesudah pulau "???") da
 - Rekor **wave 50** membuka cheat box (lihat [Cheat Code](#cheat-code)).
 - Latihan berakhir saat kamu jatuh (tidak mengurangi life) atau memilih **EXIT STAGE** di menu pause. Layar hasil menampilkan wave, jumlah musuh, waktu, poin yang didapat, dan rekor wave (tersimpan dan tampil di peta).
 
+## Boss Arena
+
+Pulau **BOSS ARENA** ada di paling kanan peta dunia, sesudah Training Ground, dan terbuka begitu kamu mengalahkan satu boss. Di koloseumnya, **semua boss yang pernah kamu kalahkan** datang lagi, keroyokan:
+
+- Wave 1 membawa 1 boss, wave 2 membawa 2 boss, wave 3 membawa 3 boss, dan seterusnya **tanpa akhir**. Paling banyak **4 boss** bertarung sekaligus; sisa boss di wave itu masuk begitu ada yang kalah.
+- Boss langsung menyerang begitu mendarat, tanpa layar intro dan tanpa jebakan ruang bossnya. Semua boss muncul bergantian dengan urutan acak sebelum ada yang datang lagi.
+- HP setiap boss mulai dari **setengah HP bossnya di stage** (Azura 42, Vespera 70), lalu naik 10% setiap wave (wave 8: 71 dan 119). HP-nya tampil sebagai bar kecil di atas kepala masing-masing.
+- Poinnya **5x lipat Training Ground**: setiap wave yang dibereskan memberi bonus **wave x 2.500** (Training Ground wave x 500), dan setiap boss yang dikalahkan bernilai **5.000 POIN**.
+- Setiap boss yang kalah menjatuhkan kapsul energi besar.
+- Senjata dan ultra yang mengenai semua musuh di layar juga mengenai semua boss sekaligus.
+- Run berakhir saat kamu jatuh (tidak mengurangi life) atau memilih **AKHIRI ARENA** di menu pause. Layar hasil menampilkan wave, jumlah boss yang dikalahkan, waktu, poin yang didapat, dan rekor wave (tersimpan, tampil di peta, dan ikut Cloud Save). Kemenangan di Boss Arena tidak dihitung sebagai rematch.
+
 ## Peta Dunia & Menu Pause
 
-- **Peta Dunia** muncul setelah layar title. Setiap benua tampil sebagai pulau alami (pantai, hutan, sungai, gunung) dengan landmark tiap stage; boss berdiri di landmark-nya, dan yang sudah dikalahkan berganti bendera. Benua yang belum terbuka tampil gelap di bawah awan, bertanda "?". Di ujung kanan ada pulau Training Ground dengan arenanya.
+- **Peta Dunia** muncul setelah layar title. Setiap benua tampil sebagai pulau alami (pantai, hutan, sungai, gunung) dengan landmark tiap stage; boss berdiri di landmark-nya, dan yang sudah dikalahkan berganti bendera. Benua yang belum terbuka tampil gelap di bawah awan, bertanda "?". Di ujung kanan ada pulau Training Ground dengan arenanya, lalu pulau Boss Arena dengan koloseumnya.
 - Di Peta Dunia, `X` membuka **Shop** dan `C` membuka **Settings** (di HP: tombol SHOOT dan SLIDE), tanpa harus masuk ke sebuah benua dulu.
 - **Menu pause** (`Enter` / `Esc` di dalam stage) punya dua kolom:
   - **SENJATA**: grid ikon dengan satu baris untuk Neo Buster dan satu baris per benua. Slot yang belum didapat bertanda "?". Nama senjata dan charge shot-nya tampil di bawah grid.
@@ -300,14 +313,14 @@ Pilih **SETTINGS** di layar title, atau tekan `C` di Peta Dunia. Pilih baris den
 
 Musik latar berupa file MP3 di folder `music/`. Efek suara (tembakan, lompatan, ledakan, dan lainnya) tetap dibuat lewat kode.
 
-| File           | Diputar di                                                                                                                                         |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `title.mp3`    | Layar title, Settings, Cloud Save, Peta Dunia, Stage Select, layar hasil Training Ground, dan ending                                               |
-| `shop.mp3`     | Shop                                                                                                                                               |
-| `stage.mp3`    | Semua stage dan Training Ground                                                                                                                    |
-| `boss.mp3`     | Layar intro boss setelah stage dipilih, dan pertarungan boss (mulai saat pintu boss tertutup)                                                      |
-| `victory.mp3`  | Sekali, saat boss kalah (terus terdengar di layar senjata baru)                                                                                    |
-| `gameover.mp3` | Sekali, setiap kali mati (jatuh ke jurang atau HP habis), di stage maupun Training Ground. Kalau nyawa habis, lagunya berlanjut di layar game over |
+| File           | Diputar di                                                                                                                                                      |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `title.mp3`    | Layar title, Settings, Cloud Save, Peta Dunia, Stage Select, layar hasil Training Ground dan Boss Arena, dan ending                                             |
+| `shop.mp3`     | Shop                                                                                                                                                            |
+| `stage.mp3`    | Semua stage dan Training Ground                                                                                                                                 |
+| `boss.mp3`     | Layar intro boss setelah stage dipilih, pertarungan boss (mulai saat pintu boss tertutup), dan Boss Arena                                                       |
+| `victory.mp3`  | Sekali, saat boss kalah (terus terdengar di layar senjata baru)                                                                                                 |
+| `gameover.mp3` | Sekali, setiap kali mati (jatuh ke jurang atau HP habis), di stage, Training Ground, maupun Boss Arena. Kalau nyawa habis, lagunya berlanjut di layar game over |
 
 - Lagu diulang terus, kecuali `victory.mp3` dan `gameover.mp3`. Pergantian lagu memakai fade singkat. Berpindah antara title, Settings, Peta Dunia, dan Stage Select tidak memutar ulang `title.mp3`; lagu stage mulai dari awal setiap masuk stage dan setelah lanjut dari checkpoint.
 - **SETTINGS → SUARA** (atau `M`) juga mematikan musik. Musik berhenti sementara saat tab atau aplikasi tidak terlihat.
@@ -393,7 +406,7 @@ Data disimpan di `localStorage` browser (key `neobuster-save-v1`).
 - Layar title punya menu **START** (atau **CONTINUE** / **NEW GAME** jika ada save point), **SETTINGS**, dan **INSTALL APP** (kalau browser siap memasang game); pilih dengan tombol panah. Cloud Save, suara, dan reset progress ada di [Settings](#settings).
   - **CONTINUE** melanjutkan dari save point. Kalau disimpan di dalam stage, game langsung masuk ke stage itu (dari checkpoint jika sudah melewatinya).
   - **NEW GAME** mulai dengan 2 life dan skor 0. Boss yang sudah dikalahkan tetap tersimpan.
-- **Armor** dari ruang rahasia, **level ATTACK / DEFENSE**, dan **rekor wave** Training Ground tersimpan otomatis.
+- **Armor** dari ruang rahasia, **level ATTACK / DEFENSE**, dan **rekor wave** Training Ground dan Boss Arena tersimpan otomatis.
 - Untuk menghapus semua progress, buka **SETTINGS → RESET PROGRESS**, lalu pilih lagi dalam 3 detik (peringatannya tampil merah; pindah baris membatalkannya). Cara ini juga jalan di HP dan gamepad; di keyboard, `R` di layar Settings sama dengan memilih baris itu. Yang terhapus termasuk POIN, part yang sudah dibeli, level ATTACK / DEFENSE, armor, dan rekor Training Ground. Saat masuk Cloud Save, progress di cloud ikut terhapus.
 
 ## Cloud Save
@@ -402,7 +415,7 @@ Progress bisa disimpan di cloud supaya bisa dilanjutkan di perangkat mana pun. B
 
 - **Masuk tanpa daftar**: ketik username dan password. Username dan password yang sama selalu membuka save yang sama (huruf besar/kecil pada username tidak berpengaruh). Password tidak disimpan dan tidak dikirim; yang dipakai hanya hash SHA-256 dari username dan password sebagai ID save.
 - **Akun baru**: kalau belum ada save untuk username dan password itu, password diminta sekali lagi sebelum save baru dibuat, supaya salah ketik tidak membuat akun kosong. Progress perangkat itu menjadi save pertamanya.
-- **Masuk di perangkat lain**: kalau perangkat itu belum punya progress, progress dari cloud langsung dimuat. Kalau keduanya berbeda, kamu memilih mana yang dipakai (ringkasan boss, POIN, armor, part, rekor training, dan waktu simpan tampil berdampingan); yang lain akan ditimpa.
+- **Masuk di perangkat lain**: kalau perangkat itu belum punya progress, progress dari cloud langsung dimuat. Kalau keduanya berbeda, kamu memilih mana yang dipakai (ringkasan boss, POIN, armor, part, rekor Training Ground dan Boss Arena, level, dan waktu simpan tampil berdampingan); yang lain akan ditimpa.
 - **Simpan otomatis**: setelah masuk, setiap perubahan progress diunggah beberapa detik kemudian. Kalau gagal, dicoba lagi otomatis.
 - **Badge akun** di pojok kanan atas title dan pojok kiri atas peta: avatar berisi huruf pertama nama (warnanya khas untuk setiap nama), nama, dan ikon awan yang menunjukkan status: centang hijau (TERSIMPAN), panah naik yang bergerak (MENYIMPAN), tanda seru merah (OFFLINE, JAM SALAH, atau GAGAL), atau tanda tanya kuning (PILIH SAVE). Layar Cloud Save menampilkan kartu akun yang sama dalam ukuran besar, lengkap dengan waktu simpan terakhir dan penjelasan kalau gagal.
 - **Saat game dibuka lagi**, save di cloud dicek dulu. Kalau cloud lebih baru (misalnya kamu bermain di perangkat lain) dan perangkat ini tidak berubah, progress langsung diperbarui. Kalau keduanya berubah, kamu diminta memilih.
@@ -482,7 +495,8 @@ neobuster/
     │   └── vespera.js      # Benua Vespera: 6 stage, boss, senjata, musuh, hazard, dan gambarnya dalam satu file
     └── world/
         ├── worldmap.js     # pulau-pulau di peta dunia: medan alami, hutan, sungai, gunung, dan landmark tiap stage
-        └── training.js     # Training Ground: arena, gelombang musuh tanpa akhir, layar hasil, dan pulaunya di peta
+        ├── training.js     # Training Ground: arena, gelombang musuh tanpa akhir, layar hasil, dan pulaunya di peta
+        └── arena.js        # Boss Arena: koloseum, gelombang boss keroyokan, dan pulaunya di peta
 ```
 
 Detail teknis:

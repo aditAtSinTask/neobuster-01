@@ -2,6 +2,27 @@
 
 Semua perubahan NEOBUSTER, versi terbaru di atas. Versi ditulis di konstanta `VERSION` di `js/core/engine.js`.
 
+## 1.18.0
+
+- **Boss Arena (baru)**: pulau baru di paling kanan peta dunia, sesudah Training Ground, dengan koloseum. Pulau ini terbuka setelah kamu mengalahkan satu boss.
+  - Semua boss yang pernah dikalahkan datang lagi secara keroyokan: wave 1 berisi 1 boss, wave 2 berisi 2 boss, dan seterusnya tanpa akhir.
+  - Paling banyak 4 boss bertarung sekaligus; sisa boss di wave itu masuk begitu ada yang kalah. Semua boss muncul bergantian dengan urutan acak sebelum ada yang datang lagi (boss kembar baru muncul kalau pool-nya kecil).
+  - Boss langsung menyerang begitu mendarat, tanpa layar intro. HP-nya mulai dari setengah HP stage (Azura 42, Vespera 70) dan naik 10% setiap wave, dengan bar HP kecil di atas kepala masing-masing.
+  - Poinnya 5x Training Ground: bonus wave x 2.500 (Training Ground wave x 500) dan 5.000 POIN setiap boss. Setiap boss yang kalah menjatuhkan kapsul energi besar.
+  - Run berakhir saat jatuh (tidak mengurangi life) atau dengan **AKHIRI ARENA** di menu pause. Layar hasilnya menampilkan wave, boss yang dikalahkan, waktu, poin, dan rekor wave.
+  - Rekor wave disimpan di `save.arena`: tampil di peta, ikut Cloud Save (juga di ringkasan pilihan progress), dan terhapus saat reset progress. Kemenangan di arena tidak dihitung sebagai rematch.
+  - Tampilan sendiri: lantai batu pasir bergaris emas, tribun penonton di bawah langit senja dengan spanduk merah dan obor, bara api yang beterbangan, dan musik `boss.mp3`. Pulaunya pulau vulkanik dengan sungai lava, dan beberapa boss berdiri di depan koloseum.
+- **Sistem boss kini mendukung banyak boss sekaligus.** Semua boss yang sedang main ada di daftar `bosses`; di ruang boss stage isinya hanya satu, jadi pertarungan stage tidak berubah.
+  - Tembakan, senjata spesial, dan semua ultra mengenai setiap boss yang terkena. Ultra yang mengenai seluruh layar mengenai semua boss sekaligus.
+  - Proyektil yang kembali ke pemiliknya (pisau Sniptor, jarum Chronia, batu orbit Terralyn) mengikuti boss-nya masing-masing.
+- Uji:
+  - Wave 1–8 terhitung benar, maksimal 4 boss di arena, dan poinnya sesuai.
+  - Setiap ultra mengenai 3 boss sekaligus.
+  - Boss kembar dengan pisau masing-masing berjalan normal.
+  - Input acak dengan setiap senjata di arena tidak menimbulkan error.
+  - Fuzz semua stage dan boss stage (528 kasus) serta pertarungan Terralyn tetap seperti sebelumnya.
+- README: bagian Boss Arena baru, beserta peta, musik, save, Cloud Save, dan struktur proyek. AGENTS.md dan docs/MENAMBAH-KONTEN.md: kode yang mengenai boss memakai `bosses`.
+
 ## 1.17.0
 
 - **Ultra Rock Breaker (Meteor) diperkuat.** Selain meteor besar, kini **4 meteor sedang** jatuh di posisi acak: satu di tiap seperempat layar, dengan urutan dan waktu yang acak.

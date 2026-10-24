@@ -32,7 +32,7 @@ Setiap benua, stage, dan boss baru harus memenuhi semua aturan ini:
 4. **Teks tanpa gender.**
    - `STAGES[k].place` (nama tempat, paling banyak 18 huruf) dan `STAGES[k].intro` (kalimat perkenalan) tidak menyebut pria, wanita, manusia, dan sejenisnya.
    - Di layar, benua cukup ditulis dengan namanya, tanpa kata "Benua".
-5. **HP boss naik setiap benua**: `bossHp` benua baru harus lebih besar dari benua sebelumnya (Azura 3, Vespera 5, berikutnya misalnya 7).
+5. **HP boss naik setiap benua**: `bossHp` benua baru harus lebih besar dari benua sebelumnya (Azura 3, Vespera 5, Noctara 15, berikutnya lebih besar lagi).
 6. **Senjata lengkap.**
    - Ikon bergaya kotak-kotak seperti ikon senjata lain.
    - Tembakan biasa, charge shot, dan ultra attack.
@@ -51,6 +51,11 @@ Validator (`validateContent()`) memeriksa yang bisa diperiksa otomatis: ruang ra
 
 Satu benua = **6 boss** dalam **satu file** sendiri, misalnya `js/continents/borea.js`. Contoh lengkapnya adalah `js/continents/vespera.js` (Benua Vespera). Benua baru terbuka setelah semua boss di benua sebelumnya dikalahkan.
 
+Benua yang jauh lebih sulit boleh berisi **3 boss** saja (contoh: `js/continents/noctara.js`, Benua Noctara, `bossHp` 15). Validator menerima 3 atau 6 boss. Sebagai gantinya, setiap stagenya wajib lebih berat:
+
+- Ada **ruang penjaga** (mid-boss) di tengah stage, dengan checkpoint tepat sesudahnya (lihat [Penjaga](#penjaga-mid-boss)).
+- Bagian akhirnya (kolom 276–425) juga memakai mekanik dua stage lain di benua itu.
+
 1. Tambahkan entri di `CONTINENTS` (`js/stages/levels.js`):
 
    ```js
@@ -59,8 +64,8 @@ Satu benua = **6 boss** dalam **satu file** sendiri, misalnya `js/continents/bor
 
    - `name` paling banyak 7 huruf (dipakai juga sebagai label baris di menu pause).
    - `color` dipakai untuk teks benua di peta.
-   - `bossHp`: kelipatan HP boss di benua ini dari 28 (Azura 3, Vespera 5), harus lebih besar dari benua sebelumnya. Bar HP boss tetap 28 kotak dan menampilkan HP secara proporsional.
-   - Pulaunya di peta dunia: tambahkan entri di `MAP_ISLANDS` (`js/world/worldmap.js`) dengan `seed`, `biome` (`meadow`, `twilight`, atau biome baru di `MAP_BIOMES`), `lobes` (elips yang membentuk pulau), `bays` (teluk, opsional), `ranges` dan `peaks` (pegunungan), `rivers` (mata air sungai), dan `landmarks` (landmark tiap stage dan posisi boss-nya). Tanpa entri, pulaunya dibuat otomatis dan boss-nya berdiri melingkar.
+   - `bossHp`: kelipatan HP boss di benua ini dari 28 (Azura 3, Vespera 5, Noctara 15), harus lebih besar dari benua sebelumnya. Bar HP boss tetap 28 kotak dan menampilkan HP secara proporsional.
+   - Pulaunya di peta dunia: tambahkan entri di `MAP_ISLANDS` (`js/world/worldmap.js`) dengan `seed`, `biome` (`meadow`, `twilight`, `night`, atau biome baru di `MAP_BIOMES`), `lobes` (elips yang membentuk pulau), `bays` (teluk, opsional), `ranges` dan `peaks` (pegunungan), `rivers` (mata air sungai), dan `landmarks` (landmark tiap stage dan posisi boss-nya). Tanpa entri, pulaunya dibuat otomatis dan boss-nya berdiri melingkar.
 
 2. Buat file benua di `js/continents/`, lalu muat di `index.html` di bagian continents, **tepat setelah `js/continents/vespera.js`** (sebelum `js/world/` dan `js/core/main.js`):
 
@@ -95,7 +100,7 @@ File benua cukup mengisi tabel dan **registry** yang sudah ada dengan `Object.as
 
 | Tabel / registry      | Isi                                                                                                                                                                                                                                                                                                                                                                                                           |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `TILESETS[k]`         | `ground`, `block`, `spike`, `ladder`, opsional `ice`                                                                                                                                                                                                                                                                                                                                                          |
+| `TILESETS[k]`         | `ground`, `block`, `spike`, `ladder`, opsional `ice` dan `under` (tepi bawah langit-langit yang terbuka: lantai di medan gravitasi terbalik)                                                                                                                                                                                                                                                                  |
 | `BG_PAINTERS[k]`      | 2 lapis background parallax                                                                                                                                                                                                                                                                                                                                                                                   |
 | `ROOM_ART[k]`         | opsional: hiasan dinding ruang boss                                                                                                                                                                                                                                                                                                                                                                           |
 | `NATIVE_CHARS[style]` | tampilan boss: karakter native di file sendiri (contoh `js/characters/vespera/hydros.js`, `js/characters/vespera/sonique.js`), dimuat di `index.html` setelah `js/characters/chars.js`. Kerangka diberi pose lewat sudut sendi, lalu diberi bentuk; wajah memakai wajah bersama (`ncManFace` untuk pria, `ncWomanFace` untuk wanita). Lihat `js/characters/chars.js` dan panduan [ART-STYLE.md](ART-STYLE.md) |
@@ -147,6 +152,13 @@ Semua stage memutar `music/stage.mp3` (lihat [README, bagian Musik](../readme.md
 - Cairan naik: `B.add('rising', x, y, { x1, y1, speed, delay })`: lava (atau asam, mengikuti `LIQUID[theme]`) naik dari kolamnya di baris `y` sampai baris `y1` di kolom `x`..`x1`, mulai `delay` frame setelah pemain memanjat keluar dari kolam. Kecepatan memanjat rata-rata (tangga dan berjalan antar-tangga) harus lebih cepat dari `speed`.
 - Laser setinggi kepala: `hlaser` dengan `oy: 6` di baris kedua di atas lantai (slide di bawahnya); laser di baris tepat di atas lantai dilompati.
 - Kapak: `pendulum` dengan `axe: true`.
+- Medan gravitasi (Noctara, bisa dipakai stage lain): `B.add('gzone', x, y, { x1, y1, kind: 'flip' })` membalik gravitasi pemain di kotak `x..x1`, `y..y1` (pemain jatuh ke atas dan berjalan di langit-langit; keluar dari atas peta berarti mati), `kind: 'low'` membuat gravitasi lemah (lompatan sekitar 6 tile tinggi dan 7 tile jauh, jatuh pelan). Yang menentukan adalah titik tengah pemain. Rentangkan medan terbalik sampai atap yang menahan pemain (atau sampai baris 0 di celah yang terbuka ke langit), supaya pemain tidak tertahan di tepi medan. Jangan pasang tangga, langkan `=`, atau platform di dalam medan terbalik. Duri di langit-langit dipasang di baris atap itu sendiri (bukan menggantung satu baris di bawahnya), supaya bisa dilompati seperti duri lantai; saat berjalan di langit-langit, menyentuhnya mematikan.
+- Lubang hitam: `B.add('bhole', x, y, { r: 5 })` menarik pemain dalam `r` tile (tidak pernah lebih cepat dari berjalan), dan intinya melukai.
+- Magnet di dinding: `B.add('magnet', x, y, { dir, range, period, phase })` di tile padat, menghadap `dir` (-1 kiri, 1 kanan). Medannya `range` tile ke depan, sekitar 2 baris di atas dan bawah barisnya; menarik (merah) dan mendorong (biru) bergantian setiap `period / 2` frame, dan berkedip putih sebelum berganti.
+- Derek besi tua: `B.add('scrap', x, y, { period, phase })` menjatuhkan besi dari baris `y` (taruh di baris yang terlihat kamera saat pemain di lantai, kira-kira tidak lebih dari 9 baris di atas lantai).
+- Gerbang bintang: `B.add('portal', x, y, { to: [x2, y2], phase: true })`. `y` adalah baris tempat pemain berdiri di depan gerbang (gerbangnya 2 tile tinggi), dan kedua ujungnya harus punya lantai. Gerbangnya dua arah; `phase: true` juga menukar blok bintang.
+- Blok bintang: `B.add('phase', x, y, { x1, set: 1 | 2 })`. Set 1 (emas) berdiri di awal dan setiap kali lanjut dari checkpoint. Masuki dan tinggalkan setiap bagian blok bintang dengan set 1, dan buat jarak ke lantai sesudahnya terlalu jauh untuk dilompati, supaya gerbang terakhirnya wajib dilewati. Kalau tidak, pemain bisa tertahan dengan set yang salah.
+- Bintang jatuh: `B.add('fallstar', x, y, { dx, period, phase })` menukik miring dari tile `x`, `y` (sekitar 17 tile ke kiri sampai lantai), dengan kilau peringatan di titik awalnya.
 
 ### Tips layout
 
@@ -155,11 +167,21 @@ Semua stage memutar `music/stage.mp3` (lihat [README, bagian Musik](../readme.md
 - Pad lontar (`U`) naik sekitar 8 tile.
 - Buat alur yang khas untuk setiap stage (menara, gua, sumur, rute langit, kendaraan) dengan mekanik stage itu sendiri, jangan menyalin geometri stage lain.
 - Semua aturan tile dan helper builder (`ground`, `pillar`, `solid`, `cave`, `shaft`, `pit`, `pool`, `ledge`, `belt`, `flood`, dan lainnya) dijelaskan di `js/stages/levels.js`.
-- Uji setiap stage dengan tes jangkauan ([tools/reach.js](../tools/reach.js): setiap checkpoint dan pintu boss bisa dicapai dari awal), lalu cek bagian yang bergantung pada waktu (press, laser, blok energi, cairan naik) dengan memainkannya.
+- Uji setiap stage dengan tes jangkauan ([tools/reach.js](../tools/reach.js): setiap checkpoint dan pintu boss bisa dicapai dari awal), lalu cek bagian yang bergantung pada waktu (press, laser, blok energi, cairan naik, magnet, lubang hitam) dengan memainkannya. Tes jangkauan memodelkan medan gravitasi, gerbang bintang, dan kedua set blok bintang.
+- Pelat lontar berjarak paling jauh 5 kolom (lontaran pelat membawamu sekitar 5,5 tile ke samping).
+
+## Penjaga (mid-boss)
+
+Stage di benua 3 boss punya penjaga di tengahnya (`js/gameplay/actors.js`, `HAZARD_KINDS.midroom`; contoh di `js/continents/noctara.js`):
+
+- `B.add('midroom', x0, floor, { boss: 'nama' })`: ruangan selebar satu layar (24 kolom) dari kolom `x0`, lantainya baris `floor`. Bangun sendiri ruangannya: atap padat sampai baris `floor - 10`, dinding di kolom `x0` dan `x0 + 23` dengan celah setinggi 3 tile di atas lantai (gerbangnya menutup celah itu), dan bagian dalam di baris `floor - 9` sampai `floor - 1`.
+- Begitu pemain masuk, gerbang tertutup, kamera berhenti di ruangan, lagu boss diputar, dan `BOSSES[nama]` turun. Setelah ia kalah, gerbang terbuka dan lagu stage kembali. Penjaga yang sudah kalah tidak muncul lagi selama pemain masih di stage itu (`game.midDone`), jadi pasang checkpoint tepat sesudah ruangannya.
+- `BOSSES[nama]` untuk penjaga: `mid: { w, h, hp, points }`, opsional `spawn(b)` untuk menaruhnya, `custom: true` (digambar sendiri lewat `draw`, bukan sebagai karakter), dan `steady: true` (tidak terhuyung saat terkena). AI-nya membaca ruangannya dari `b.room` (`l`, `r`, `floor`, `ceil`), bukan `ROOM()`. Saat kalah ia memberi `points` POIN dan kapsul energi besar.
+- Nama state serangan boss tidak boleh `drop` atau `pose`: keduanya dipakai sistem untuk boss yang baru masuk.
 
 ## Training Ground
 
-Training Ground ada di `js/world/training.js` (dimuat setelah `worldmap.js`): stage `train` dengan arenanya (`LAYOUTS.train`), tampilannya (`TILESETS.train`, `BG_PAINTERS.train`), lagunya, gelombang musuh (`TRAIN_POOL`: musuh yang ikut muncul mulai wave tertentu; `TRAIN_AIR`: musuh yang muncul di udara), dan pulaunya di peta (`MAP_TRAINING`, biome `tropic`, landmark `arena`). Musuh baru dari benua baru bisa ditambahkan ke `TRAIN_POOL` kalau tidak bergantung pada medan khusus (air, langit-langit).
+Training Ground ada di `js/world/training.js` (dimuat setelah `worldmap.js`): stage `train` dengan arenanya (`LAYOUTS.train`), tampilannya (`TILESETS.train`, `BG_PAINTERS.train`), lagunya, gelombang musuh (`TRAIN_POOL`: musuh yang ikut muncul mulai wave tertentu, misalnya musuh Noctara dari wave 7; `TRAIN_AIR`: musuh yang muncul di udara), dan pulaunya di peta (`MAP_TRAINING`, biome `tropic`, landmark `arena`). Musuh baru dari benua baru bisa ditambahkan ke `TRAIN_POOL` kalau tidak bergantung pada medan khusus (air, langit-langit).
 
 ## Menambah part shop
 

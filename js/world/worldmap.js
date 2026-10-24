@@ -64,6 +64,32 @@ const MAP_BIOMES = {
     outline: '#1e1a2c',
     trunk: '#5e3e2e',
   },
+  // moonlit night: teal meadows under the moon, silver beaches, frosted peaks, dark firs and flowers like stars
+  night: {
+    shallow: ['#4a7ac8', '#30589c', '#22407a'],
+    foam: '#dce6fc',
+    sand: ['#d4d8ea', '#b4bad2', '#9298b4'],
+    bands: [
+      [0.16, '#5e8c7e', '#4c7a6c', '#3c6458'],
+      [0.36, '#4c7c72', '#3e6a60', '#30564e'],
+      [0.56, '#406c68', '#325a56', '#264846'],
+      [0.74, '#8a8cac', '#6a6c8c', '#4e506c'],
+      [0.88, '#7c7ea0', '#5e6082', '#444664'],
+      [9, '#f4f8ff', '#d8e2f4', '#aebcd8'],
+    ],
+    river: ['#5a8ad8', '#a8c8f4'],
+    trees: [
+      ['#5a8c84', '#386a64', '#22484a'],
+      ['#6a74a8', '#4a5488', '#2e3862'],
+    ],
+    treeWeights: [3, 1],
+    conifer: ['#3e6a7a', '#24485a', '#163444'],
+    snowTree: ['#f4f8ff', '#c8d6ec', '#24485a'],
+    flowers: ['#f8e878', '#ffffff', '#c8b8fc'],
+    rock: ['#8a8cac', '#5a5c7c', '#f4f8ff', '#c8d4ec'],
+    outline: '#0c1020',
+    trunk: '#2c2a3c',
+  },
   // the continent still to come: dark slate under the clouds
   fog: {
     shallow: ['#3e4a6e', '#2e3a5c', '#22304e'],
@@ -105,6 +131,7 @@ const MAP_REGIONS = {
   swamp: { bands: [[9, '#7e8a52', '#68743e', '#525c32']], trees: 0.3, pools: true },
   dark: { bands: [[9, '#4e4a68', '#3e3a56', '#2e2a44']], darkTrees: true },
   crystal: { bands: [[9, '#d4ecf4', '#b4d8e8', '#90b8d0']], trees: false, crystals: true },
+  starlit: { bands: [[9, '#b4acdc', '#968cc4', '#7a70a8']], trees: false },
 };
 
 // The islands. lobes [x, y, rx, ry]: the ellipses (logical px) whose union is the island's rough shape; ranges
@@ -167,6 +194,29 @@ const MAP_ISLANDS = {
       sonic: { at: [100, 28], kind: 'stage', icon: [114, 32] },
       light: { at: [142, 40], kind: 'crystal', icon: [128, 46] },
       time: { at: [76, 30], kind: 'clocktower', icon: [64, 36] },
+    },
+  },
+  // a crescent moon of an island round its bay
+  noctara: {
+    seed: 47,
+    biome: 'night',
+    lobes: [
+      [56, 48, 40, 30],
+      [102, 30, 44, 20],
+      [146, 50, 38, 30],
+      [152, 86, 22, 16],
+    ],
+    bays: [[98, 80, 40, 26]],
+    ranges: [[96, 32, 30, 12, 0.6]],
+    peaks: [
+      [88, 32, 30, 20, 1],
+      [110, 28, 26, 18, 1],
+    ],
+    rivers: [[100, 36]],
+    landmarks: {
+      gravity: { at: [52, 44], kind: 'observatory', icon: [68, 48] },
+      magnet: { at: [146, 48], kind: 'aurorarail', icon: [130, 52] },
+      astral: { at: [150, 88], kind: 'stargate', icon: [166, 92] },
     },
   },
 };
@@ -337,6 +387,7 @@ function mapTerrain(def) {
         if (mk.kind === 'volcano') e += 0.9 * cone(lx, ly, mk, 22);
         if (mk.kind === 'snowpeak') e += 1 * cone(lx, ly, mk, 24);
         if (mk.kind === 'stage') e = Math.max(e, 0.62 * Math.min(1, cone(lx, ly, mk, 20) * 3));
+        if (mk.kind === 'observatory') e = Math.max(e, 0.5 * Math.min(1, cone(lx, ly, mk, 18) * 2.4));
       }
       el[i] = e;
     }
@@ -366,8 +417,10 @@ function mapTerrain(def) {
       toxic: 'swamp',
       darkcastle: 'dark',
       crystal: 'crystal',
+      aurorarail: 'snow',
+      stargate: 'starlit',
     },
-    radius = { ash: 20, snow: 22, mesa: 22, swamp: 22, dark: 24, crystal: 14 },
+    radius = { ash: 20, snow: 22, mesa: 22, swamp: 22, dark: 24, crystal: 14, starlit: 18 },
     regionNames = [];
   for (const mk of marks) {
     const name = kindRegion[mk.kind];
@@ -929,6 +982,54 @@ const MAP_LANDMARKS = {
     },
     glow: [24, 23.6, '#ffe08a'],
   },
+  // Gravion's observatory on its hill: a white dome with the slit open and the telescope out of it
+  observatory: {
+    colors: { K: '#0c0a18', W: '#d8dcec', D: '#a8acc8', T: '#5a5478', Y: '#f8d878', V: '#9878f8' },
+    flat: 'YV',
+    draw: G => {
+      G.shape('D', MS2.ell(24, 28, 11.6, 11));
+      G.paint('K', MS2.poly([21.8, 17.4, 26.2, 17.4, 25.6, 28, 22.4, 28]), 'D');
+      G.shape('T', MS2.bar(24.4, 24, 33.4, 14.4, 2));
+      G.shape('V', MS2.disc(33.6, 14.2, 1.2), false);
+      G.shape('W', MS2.rect(12.4, 28, 23.2, 12, 0.8));
+      G.paint(
+        'Y',
+        MS2.all(MS2.rect(15.4, 31, 2.4, 2.4), MS2.rect(30.2, 31, 2.4, 2.4), MS2.rect(22.6, 34, 2.8, 6)),
+        'W',
+      );
+    },
+    glow: [33.6, 14.2, '#9878f8'],
+    sparkle: [36, 8],
+  },
+  // Polaris's aurora railway: a rail bridge on steel pylons, a horseshoe magnet over it, the aurora in the sky
+  aurorarail: {
+    colors: { K: '#0e1018', S: '#5a6878', M: '#98a8b8', R: '#c83848', B: '#2868c8', W: '#eef2fa' },
+    flat: 'W',
+    draw: G => {
+      G.shape('S', MS2.all(MS2.rect(13, 27, 3, 13), MS2.rect(32, 27, 3, 13)));
+      G.shape('M', MS2.rect(9, 25, 30, 2.6, 0.6));
+      G.paint('S', MS2.all(MS2.rect(13.4, 32, 2.2, 1), MS2.rect(32.4, 32, 2.2, 1)), 'S');
+      G.shape('R', MS2.strand(19.6, 24, 24, 15.6, 28.4, 24, 2.6, 2.6));
+      G.paint('B', MS2.rect(24, 14, 6, 11), 'R');
+      G.shape('W', MS2.all(MS2.rect(18.4, 23, 2.4, 1.6), MS2.rect(27.2, 23, 2.4, 1.6)), false);
+    },
+    aurora: [24, 6],
+  },
+  // Astraea's star gate: a gold ring on a marble dais, the starry night inside it
+  stargate: {
+    colors: { K: '#0a0c20', Y: '#f8d878', y: '#c89828', V: '#24204a', w: '#fcf4c8', M: '#e4e0f0' },
+    flat: 'w',
+    draw: G => {
+      G.shape('M', MS2.all(MS2.rect(13, 36, 22, 4, 0.8), MS2.rect(16, 33.6, 16, 2.6, 0.6)));
+      G.shape('Y', MS2.ell(24, 23.6, 8.4, 10.6));
+      G.paint('V', MS2.ell(24, 23.6, 6, 8.2), 'Y');
+      G.paint('y', MS2.strand(17, 28, 24, 33.6, 31, 28, 1, 1), 'Y');
+      G.paint('w', MS2.all(MS2.disc(22, 20, 0.7), MS2.disc(26.4, 24.6, 0.6), MS2.disc(23, 27.6, 0.5)), 'V');
+      G.shape('Y', MS2.all(MS2.spike(11.6, 36, 180, 7, 2), MS2.spike(36.4, 36, 180, 7, 2)));
+    },
+    glow: [24, 23.6, '#f8d878'],
+    sparkle: [24, 22],
+  },
 };
 
 // ---------- the islands on the map ----------
@@ -1093,6 +1194,16 @@ function drawIsland(i, x0, y0, open) {
     if (L.glow) {
       const [gx, gy] = at(L.glow[0], L.glow[1]);
       glow(gx, gy, 7, L.glow[2], 0.3 + ((t >> 4) & 1) * 0.15);
+    }
+    if (L.aurora) {
+      // the aurora: green and violet curtains rippling over the railway
+      const [ox, oy] = at(...L.aurora);
+      for (let k = 0; k < 2; k++) {
+        ctx.globalAlpha = 0.3 - k * 0.1;
+        for (let d = -9; d <= 9; d += 0.5)
+          R(ox + d, oy + Math.sin(d * 0.5 + t * 0.04 + k * 2) * 1.6 + k * 2, 0.5, 4 - k, k ? '#c8a8fc' : '#58f8a8');
+      }
+      ctx.globalAlpha = 1;
     }
     if (L.beams) {
       // the stage lights sweeping the sky

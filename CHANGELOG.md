@@ -2,6 +2,53 @@
 
 Semua perubahan NEOBUSTER, versi terbaru di atas. Versi ditulis di konstanta `VERSION` di `js/core/engine.js`.
 
+## 1.19.0
+
+- **Benua baru: NOCTARA**, pulau malam yang terbuka setelah semua boss Vespera kalah. Isinya hanya **3 boss**, jadi semuanya lebih sulit:
+  - HP boss **15x** (420 HP), jeda antar-serangan pendek, dan setiap boss punya serangan tambahan saat marah.
+  - Di tengah setiap stage ada **ruang penjaga** (mid-boss): gerbangnya menutup, kamera berhenti, dan lagu boss diputar sampai penjaganya kalah. Penjaga punya 64 HP dan memberi 5.000 POIN serta kapsul energi besar. Checkpoint ada tepat sesudahnya, dan penjaga yang sudah kalah tidak muncul lagi selama kamu masih di stage itu.
+  - Bagian akhir setiap stage (150 kolom terakhir) juga memakai mekanik kedua stage Noctara lainnya.
+  - Kelipatan HP rematch tetap seperti benua lain (sampai 5x, jadi 2.100 HP), dengan bonus POIN yang ikut besar. HP di Boss Arena mulai dari 210.
+- **Tiga boss baru, digambar native** (`js/characters/noctara/`):
+  - **GRAVION** (Observatorium): mantel, bantalan bahu berbentuk planet, inti lubang hitam di dada, cincin di belakang kepala, dan 3 bulan yang mengorbit. Ia membalik gravitasi ruangannya sendiri.
+  - **POLARIS** (Rel Aurora): sarung tangan magnet tapal kuda merah (utara) dan biru (selatan), mantel dengan kerah bulu, rambut putih bersemu hijau aurora, dan bintang utara di dahi.
+  - **ASTRAEA** (Gerbang Bintang): jubah dan jubah luar bertabur bintang, tongkat, tiara emas, dan lingkaran cahaya dengan gerbang-gerbang kecil.
+  - Kelemahan berantai: Astral Gate → Gravion, Gravity Well → Polaris, Polar Magnet → Astraea.
+- **Tiga senjata baru**, masing-masing dengan charge shot dan ultra:
+  - **Gravity Well**: lubang hitam kecil yang menarik musuh dan menelan peluru. Charge **Event Horizon**, ultra **Singularity**.
+  - **Polar Magnet**: magnet yang mengejar musuh. Charge **Pole Crush**, ultra **Aurora**.
+  - **Astral Gate**: bintang yang keluar dari gerbang di balik musuh. Charge **Rift Slash**, ultra **Starfall**.
+- **Tiga stage baru** (alurnya ada di README):
+  - **Gravion**: batu melayang di gravitasi lemah, aula terbalik (berjalan di langit-langit di atas lantai duri), menara lift gravitasi, bulan yang mengorbit lubang hitam, jembatan singularitas, dan aula zig-zag antara lantai dan langit-langit.
+  - **Polaris**: peron es dengan tiang magnet, gudang besi tua dengan derek, gua es, rel tinggi, halaman sortir, dan padang pelat magnet.
+  - **Astraea**: teras bintang jatuh, pilar bergerbang, jembatan blok bintang, halaman di bawah hujan bintang, galeri cermin, dan jembatan bintang panjang.
+  - Penjaganya Planetoid, Kranbot, dan Warden.
+  - Setiap stage punya ruang rahasia dengan armor. Segelnya dibuka dengan Polar Magnet, Astral Gate, dan Gravity Well.
+  - Enam musuh baru: Orbiter, Gravbot, Magmine, Polebot, Starling, dan Gateling. Semuanya juga masuk Training Ground mulai wave 7.
+- **Mekanik baru**, bisa dipakai stage lain:
+  - Medan gravitasi terbalik dan lemah (`gzone`). Di medan terbalik, Nexo tergambar terbalik, kamera ikut, slide tidak bisa dipakai, dan keluar lewat atas peta berarti mati. Berjalan di langit-langit lalu menyentuh duri di atap juga mematikan.
+  - Lubang hitam (`bhole`), magnet di dinding (`magnet`), pelat magnet (pad `U`), dan derek besi tua (`scrap`).
+  - Gerbang bintang (`portal`) dan blok bintang dua set (`phase`). Set emas berdiri lagi setiap kali lanjut dari checkpoint.
+  - Ruang penjaga (`midroom`).
+  - Tileset bisa memberi tepi pada sisi bawah langit-langit (`under`), yang menjadi lantai di medan terbalik.
+- **Peta dunia**: pulau Noctara berbentuk bulan sabit dengan bioma malam, dan landmark tiap stage: observatorium di bukit, rel aurora di salju, dan gerbang bintang di tanah ungu. Peta dan Stage Select kini menerima benua 3 boss.
+- **Shop**:
+  - Part baru **TWIN ULTRA** (5.000.000 POIN, butuh Ultra Booster): setiap ultra attack keluar dua kali.
+  - Part baru **DUAL WEAPON** (7.000.000 POIN): di menu pause, `C` memilih senjata kedua, lalu setiap tembakan biasa, charge shot, dan ultra keluar dari kedua senjata sekaligus. Ikon senjata kedua tampil di HUD.
+  - Harga semua part lama naik **3x**. Level ATTACK dan DEFENSE tidak berubah.
+  - Harga kedua part baru tidak ikut dikali 3 dengan part lama; harganya 2x dari usulan awal (2.500.000 dan 3.500.000). Dual Weapon kini part termahal, dan keduanya lebih mahal dari Hyper Shield (4.500.000).
+- **Tes jangkauan** (`tools/reach.js`) kini memodelkan:
+  - Medan gravitasi terbalik dan lemah.
+  - Gerbang bintang.
+  - Kedua set blok bintang: pencarian per set, dan gerbang bertanda bintang menukar set.
+- Uji:
+  - `reachAll()`: semua 15 stage OK.
+  - Fuzz semua stage dan boss: 750 kasus tanpa error. Fuzz khusus Noctara (dari awal dan setiap checkpoint, semua senjata, dan ketiga penjaga): 183 kasus tanpa error.
+  - Bot mengalahkan ketiga boss dengan senjata kelemahannya dalam 80–170 detik, dan ketiga penjaga dalam 30–55 detik. Dalam pertarungan ini ditemukan dan diperbaiki serangan yang macet, Kranbot yang tidak bisa dikenai, dan Warden yang terlalu tinggi.
+  - Mekanik diuji di dalam game: medan terbalik, duri atap, magnet, gerbang dan blok bintang, ruang penjaga beserta checkpoint-nya, reset set bintang, dan pembalikan ruangan Gravion.
+  - Boss Arena dengan ketiga boss Noctara sekaligus, ultra semua senjata, dan segel ketiga ruang rahasia.
+- README, AGENTS.md, dan docs/MENAMBAH-KONTEN.md diperbarui: benua 3 boss, penjaga, dan cara memakai mekanik baru.
+
 ## 1.18.0
 
 - **Boss Arena (baru)**: pulau baru di paling kanan peta dunia, sesudah Training Ground, dengan koloseum. Pulau ini terbuka setelah kamu mengalahkan satu boss.

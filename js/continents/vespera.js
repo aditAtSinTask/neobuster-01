@@ -1482,6 +1482,7 @@ Object.assign(EN, {
   },
   prismo: {
     // light: a crystal that charges up and fires four diagonal laser bolts
+    fixed: true,
     w: 14,
     h: 16,
     hp: 3,

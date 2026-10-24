@@ -1039,14 +1039,25 @@ function paintTiles(g, art, x0, x1) {
         if (t === '#') {
           ts.ground(F, x, y, v, exp, tx);
           finishTile(F, x, y, v);
+          // a ceiling's underside (a tileset may trim it: in a flipped gravity field it is the floor)
+          if (ts.under && ty + 1 < lv.LH && !SOLIDISH.includes(lv.map[ty + 1][tx])) ts.under(F, x, y, v);
         } else if (t === '=') {
           ts.block(F, x, y, v);
           finishTile(F, x, y, v);
         } else if (t === 'I') {
           (ts.ice || ts.block)(F, x, y, v);
           finishTile(F, x, y, v);
-        } else if (t === '^') ts.spike(F, x, y);
-        else if (t === 'H') ts.ladder(F, x, y);
+        } else if (t === '^') {
+          // spikes under a solid tile (and over open space) hang from it, pointing down
+          const below = ty + 1 < lv.LH ? lv.map[ty + 1][tx] : '#';
+          if ('#=I'.includes(above) && !'#=I^'.includes(below)) {
+            g.save();
+            g.translate(0, 2 * y + 16);
+            g.scale(1, -1);
+            ts.spike(F, x, y);
+            g.restore();
+          } else ts.spike(F, x, y);
+        } else if (t === 'H') ts.ladder(F, x, y);
         else if (t === 'Q') {
           // quicksand
           F(x, y, 16, 16, '#c8a060');

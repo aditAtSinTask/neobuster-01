@@ -40,14 +40,14 @@ Setiap benua (pulau), stage, dan boss baru harus memenuhi checklist di [docs/MEN
    - **Tandai setiap atap yang dilalui jalur dari bawah** dengan `B.roof(x0, x1, top)`: atap aula, menara, dan balok tempat slide. Medan duri, lava, atau air yang menutupi jalur di bawahnya ditandai dengan `B.roof(x0, x1, top, 1)`. Step Jump tidak bisa membawa pemain melewati atap yang ditandai, jadi bagian stage tidak bisa dilewati lewat atas. Pastikan juga atap tidak bisa dicapai dengan gerakan biasa.
 3. **Boss digambar native**, bukan dipotong dari lembar karakter. Wajahnya memakai wajah bersama, ciri khasnya kuat, serangannya berbeda dari boss lain, dan kelemahannya berantai. Lihat [docs/ART-STYLE.md](docs/ART-STYLE.md).
 4. **Teks tanpa gender.** Nama tempat (`place`) dan kalimat perkenalan (`intro`) saja; di layar tidak ada kata "Benua".
-5. **HP boss naik setiap benua** (`bossHp`: Azura 3, Vespera 5, berikutnya lebih besar).
+5. **HP boss naik setiap benua** (`bossHp`: Azura 3, Vespera 5, Noctara 15, berikutnya lebih besar). Benua berisi 6 boss, atau 3 boss untuk benua yang jauh lebih sulit; stage benua 3 boss punya **penjaga** (mid-boss, `B.add('midroom', ...)`) di tengahnya, dan bagian akhirnya memakai mekanik stage lain di benua itu.
 6. **Senjata lengkap** (ikon kotak-kotak, tembakan biasa, charge, ultra, `lit` kalau bercahaya), **pulau alami di peta dunia** dengan landmark tiap stage, dan **musuh baru masuk `TRAIN_POOL`** Training Ground.
 
 ## Pengujian sebelum selesai
 
 1. Buka game: console tidak boleh menampilkan error atau peringatan `[neobuster]`.
 2. **Tes jangkauan** dengan [tools/reach.js](tools/reach.js): buka game, tempel isi file itu di console browser, jalankan `reachAll()`, lalu muat ulang halaman. Semua kolom harus `OK`: pintu boss dan setiap checkpoint terjangkau dari awal, armor tidak terjangkau selama segelnya utuh, dan terjangkau setelah segelnya hancur.
-3. Mainkan langsung bagian yang bergantung waktu (press, laser, blok energi, cairan naik), karena tes jangkauan tidak mensimulasikan waktu.
+3. Mainkan langsung bagian yang bergantung waktu (press, laser, blok energi, cairan naik, magnet, lubang hitam, platform yang mengorbit), karena tes jangkauan tidak mensimulasikan waktu. Tes jangkauan sudah memodelkan medan gravitasi (terbalik dan lemah), gerbang bintang, dan blok bintang.
 4. Pastikan ruang rahasia bisa dibuka dengan senjata segelnya, dan tembakan senjata lain memantul.
 5. Cheat (`P` + `O`) selalu terbuka saat game dibuka dari file atau dari `localhost` / `127.0.0.1` (mode development), jadi bisa dipakai untuk menguji. Di hosting asli, cheat baru terbuka setelah rekor Training Ground mencapai wave 50.
 6. Kalau mengubah save atau Cloud Save: uji masuk akun baru (password diminta dua kali), masuk dari perangkat kosong (progress cloud termuat), perangkat dengan progress berbeda (diminta memilih), dan sinkron otomatis setelah ada perubahan. Pakai akun uji, bukan akun pemain.

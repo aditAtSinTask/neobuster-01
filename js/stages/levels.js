@@ -88,7 +88,8 @@ const STAGES = {
     color: '#78f8c8',
   },
 };
-// Continents group the stages: each holds six bosses and appears as a landmass on the world map. A continent
+// Continents group the stages: each holds six bosses (or three, for a harder continent: Noctara) and appears as a
+// landmass on the world map. A continent
 // opens once every boss of the one before it is beaten. bossHp: how many times the 28 HP the boss bar shows its
 // bosses have (each segment of the bar is that many HP). Stages, bosses and weapons all share one key (a boss's
 // weapon is weapons[stage key]), so a new continent only needs its six stages registered in every table; see
@@ -107,6 +108,14 @@ const CONTINENTS = [
     color: '#a878d8',
     bossHp: 5,
     stages: ['hydro', 'toxic', 'shadow', 'sonic', 'light', 'time'],
+  },
+  // three bosses only, so the hardest: 15x HP, guardians halfway through each stage (js/continents/noctara.js)
+  {
+    key: 'noctara',
+    name: 'NOCTARA',
+    color: '#9888f8',
+    bossHp: 15,
+    stages: ['gravity', 'magnet', 'astral'],
   },
 ];
 const STAGE_ORDER = CONTINENTS.flatMap(c => c.stages);

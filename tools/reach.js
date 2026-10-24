@@ -7,7 +7,8 @@
 // Reload the page afterwards: the test starts stages to walk them. Your save (cleared bosses, armors) is kept.
 //
 // It finds every standing position the player can reach from the start with the game's own movement (walking, jumps of
-// every height, falls, slides, ladders, updraft pads, moving platforms) and reports for each stage:
+// every height, falls, slides, ladders, updraft pads, moving platforms, gravity fields that turn gravity over or make
+// it weak, star gates, and the two sets of star blocks that the gates marked `phase` swap) and reports for each stage:
 //   goal         the boss door can be reached
 //   checkpoints  every checkpoint can be reached
 //   armor        the secret room's armor: out of reach while its sealed wall stands, in reach once the wall is broken
@@ -25,6 +26,18 @@ window.reachCheck = function (key, openSeals = false) {
   const W = 14,
     H = 22,
     LWpx = LW * TILE;
+  // the star blocks of the phase (1 or 2) in the map; gates out of their two ends
+  const phases = level.ents.filter(e => e.type === 'phase'),
+    setPhase = ph => {
+      for (const e of phases) for (let x = e.x; x <= e.x1; x++) map[e.y][x] = (e.set || 1) === ph ? 'Y' : '.';
+    },
+    gates = level.ents
+      .filter(e => e.type === 'portal')
+      .map(e => ({
+        a: { x: e.x * TILE, y: (e.y - 1) * TILE, w: 16, h: 32 },
+        b: { x: e.to[0] * TILE, y: (e.to[1] - 1) * TILE, w: 16, h: 32 },
+        flips: !!e.phase,
+      }));
   // moving platforms, sampled along their path (circular ones at 16 points round the circle)
   const plats = level.ents
     .filter(e => e.type === 'plat')
@@ -45,10 +58,10 @@ window.reachCheck = function (key, openSeals = false) {
     });
   const platRects = plats.flat();
   const deadly = e => {
-    if (e.y > LH * TILE) return true;
+    if (e.y > LH * TILE || e.y + H < -16) return true;
     const x0 = Math.floor(e.x / TILE),
       x1 = Math.floor((e.x + W - 1) / TILE),
-      y0 = Math.floor(e.y / TILE),
+      y0 = Math.floor((e.y - (gravAt(e) < 0 ? 1 : 0)) / TILE), // walking a ceiling: the row over the head
       y1 = Math.floor((e.y + H) / TILE);
     for (let ty = y0; ty <= y1; ty++)
       for (let tx = x0; tx <= x1; tx++) {
@@ -63,15 +76,19 @@ window.reachCheck = function (key, openSeals = false) {
     const e = { x, y, w: W, h: H };
     let vy = vy0;
     for (let t = 1; t < 600; t++) {
-      if (vy0 < 0 && t > hold && vy < 0 && t > 6) vy = 0; // letting go of jump
+      const g = gravAt(e); // gravity down (1), or up in a flipped field (-1)
+      if (vy0 !== 0 && t > hold && vy * g < 0 && t > 6) vy = 0; // letting go of jump
       moveX(e, vx);
-      const wet = inWater(e);
-      vy = Math.min(vy + (wet ? 0.15 : 0.25), wet ? 2.6 : 7);
-      const r = moveY(e, vy, true);
-      let landed = r === 1,
+      const wet = inWater(e),
+        low = lowGravAt(e),
+        acc = wet ? 0.15 : low ? 0.12 : 0.25,
+        max = wet ? 2.6 : low ? 2.4 : 7;
+      vy = g > 0 ? Math.min(vy + acc, max) : Math.max(vy - acc, -max);
+      const r = moveY(e, vy, g > 0);
+      let landed = r === g,
         plat = -1;
-      if (r === -1) vy = 0;
-      if (!landed && vy >= 0)
+      if (r === -g) vy = 0;
+      if (!landed && g > 0 && vy >= 0)
         for (const pl of platRects)
           if (e.x + W > pl.x && e.x < pl.x + pl.w && e.y + H - vy <= pl.y + 1 && e.y + H >= pl.y) {
             e.y = pl.y - H;
@@ -80,20 +97,22 @@ window.reachCheck = function (key, openSeals = false) {
             break;
           }
       if (deadly(e)) return null;
-      if (landed && plat < 0 && padUnder(e)) return { x: e.x, y: e.y, pad: true };
+      if (landed && plat < 0 && g > 0 && padUnder(e)) return { x: e.x, y: e.y, pad: true };
       if (landed) return { x: e.x, y: e.y, plat };
     }
     return null;
   }
   const seen = new Set(),
-    queue = [],
+    queues = { 1: [], 2: [] },
     launches = new Set(),
-    keyOf = (x, y) => Math.round(x / 2) * 2 + ',' + Math.round(y);
-  const push = (x, y, plat = -1, pad = false) => {
+    keyOf = (x, y, ph) => Math.round(x / 2) * 2 + ',' + Math.round(y) + ',' + ph;
+  let phase = 1,
+    queue = queues[1];
+  const push = (x, y, plat = -1, pad = false, ph = phase) => {
     if (x < 0 || x > LWpx - W) return;
     if (pad) {
       // an updraft launch: the player can steer either way (or not at all) while rising
-      const k = Math.round(x / 2) + ',' + Math.round(y);
+      const k = Math.round(x / 2) + ',' + Math.round(y) + ',' + ph;
       if (launches.has(k)) return;
       launches.add(k);
       for (const vx of [-1.4, 0, 1.4]) {
@@ -102,26 +121,43 @@ window.reachCheck = function (key, openSeals = false) {
       }
       return;
     }
-    const k = keyOf(x, y);
+    const k = keyOf(x, y, ph);
     if (seen.has(k)) return;
     seen.add(k);
-    queue.push({ x: Math.round(x / 2) * 2, y: Math.round(y) });
+    queues[ph].push({ x: Math.round(x / 2) * 2, y: Math.round(y) });
     // riding a platform: every point of its path
     if (plat >= 0)
       for (const pl of plats[plat]) {
-        const k2 = keyOf(pl.x + 9, pl.y - H);
+        const k2 = keyOf(pl.x + 9, pl.y - H, ph);
         if (!seen.has(k2)) {
           seen.add(k2);
-          queue.push({ x: pl.x + 9, y: pl.y - H });
+          queues[ph].push({ x: pl.x + 9, y: pl.y - H });
         }
       }
   };
+  setPhase(1);
   const st = level.start;
   push(st.x * TILE + 1, groundBelow(st.x * TILE + 8, st.y * TILE) - H);
   let goal = false;
   const cps = level.cps.map(() => false);
-  while (queue.length) {
+  for (;;) {
+    if (!queue.length) {
+      // this phase is done: on with the other, if a gate led into it
+      const other = 3 - phase;
+      if (!queues[other].length) break;
+      phase = other;
+      queue = queues[phase];
+      setPhase(phase);
+    }
     const s = queue.pop();
+    // a star gate where it stands: out of the other end (in the other phase, through a gate that swaps it)
+    for (const gt of gates)
+      for (const [from, to] of [
+        [gt.a, gt.b],
+        [gt.b, gt.a],
+      ])
+        if (s.x + W > from.x && s.x < from.x + from.w && s.y + H > from.y && s.y < from.y + from.h)
+          push(to.x + 8 - W / 2, to.y + to.h - H, -1, false, gt.flips ? 3 - phase : phase);
     if (s.x + W >= level.doorCol * TILE - 1 && Math.abs(s.y + H - FLOOR * TILE) < 1) goal = true;
     level.cps.forEach((c, i) => {
       if (s.x > c.x * TILE && Math.abs(s.y + H - (c.y + 1) * TILE) < 48) cps[i] = true;
@@ -132,14 +168,16 @@ window.reachCheck = function (key, openSeals = false) {
       let fell = false;
       for (let t = 0; t < 6; t++) {
         moveX(e, vx);
-        const probe = { x: e.x, y: e.y, w: W, h: H },
-          r = moveY(probe, 1, true);
-        if (r === 1 && padUnder(probe)) {
+        const g = gravAt(e),
+          probe = { x: e.x, y: e.y, w: W, h: H },
+          r = moveY(probe, g, g > 0);
+        if (r === 1 && g > 0 && padUnder(probe)) {
           fell = 'pad';
           break;
         }
-        const onPlat = platRects.some(pl => e.x + W > pl.x && e.x < pl.x + pl.w && Math.abs(e.y + H - pl.y) < 1);
-        if (r !== 1 && !onPlat) {
+        const onPlat =
+          g > 0 && platRects.some(pl => e.x + W > pl.x && e.x < pl.x + pl.w && Math.abs(e.y + H - pl.y) < 1);
+        if (r !== g && !onPlat) {
           fell = true;
           break;
         }
@@ -153,14 +191,16 @@ window.reachCheck = function (key, openSeals = false) {
           if (l) push(l.x, l.y, l.plat, l.pad);
         }
     }
-    // jumps of every height, straight up or either way
+    // jumps of every height, straight up or either way (down, off a ceiling in a flipped field)
+    const g0 = gravAt({ x: s.x, y: s.y, w: W, h: H });
     for (const vx of [-1.4, 0, 1.4])
       for (const hold of [7, 11, 16, 99]) {
-        const l = fly(s.x, s.y, vx, -4.9, hold);
+        const l = fly(s.x, s.y, vx, -4.9 * g0, hold);
         if (l) push(l.x, l.y, l.plat, l.pad);
       }
     // slides: low (12 px) at 2.6 px a frame for 26 frames, longer under a low ceiling; stand up where there is room
-    for (const vx of [-2.6, 2.6]) {
+    // (not on a ceiling)
+    for (const vx of g0 > 0 ? [-2.6, 2.6] : []) {
       const e = { x: s.x, y: s.y + 10, w: W, h: 12 };
       let ok = true;
       for (let t = 0; t < 200; t++) {
@@ -206,11 +246,12 @@ window.reachCheck = function (key, openSeals = false) {
     const ax = ar.x * TILE,
       ay = ar.y * TILE - 2;
     armor = [...seen].some(k => {
-      const [x, y] = k.split(',').map(Number);
+      const [x, y] = k.split(',').map(Number); // (x, y, phase)
       return x + W > ax && x < ax + 16 && y + H > ay && y < ay + 16;
     });
   }
   save.armors = keepArmors;
+  setPhase(1);
   return { key, goal, cps, armor };
 };
 

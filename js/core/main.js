@@ -77,6 +77,7 @@ function continueGame() {
 function startStage(key, checkpoint = false) {
   game.stage = key;
   game.train = null; // set again by startTraining() for the Training Ground
+  game.midDone = {}; // the guardians beaten in this visit (HAZARD_KINDS.midroom)
   level = buildStage(key);
   map = level.map;
   LW = level.LW;
@@ -130,6 +131,9 @@ function restartFromCheckpoint() {
   door.phase = '';
   Object.assign(game, {
     bossLocked: false,
+    midLock: null,
+    roomFlip: null,
+    phase: 1, // the star blocks (Noctara): set 1 stands again at every restart, like crumbled blocks
     bossBar: 0,
     refill: 0,
     deadT: 0,
@@ -169,6 +173,8 @@ function restartFromCheckpoint() {
     airDashed: false,
     hurtT: 0,
     plat: null,
+    echo: [], // TWIN ULTRA: ultras still to come again
+    flipA: 1, // 1 upright, -1 upside down (a flipped gravity field)
     jumpBuf: 0,
     coyote: 0,
     jumpT: 99,
@@ -186,6 +192,12 @@ function restartFromCheckpoint() {
 const followCamX = p => Math.round(clamp(p.x + p.w / 2 - VW / 2, 0, (level.doorCol + 1) * TILE - VW));
 
 function updateCamera(snap) {
+  if (game.midLock) {
+    // a guardian's room (HAZARD_KINDS.midroom): the camera holds still on it
+    camX = game.midLock.x;
+    camY = camYf = game.midLock.y;
+    return;
+  }
   if (game.bossLocked) {
     camX = bossRoomX();
     camY = camYf = BOSS_CAM_Y;
@@ -195,8 +207,11 @@ function updateCamera(snap) {
   // vertical anchor ignores ordinary jumps so the camera does not bob
   if (p.state === 'beam') p.anchorY = p.targetY;
   else if (alive(p)) {
-    if (p.onGround || p.state === 'climb' || p.y > p.anchorY) p.anchorY = p.y;
-    else if (p.y < p.anchorY - 40) p.anchorY = p.y + 40;
+    if (gravAt(p) > 0) {
+      if (p.onGround || p.state === 'climb' || p.y > p.anchorY) p.anchorY = p.y;
+      else if (p.y < p.anchorY - 40) p.anchorY = p.y + 40;
+    } else if (p.onGround || p.y < p.anchorY) p.anchorY = p.y;
+    else if (p.y > p.anchorY + 40) p.anchorY = p.y - 40; // walking the ceiling: jumps go down
   }
   camX = followCamX(p);
   const ty = clamp(p.anchorY + 11 - VH * 0.58, 0, maxCamY());
@@ -251,7 +266,7 @@ function updatePlay() {
   updatePlayer();
   updateCrumbles();
   updateCamera(false);
-  if (!game.bossLocked) updateSpawns();
+  if (!game.bossLocked && !game.midLock) updateSpawns();
   updateEnemies();
   updateHazards();
   updateBosses();
@@ -366,26 +381,27 @@ const SHOP_TABS = [
   { key: 'attack', name: 'SERANGAN' },
   { key: 'level', name: 'LEVEL' },
 ];
-// Prices: at least three times the first ones; the parts that make the game easiest cost the most: the long cover
-// after a hit (Core), the guards (Shield, Aura Shield), endless dashes and jumps (Unlimited Dash, Step Jump) and the
-// boosters up to ultra attacks without a wait (Omega Booster, the dearest of all)
+// Prices: nine times the first ones (three times, then three times again in 1.19.0); the parts that make the game
+// easiest cost the most: the long cover after a hit (Core), the guards (Shield, Aura Shield, Hyper Shield), endless
+// dashes and jumps (Unlimited Dash, Step Jump), the boosters up to ultra attacks without a wait (Omega Booster), every
+// ultra twice (Twin Ultra) and two weapons at once (Dual Weapon). The LEVEL tab's prices (statCost) are not raised.
 const SHOP = [
-  { key: 'boots', cat: 'move', name: 'BOOTS ANTI DURI', price: 40000, desc: 'JALAN DI ATAS DURI TANPA MATI' },
-  { key: 'jet', cat: 'move', name: 'JETPACK', price: 40000, desc: 'LOMPAT 1.6X LEBIH TINGGI' },
-  { key: 'windproof', cat: 'move', name: 'ANTI ANGIN', price: 30000, desc: 'TIDAK TERDORONG BADAI, FANBOT, ATAU BOSS' },
+  { key: 'boots', cat: 'move', name: 'BOOTS ANTI DURI', price: 120000, desc: 'JALAN DI ATAS DURI TANPA MATI' },
+  { key: 'jet', cat: 'move', name: 'JETPACK', price: 120000, desc: 'LOMPAT 1.6X LEBIH TINGGI' },
+  { key: 'windproof', cat: 'move', name: 'ANTI ANGIN', price: 90000, desc: 'TIDAK TERDORONG BADAI, FANBOT, ATAU BOSS' },
   {
     key: 'airdash',
     cat: 'move',
     name: 'AIR DASH',
-    price: 36000,
+    price: 108000,
     desc: 'TEKAN SLIDE DI UDARA: DASH SEKALI PER LOMPATAN',
   },
-  { key: 'turbo', cat: 'move', name: 'TURBO', price: 78000, desc: 'SLIDE DAN AIR DASH 3X LEBIH LAMA' },
+  { key: 'turbo', cat: 'move', name: 'TURBO', price: 234000, desc: 'SLIDE DAN AIR DASH 3X LEBIH LAMA' },
   {
     key: 'unlimited',
     cat: 'move',
     name: 'UNLIMITED DASH',
-    price: 600000,
+    price: 1800000,
     needs: 'turbo',
     desc: 'AIR DASH TANPA BATAS, SLIDE/DASH SELAMA DITAHAN',
   },
@@ -393,24 +409,24 @@ const SHOP = [
     key: 'stepjump',
     cat: 'move',
     name: 'STEP JUMP',
-    price: 600000,
+    price: 1800000,
     desc: 'TEKAN LOMPAT DI UDARA: LOMPAT LAGI TANPA BATAS',
   },
-  { key: 'armor', cat: 'guard', name: 'ARMOR ANTI API', price: 40000, desc: 'MASUK DAN JALAN DI LAVA TANPA MATI' },
-  { key: 'core', cat: 'guard', name: 'CORE', price: 420000, desc: 'KEBAL 5X LEBIH LAMA SETELAH KENA HIT' },
-  { key: 'shield', cat: 'guard', name: 'SHIELD', price: 250000, desc: '2 PERISAI - YANG KENA HIT HILANG 10 DETIK' },
+  { key: 'armor', cat: 'guard', name: 'ARMOR ANTI API', price: 120000, desc: 'MASUK DAN JALAN DI LAVA TANPA MATI' },
+  { key: 'core', cat: 'guard', name: 'CORE', price: 1260000, desc: 'KEBAL 5X LEBIH LAMA SETELAH KENA HIT' },
+  { key: 'shield', cat: 'guard', name: 'SHIELD', price: 750000, desc: '2 PERISAI - YANG KENA HIT HILANG 10 DETIK' },
   {
     key: 'aura',
     cat: 'guard',
     name: 'AURA SHIELD',
-    price: 400000,
+    price: 1200000,
     desc: 'GELEMBUNG EMAS: TAHAN 3 HIT, LALU HILANG 15 DETIK',
   },
   {
     key: 'hyper',
     cat: 'guard',
     name: 'HYPER SHIELD',
-    price: 1500000,
+    price: 4500000,
     needs: 'aura',
     desc: '6 PERISAI, TIAP PERISAI PULIH 8 DETIK SENDIRI',
   },
@@ -418,14 +434,14 @@ const SHOP = [
     key: 'super',
     cat: 'attack',
     name: 'SUPER BOOSTER',
-    price: 63000,
+    price: 189000,
     desc: 'TEMBAKAN BIASA LANGSUNG JADI CHARGE SHOT',
   },
   {
     key: 'ultra',
     cat: 'attack',
     name: 'ULTRA BOOSTER',
-    price: 250000,
+    price: 750000,
     needs: 'super',
     desc: 'TAHAN TEMBAK 2.5 DETIK: ULTRA ATTACK',
   },
@@ -433,9 +449,24 @@ const SHOP = [
     key: 'omega',
     cat: 'attack',
     name: 'OMEGA BOOSTER',
-    price: 750000,
+    price: 2250000,
     needs: 'ultra',
     desc: 'ULTRA ATTACK TANPA DELAY, SUPER/ULTRA DISABLED',
+  },
+  {
+    key: 'twin',
+    cat: 'attack',
+    name: 'TWIN ULTRA',
+    price: 5000000,
+    needs: 'ultra',
+    desc: 'SETIAP ULTRA ATTACK KELUAR 2 KALI',
+  },
+  {
+    key: 'dual',
+    cat: 'attack',
+    name: 'DUAL WEAPON',
+    price: 7000000,
+    desc: 'C DI MENU PAUSE: SENJATA KE-2 IKUT MENEMBAK',
   },
 ];
 // the LEVEL tab: Attack and Defense levels (their effect and price in actors.js, statCost)
@@ -639,13 +670,14 @@ function step() {
     case 'select': {
       game.t++;
       let s = game.sel;
-      const [c, r] = SEL_POS[s],
-        row = SEL_POS.map((q, i) => i).filter(i => SEL_POS[i][1] === r);
+      const pos = selPositions(CONTINENTS[game.continent].stages.length),
+        [c, r] = pos[s],
+        row = pos.map((q, i) => i).filter(i => pos[i][1] === r);
       if (hit.left || hit.right) s = row[(row.indexOf(s) + (hit.right ? 1 : row.length - 1)) % row.length];
       if (hit.up || hit.down) {
-        // jump to the nearest panel in the other row
-        const other = SEL_POS.map((q, i) => i).filter(i => SEL_POS[i][1] !== r);
-        s = other.reduce((a, i) => (Math.abs(SEL_POS[i][0] - c) < Math.abs(SEL_POS[a][0] - c) ? i : a));
+        // jump to the nearest panel in the other row (a continent of three has one row only)
+        const other = pos.map((q, i) => i).filter(i => pos[i][1] !== r);
+        if (other.length) s = other.reduce((a, i) => (Math.abs(pos[i][0] - c) < Math.abs(pos[a][0] - c) ? i : a));
       }
       if (s !== game.sel) {
         game.sel = s;
@@ -811,7 +843,15 @@ function step() {
             sfx.select();
           }
         }
-        if (go || hit.shoot) {
+        if (hit.slide && hasPart('dual')) {
+          // DUAL WEAPON: C marks the weapon that shoots along with the first one (again to unmark it)
+          const it = grid[game.pr][game.pc];
+          if (it === 'exit' || !ownedWeapons().includes(it) || it === player.weapon) sfx.deflect();
+          else {
+            player.weapon2 = player.weapon2 === it ? null : it;
+            sfx.select();
+          }
+        } else if (go || hit.shoot) {
           const it = grid[game.pr][game.pc];
           if (it === 'exit') {
             sfx.pause();
@@ -1885,7 +1925,21 @@ function drawJetpack(x, y, f, flame) {
   glow(nx, ny + 3, 10, '#f86000', 0.55);
 }
 
+// the player, turned upside down while a flipped gravity field holds them to the ceiling: flipA eases from 1 to -1
+// (updatePlayer), so the turn shows as a quick flip
 function drawPlayer() {
+  const p = player,
+    fa = p.flipA === undefined ? 1 : p.flipA;
+  if (fa === 1) return drawPlayerBody();
+  const cy = Math.round(p.y) - camY + p.h / 2;
+  ctx.save();
+  ctx.translate(0, cy);
+  ctx.scale(1, Math.sign(fa || 1) * Math.max(0.2, Math.abs(fa)));
+  ctx.translate(0, -cy);
+  drawPlayerBody();
+  ctx.restore();
+}
+function drawPlayerBody() {
   const p = player;
   if (!alive(p)) return;
   const sx = Math.round(p.x) - camX,
@@ -2101,17 +2155,19 @@ function drawBoss(b) {
   if (b.state === 'stagger' && frameCount & 2) pal = PAL_WHITE;
   else if (b.state === 'slide' && b.t < 14 && frameCount & 2) pal = PAL_WHITE;
   if (def.drawBehind) def.drawBehind(b, sx, sy);
-  drawRobot(sx + b.w / 2 - 12, sy + b.h - 24, b.facing, pose, fr, b.arm > 0 && pose !== 'raise', pal, def.style, {
-    blade: b.hasCutter,
-    state: b.state,
-    landT: b.landT,
-    t: b.t,
-    enr: b.hp <= b.maxHp / 2,
-    armT: b.arm,
-    vy: b.vy,
-    mode: b.mode,
-    dash: b.dash,
-  });
+  // a guardian (def.custom) draws itself in def.draw
+  if (!def.custom)
+    drawRobot(sx + b.w / 2 - 12, sy + b.h - 24, b.facing, pose, fr, b.arm > 0 && pose !== 'raise', pal, def.style, {
+      blade: b.hasCutter,
+      state: b.state,
+      landT: b.landT,
+      t: b.t,
+      enr: b.hp <= b.maxHp / 2,
+      armT: b.arm,
+      vy: b.vy,
+      mode: b.mode,
+      dash: b.dash,
+    });
   if (def.draw) def.draw(b, sx, sy);
   if (inArena()) drawArenaBossHp(b, sx, sy);
   if (b.frozenT > 0) {
@@ -2143,7 +2199,7 @@ function drawWeakness() {
     owned = ownedWeapons().includes(weak);
   const label = 'LEMAH: ' + w.name + (owned ? '' : ' (BELUM ADA)');
   const y = VH - 22,
-    using = player.weapon === weak;
+    using = player.weapon === weak || secondWeapon(player) === weak;
   R(6, y - 3, textWidth(label) + 28, 17, 'rgba(5,5,20,0.75)');
   if (using) R(6, y - 3, textWidth(label) + 28, 1, w.pal.b);
   drawWeaponIcon(weak, 11, y);
@@ -2235,6 +2291,7 @@ function drawHUD() {
   if (game.tough) glow(16, 40, 30, '#f8b800', 0.3 + ((frameCount >> 3) & 1) * 0.15);
   drawBar(12, 12, player.hp, game.tough ? '#f8a800' : '#f8d878', game.tough);
   drawWeaponIcon(player.weapon, 11, 76);
+  if (secondWeapon(player)) drawWeaponIcon(secondWeapon(player), 23, 76); // DUAL WEAPON
   const mult = hpMult();
   if (mult > 1) {
     // thicker HP (armors, ILMUKEBAL): an X badge above the HP bar and the real HP below the weapon icon
@@ -2253,6 +2310,11 @@ function drawHUD() {
   if (game.bossLocked && !game.train)
     drawBar(26, 12, boss ? (game.state === 'bossintro' ? game.bossBar : (boss.hp * 28) / boss.maxHp) : 0, '#f87858');
   if (game.bossLocked && boss && boss.hp > 0) drawWeakness();
+  if (game.midLock) {
+    // a guardian's HP, where a boss's is
+    const g = bosses.find(o => o.mid);
+    drawBar(26, 12, g ? (g.hp * 28) / g.maxHp : 0, '#c878f8');
+  }
   text(String(game.score).padStart(7, '0'), VW - 8, 8, '#fcfcfc', 1, 'right');
   text('LIFE ' + livesText(), VW - 8, 20, game.infLives ? '#f8d800' : '#a8c8f8', 1, 'right');
   if (game.train) drawTrainingHUD();
@@ -2271,7 +2333,17 @@ function drawHUD() {
       if (it.key === 'hyper')
         for (let k = 0; k < HYPER_HITS; k++) R(x + k * 2.4, 48, 2, 2, player.hyperCd[k] > 0 ? '#1c3a4a' : '#78f8fc');
     });
-  if (game.popup > 0) text(WEAPONS[player.weapon].name, VW / 2, 14, WEAPONS[player.weapon].pal.b, 1, 'center');
+  if (game.popup > 0) {
+    const w2 = secondWeapon(player);
+    text(
+      WEAPONS[player.weapon].name + (w2 ? ' + ' + WEAPONS[w2].name : ''),
+      VW / 2,
+      14,
+      WEAPONS[player.weapon].pal.b,
+      1,
+      'center',
+    );
+  }
   if (game.note && game.note.t > 0 && (game.note.t > 40 || (frameCount >> 2) & 1)) {
     const w = textWidth(game.note.text);
     R(VW / 2 - w / 2 - 6, 48, w + 12, 15, 'rgba(5,5,20,0.8)');
@@ -2872,7 +2944,9 @@ function drawMap() {
       : !open
         ? 'TERKUNCI'
         : CONTINENTS[i].stages.filter(k => save.cleared[k]).length +
-          '/6 BOSS' +
+          '/' +
+          CONTINENTS[i].stages.length +
+          ' BOSS' +
           (continentCleared(i) ? '  SELESAI' : '');
     text(info, cx, 173, real && open ? CONTINENTS[i].color : '#686878', 1, 'center');
     if (real && open) {
@@ -2919,6 +2993,8 @@ const SEL_POS = [
   [1, 1],
   [2, 1],
 ];
+// the panels of a continent of n bosses: two rows of three, or one row in the middle for a continent of three
+const selPositions = n => (n > 3 ? SEL_POS.slice(0, n) : Array.from({ length: n }, (q, i) => [i, 0.5]));
 const PW = 116,
   PH = 70,
   SEL_X0 = (VW - (3 * PW + 16)) / 2;
@@ -2936,9 +3012,10 @@ function drawSelect() {
   text('POIN ' + fmtNum(save.points), VW - 10, 14, '#f8d800', 1, 'right');
   drawArmorIcon(10, 12, armors > 0);
   text('ARMOR ' + armors + '/' + cont.stages.length, 24, 14, armors ? '#78f8fc' : '#686878');
+  const pos = selPositions(cont.stages.length);
   cont.stages.forEach((k, i) => {
-    const px = SEL_X0 + SEL_POS[i][0] * (PW + 8),
-      py = 32 + SEL_POS[i][1] * (PH + 8),
+    const px = SEL_X0 + pos[i][0] * (PW + 8),
+      py = 32 + pos[i][1] * (PH + 8),
       st = STAGES[k],
       cleared = save.cleared[k];
     R(px - 2, py - 2, PW + 4, PH + 4, '#0a0a16');
@@ -3317,6 +3394,42 @@ function drawPartIcon(key, x, y) {
           [3, 3, 8, 8, '#f8d800'],
         ],
         [[5, 5, 4, 4, '#fcfcfc']],
+      );
+      break;
+    case 'twin': // two ultra stars, one behind the other
+      sprite(
+        x,
+        y,
+        1,
+        14,
+        [
+          [2, 0, 3, 9, '#c88a00'],
+          [0, 3, 8, 3, '#c88a00'],
+          [8, 5, 3, 9, '#f8b800'],
+          [5, 8, 9, 3, '#f8d800'],
+        ],
+        [
+          [3, 4, 1, 1, '#fcfcfc'],
+          [9, 9, 1, 1, '#fcfcfc'],
+        ],
+      );
+      break;
+    case 'dual': // two cannons side by side, blue and orange
+      sprite(
+        x,
+        y,
+        1,
+        14,
+        [
+          [0, 2, 10, 4, '#3cbcfc'],
+          [2, 8, 10, 4, '#f8a838'],
+          [10, 3, 3, 2, '#1a6aa8'],
+          [12, 9, 2, 2, '#a85818'],
+        ],
+        [
+          [2, 3, 5, 1, '#c8f0fc'],
+          [4, 9, 5, 1, '#fcd8a8'],
+        ],
       );
       break;
   }
@@ -3727,6 +3840,7 @@ function drawPause() {
       if (owned.includes(k)) drawWeaponIcon(k, x + 4, y + 4);
       else text('?', x + 7, y + 6, '#4a4a60');
       if (k === player.weapon) R(x + 4, y + 15.5, 10, 1.5, '#3cbcfc');
+      else if (k === secondWeapon(player)) R(x + 4, y + 15.5, 10, 1.5, '#f8a838'); // DUAL WEAPON's second
     });
   });
   drawScrollMarks(186, 44, PAUSE_ROWS * 21 - 4, first > 0, first + PAUSE_ROWS < grid.length);
@@ -3736,8 +3850,12 @@ function drawPause() {
   if (it === 'exit')
     text(game.train ? (inArena() ? 'AKHIRI ARENA' : 'AKHIRI LATIHAN') : 'KEMBALI KE STAGE SELECT', 20, iy, '#8888a0');
   else if (owned.includes(it)) {
+    const w2 = secondWeapon(player);
     text(WEAPONS[it].name, 20, iy, '#fcfcfc');
-    text('CHARGE: ' + (WEAPONS[it].charged || 'BUSTER + STORM'), 20, iy + 11, '#8888a0');
+    // with DUAL WEAPON: the second weapon instead of the charge shot's name
+    if (hasPart('dual'))
+      text(w2 ? 'KE-2: ' + WEAPONS[w2].name : 'KE-2: BELUM DIPILIH (C)', 20, iy + 11, w2 ? '#f8a838' : '#8888a0');
+    else text('CHARGE: ' + (WEAPONS[it].charged || 'BUSTER + STORM'), 20, iy + 11, '#8888a0');
   } else {
     text('BELUM DIDAPAT', 20, iy, '#a87878');
     text('KALAHKAN ' + BOSSES[it].name, 20, iy + 11, '#8888a0');
@@ -3766,6 +3884,7 @@ function drawPause() {
     [
       ['ARAH', 'PILIH'],
       ['ENTER', 'PAKAI / ON-OFF'],
+      ...(hasPart('dual') ? [['C', 'SENJATA KE-2']] : []),
       ['ESC', 'LANJUT'],
     ],
     207,
@@ -3828,7 +3947,8 @@ function validateContent() {
   const warn = m => console.warn('[neobuster] ' + m);
   const keys = new Set();
   for (const c of CONTINENTS) {
-    if (c.stages.length !== 6) warn(`benua ${c.name} punya ${c.stages.length} stage (harus 6)`);
+    if (c.stages.length !== 6 && c.stages.length !== 3)
+      warn(`benua ${c.name} punya ${c.stages.length} stage (harus 6, atau 3 untuk benua yang lebih sulit)`);
     for (const k of c.stages) {
       if (keys.has(k)) warn(`stage ${k} dipakai dua kali`);
       keys.add(k);

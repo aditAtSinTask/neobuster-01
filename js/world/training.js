@@ -162,8 +162,9 @@ const TRAIN_POOL = [
   [1, ['met', 'flyer', 'hopper', 'gearbot']],
   [3, ['blader', 'watcher', 'totem', 'fanbot']],
   [5, ['snowman', 'speakerbot', 'prismo', 'shade', 'mole', 'turret']],
+  [7, ['orbiter', 'gravbot', 'magmine', 'polebot', 'starling', 'gateling']],
 ];
-const TRAIN_AIR = new Set(['flyer', 'blader', 'watcher', 'fanbot', 'shade']);
+const TRAIN_AIR = new Set(['flyer', 'blader', 'watcher', 'fanbot', 'shade', 'orbiter', 'magmine', 'starling']);
 
 function startTraining() {
   startStage('train');

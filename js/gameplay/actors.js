@@ -33,7 +33,7 @@ const game = {
   resetArm: 0, // title screen: frames left to press R again and wipe the progress
 };
 const door = { open: 0, solid: true, phase: '' };
-const player = { weapon: 'buster' };
+const player = { weapon: 'buster', weapon2: null, echo: [] }; // weapon2: DUAL WEAPON's second weapon
 let enemies = [],
   pshots = [],
   eshots = [],
@@ -346,7 +346,7 @@ function fireBuster(p, lvl, storm = true) {
 // buster storm (full charge): for 40 frames a swarm of small shots pours in from the screen edge behind the player
 function updateStorm(p) {
   if (!p.storm) return;
-  if (p.weapon !== 'buster' || !alive(p)) {
+  if ((p.weapon !== 'buster' && secondWeapon(p) !== 'buster') || !alive(p)) {
     p.storm = 0;
     return;
   }
@@ -617,8 +617,10 @@ function fireCharged(p) {
 // faster than a dash (2.6), so the player can never get ahead of it
 const ULTRA_SWEEP = 4.5;
 const ultraFront = (f, w) => (f > 0 ? pcx() + 16 - w : pcx() - 16);
-function fireUltra(p) {
-  if (pshots.some(s => s.ultra)) return false; // one at a time
+function fireUltra(p, force = false) {
+  // one at a time (an ultra fired in this same step, by the first weapon of a DUAL WEAPON pair, does not count;
+  // force: the repeat of TWIN ULTRA)
+  if (!force && pshots.some(s => s.ultra && s.t > 0)) return false;
   const f = p.facing,
     W_ = WEAPONS[p.weapon];
   if (W_ && W_.ultra) W_.ultra(p);
@@ -884,31 +886,73 @@ function chargeTick(p) {
 }
 // the charge survives getting hit and sliding: a release that happens then fires as soon as the player can shoot again
 function handleShoot(p, canFire) {
-  const special = p.weapon !== 'buster';
-  if (hit.shoot && canFire) {
-    // Omega Booster: every tap is an ultra attack (a charged shot while the previous ultra is still going)
-    if (hasPart('omega')) {
-      if (!fireUltra(p)) {
-        if (!special) fireBuster(p, 2, false);
-        else if (!fireCharged(p)) fireSpecial(p);
-      }
-    } else if (hasPart('super')) {
-      if (!special) fireBuster(p, 2, false);
-      else if (!fireCharged(p)) fireSpecial(p);
-    } // Super Booster: every tap is a charged shot
-    else if (special) fireSpecial(p);
-    else fireBuster(p, 0);
-  }
+  if (hit.shoot && canFire) withSecond(p, () => tapShot(p));
   if (inp.shoot) chargeTick(p);
   else if (p.charge > 0 && canFire) {
-    if (p.charge >= ULTRA_CHARGE && hasPart('ultra') && fireUltra(p)) {
-      /* ultra attack */
-    } else if (special) {
-      if (p.charge >= 75) fireCharged(p);
-    } else if (p.charge >= 75) fireBuster(p, 2);
-    else if (p.charge >= 30) fireBuster(p, 1);
+    const charge = p.charge;
+    withSecond(p, () => releaseShot(p, charge));
     p.charge = 0;
   }
+}
+// a tap of the shoot button
+function tapShot(p) {
+  const special = p.weapon !== 'buster';
+  if (hasPart('omega')) {
+    // Omega Booster: every tap is an ultra attack (a charged shot while the previous ultra is still going)
+    if (!ultraShot(p)) {
+      if (!special) fireBuster(p, 2, false);
+      else if (!fireCharged(p)) fireSpecial(p);
+    }
+  } else if (hasPart('super')) {
+    // Super Booster: every tap is a charged shot
+    if (!special) fireBuster(p, 2, false);
+    else if (!fireCharged(p)) fireSpecial(p);
+  } else if (special) fireSpecial(p);
+  else fireBuster(p, 0);
+}
+// letting go of a charge
+function releaseShot(p, charge) {
+  if (charge >= ULTRA_CHARGE && hasPart('ultra') && ultraShot(p)) return;
+  if (p.weapon !== 'buster') {
+    if (charge >= 75) fireCharged(p);
+  } else if (charge >= 75) fireBuster(p, 2);
+  else if (charge >= 30) fireBuster(p, 1);
+}
+// DUAL WEAPON (shop part): the second weapon picked in the pause menu shoots along with the first, each its own shot
+const secondWeapon = p =>
+  hasPart('dual') && p.weapon2 && p.weapon2 !== p.weapon && ownedWeapons().includes(p.weapon2) ? p.weapon2 : null;
+function withSecond(p, fire) {
+  fire();
+  const w2 = secondWeapon(p);
+  if (!w2) return;
+  const w = p.weapon;
+  p.weapon = w2;
+  try {
+    fire();
+  } finally {
+    p.weapon = w;
+  }
+}
+// an ultra attack; with TWIN ULTRA (shop part) the same ultra comes again TWIN_DELAY frames later
+const TWIN_DELAY = 40;
+function ultraShot(p) {
+  if (!fireUltra(p)) return false;
+  if (hasPart('twin')) p.echo.push({ w: p.weapon, t: TWIN_DELAY });
+  return true;
+}
+function updateEcho(p) {
+  if (!p.echo.length) return;
+  for (const e of p.echo)
+    if (--e.t === 0 && ownedWeapons().includes(e.w)) {
+      const w = p.weapon;
+      p.weapon = e.w;
+      try {
+        fireUltra(p, true);
+      } finally {
+        p.weapon = w;
+      }
+    }
+  p.echo = p.echo.filter(e => e.t > 0);
 }
 
 const isRock = s => s.kind === 'rock' || s.kind === 'bigrock';
@@ -1228,7 +1272,7 @@ function hitBoss(s, b = boss) {
     sfx.weakHit();
     game.flash = 4;
     b.weakAt = game.time;
-    if (b.state !== 'slide' || b.h === 24) {
+    if (!def.steady && (b.state !== 'slide' || b.h === 24)) {
       b.state = 'stagger';
       b.t = 0;
       b.vx = 0;
@@ -1364,17 +1408,34 @@ function beltUnder(e) {
 }
 // body centre inside water ('W' tiles): lighter gravity and slow sinking
 const inWater = e => tileAt(Math.floor((e.x + e.w / 2) / TILE), Math.floor((e.y + e.h / 2) / TILE)) === 'W';
+// gravity fields (Gravion's observatory): rectangles of the level, B.add('gzone', x, y, { x1, y1, kind }), where
+// gravity pulls up instead of down (kind 'flip': you fall onto the ceiling and walk along it) or only weakly ('low':
+// slow falls and long, high jumps). By the body's middle, like the water. gravAt: 1 down, -1 up
+const gravZones = () => (level ? level.gz || (level.gz = level.ents.filter(e => e.type === 'gzone')) : []);
+function inGravZone(e, kind) {
+  const cx = (e.x + e.w / 2) / TILE,
+    cy = (e.y + e.h / 2) / TILE;
+  return gravZones().some(z => z.kind === kind && cx >= z.x && cx < z.x1 + 1 && cy >= z.y && cy < z.y1 + 1);
+}
+// a boss can flip the gravity of its whole room for the player (Gravion: game.roomFlip, while its flipOn lasts)
+const roomFlipped = () => !!(game.roomFlip && game.roomFlip.flipOn && bosses.includes(game.roomFlip));
+const gravAt = e => ((e === player && roomFlipped()) || inGravZone(e, 'flip') ? -1 : 1);
+const lowGravAt = e => inGravZone(e, 'low');
 function applyGravity(p) {
-  const water = inWater(p);
-  p.vy = Math.min(p.vy + (water ? 0.15 : 0.25), water ? 2.6 : 7);
+  const water = inWater(p),
+    gd = gravAt(p), // in a flipped field gravity pulls up: the ceiling is the floor
+    low = lowGravAt(p),
+    g = water ? 0.15 : low ? 0.12 : 0.25,
+    max = water ? 2.6 : low ? 2.4 : 7;
+  p.vy = gd > 0 ? Math.min(p.vy + g, max) : Math.max(p.vy - g, -max);
   if (water && frameCount % 24 === 0) part({ kind: 'bubble', x: p.x + p.w / 2, y: p.y + 4, vx: 0, vy: -0.5, life: 50 });
-  const sand = inSand(p);
+  const sand = gd > 0 && inSand(p);
   if (sand && p.vy > 0.3) p.vy = 0.3; // sinking slowly; checkHazards kills once the head goes under
   const wasGround = p.onGround;
-  const r = moveY(p, p.vy, true);
-  let landed = r === 1;
+  const r = moveY(p, p.vy, gd > 0); // ledges hold only a fall downward
+  let landed = r === gd;
   p.plat = null;
-  if (!landed && p.vy >= 0) {
+  if (!landed && gd > 0 && p.vy >= 0) {
     for (const pl of plats) {
       if (p.x + p.w > pl.x && p.x < pl.x + pl.w && p.y + p.h - p.vy <= pl.y + 1 && p.y + p.h >= pl.y) {
         p.y = pl.y - p.h;
@@ -1384,7 +1445,7 @@ function applyGravity(p) {
       }
     }
   }
-  if (landed && padUnder(p)) {
+  if (landed && gd > 0 && padUnder(p)) {
     // updraft pad: launched high, the jump button does not cut this one short
     p.vy = -8;
     p.onGround = false;
@@ -1392,9 +1453,9 @@ function applyGravity(p) {
     sfx.whoosh();
     dust(p.x + p.w / 2, p.y + p.h, 4);
   } else if (landed) {
-    if (!wasGround && p.vy > 2) {
+    if (!wasGround && Math.abs(p.vy) > 2) {
       sfx.land();
-      dust(p.x + p.w / 2, p.y + p.h, 2);
+      dust(p.x + p.w / 2, gd > 0 ? p.y + p.h : p.y, 2);
     }
     p.vy = 0;
     p.onGround = true;
@@ -1403,7 +1464,7 @@ function applyGravity(p) {
     p.onGround = true; // can still jump (weaker) out of the sand
   else {
     p.onGround = false;
-    if (r === -1) p.vy = 0;
+    if (r === -gd) p.vy = 0; // bumped the head (on the floor, when walking the ceiling)
   }
 }
 
@@ -1486,6 +1547,11 @@ function updatePlayer() {
   updateStorm(p);
   updateShield(p);
   updateAura(p);
+  if (alive(p)) {
+    updateEcho(p);
+    const fa = p.flipA === undefined ? 1 : p.flipA; // the sprite turning over in a flipped gravity field
+    p.flipA = fa + clamp(gravAt(p) - fa, -0.34, 0.34);
+  }
   if (p.stun > 0 && alive(p)) {
     // frozen in time by a boss: no control for a moment
     p.stun--;
@@ -1507,8 +1573,9 @@ function updatePlayer() {
   p.jumpT++;
   const sand = inSand(p);
   const jet = hasPart('jet'); // Jetpack: higher jumps
+  const gd = gravAt(p); // 1, or -1 in a flipped gravity field: jumps go down, away from the ceiling walked on
   const doJump = () => {
-    p.vy = (sand ? -4.3 : -4.9) * (jet ? 1.27 : 1);
+    p.vy = (sand ? -4.3 : -4.9) * (jet ? 1.27 : 1) * gd;
     p.onGround = false;
     if (jet) sfx.jet();
     p.plat = null;
@@ -1518,13 +1585,13 @@ function updatePlayer() {
   };
   // Step Jump (shop part): jump again off a step of light in mid-air; each one is a new jump, so the air dash comes back
   // too. canStep: the jump it starts (a full one, higher with the Jetpack) keeps the feet under the roofs near here
-  const canStep = () => p.y + p.h - (jet ? 78 : 48) >= stepCeiling();
+  const canStep = () => gd < 0 || p.y + p.h - (jet ? 78 : 48) >= stepCeiling();
   const stepJump = () => {
     doJump();
     p.launched = false;
     p.airDashed = false;
     sfx.step();
-    part({ kind: 'step', x: p.x + p.w / 2, y: p.y + p.h, life: 14 });
+    part({ kind: 'step', x: p.x + p.w / 2, y: gd > 0 ? p.y + p.h : p.y, life: 14 });
   };
   // no step to jump off here (under a roof's reach): a faint fizzle under the feet, so the press does not feel lost
   const stepFizzle = () => {
@@ -1665,7 +1732,7 @@ function updatePlayer() {
   if (dir) p.facing = dir;
   runTo(dir * (sand ? 0.6 : 1.4), 0.05);
   // a slide: the slide button, or jump while holding down on a keyboard or a gamepad (not the touch d-pad)
-  if (p.onGround && !sand && (hit.slide || (p.jumpBuf > 0 && inp.downKey))) {
+  if (p.onGround && !sand && gd > 0 && (hit.slide || (p.jumpBuf > 0 && inp.downKey))) {
     p.jumpBuf = 0;
     startSlide(p);
     return;
@@ -1674,14 +1741,14 @@ function updatePlayer() {
     startAirDash(p, dir);
     return;
   }
-  if (p.jumpBuf > 0 && (p.onGround || p.coyote > 0) && p.vy >= 0) doJump();
+  if (p.jumpBuf > 0 && (p.onGround || p.coyote > 0) && p.vy * gd >= 0) doJump();
   else if (hit.jump && !p.onGround && p.coyote <= 0 && hasPart('stepjump')) {
     if (canStep()) stepJump();
     else stepFizzle();
   }
   // releasing jump cuts the jump short, but only after a minimum hop so quick taps still jump
-  if (p.vy >= 0) p.launched = false;
-  if (!inp.jump && p.vy < 0 && p.jumpT > 6 && !p.launched) p.vy = 0;
+  if (p.vy * gd >= 0) p.launched = false;
+  if (!inp.jump && p.vy * gd < 0 && p.jumpT > 6 && !p.launched) p.vy = 0;
   if (moveX(p, p.vx) && onIce) p.vx = 0;
   applyGravity(p);
   // the running cycle advances with the distance run (in 1.4 px steps, the running speed it was timed for), so the
@@ -1753,13 +1820,14 @@ function killPlayer(withOrbs) {
 function checkHazards() {
   const p = player;
   if (!alive(p) || p.state === 'beam' || p.state === 'land') return;
-  if (p.y > LH * TILE + 16) {
+  if (p.y > LH * TILE + 16 || p.y + p.h < -16) {
     killPlayer(false);
     return;
   }
   const x0 = Math.floor(p.x / TILE),
     x1 = Math.floor((p.x + p.w - 1) / TILE);
-  const y0 = Math.floor(p.y / TILE),
+  // the row under the feet counts (standing on spikes); walking a ceiling, the row over the head does too
+  const y0 = Math.floor((p.y - (gravAt(p) < 0 ? 1 : 0)) / TILE),
     y1 = Math.floor((p.y + p.h) / TILE);
   for (let ty = y0; ty <= y1; ty++)
     for (let tx = x0; tx <= x1; tx++) {
@@ -1962,6 +2030,7 @@ const EN = {
     w: 16,
     h: 16,
     hp: 4,
+    fixed: true, // set in place: pulling weapons (Noctara) leave it where it is
     dmg: 3,
     score: 300,
     init(e) {
@@ -2080,6 +2149,7 @@ const EN = {
   },
   totem: {
     // fire: stone idol that lobs two arcing fireballs
+    fixed: true,
     w: 16,
     h: 24,
     hp: 4,
@@ -4459,8 +4529,8 @@ function updateBoss(b) {
   if (b.state === 'drop') {
     physics(b);
     if (b.onGround) {
-      // a boss room's boss poses for its intro; in the Boss Arena they come straight at the player
-      b.state = inArena() ? 'idle' : 'pose';
+      // a boss room's boss poses for its intro; in the Boss Arena (and a guardian) they come straight at the player
+      b.state = inArena() || b.mid ? 'idle' : 'pose';
       b.t = 0;
       sfx.land();
       dust(bcx(b), b.y + b.h, 4);
@@ -4496,6 +4566,12 @@ function defeatBoss(b = boss) {
   sfx.bigBoom();
   game.flash = 10;
   bosses = bosses.filter(o => o !== b);
+  if (b.mid) {
+    // a stage's guardian (its room opens again: HAZARD_KINDS.midroom)
+    addScore(BOSSES[b.type].mid.points);
+    pickups.push(makePickup('E', bcx(b), Math.min(b.y + b.h, b.room.floor) - 14));
+    return;
+  }
   if (inArena()) {
     arenaBossDown(b); // the Boss Arena (js/world/arena.js): the others fight on
     return;
@@ -4509,6 +4585,84 @@ function defeatBoss(b = boss) {
   game.t = 0;
   stopMusic();
 }
+
+// ---- guardians (mid-bosses, Noctara): a fight halfway through a stage ----
+// B.add('midroom', x0, floor, { boss }): a room one screen wide (24 columns) from column x0, its floor top on row
+// `floor`, closed at both ends by gates in columns x0 and x0 + 23 (3 tiles high, on the floor). Walking in shuts the
+// gates, holds the camera on the room and brings the guardian BOSSES[boss] in (its `mid`: { w, h, hp, points }, and
+// spawn(b) to place it; its update reads the room from b.room). Beating it opens the gates again; a guardian beaten
+// stays beaten until the stage is left (game.midDone), so a checkpoint after its room does not bring it back.
+Object.assign(HAZARD_KINDS, {
+  midroom: {
+    make(d) {
+      return {
+        x: d.x * TILE,
+        y: (d.y - 10) * TILE,
+        w: 24 * TILE,
+        h: 10 * TILE,
+        x0: d.x,
+        floor: d.y,
+        boss: d.boss,
+        state: game.midDone && game.midDone[d.x] ? 'done' : 'wait',
+        gateT: 0,
+        b: null,
+      };
+    },
+    update(h) {
+      const p = player,
+        gates = c => {
+          for (const x of [h.x0, h.x0 + 23])
+            for (let y = h.floor - 3; y < h.floor; y++) map[y][x] = c ? '=' : level.orig[y][x];
+        };
+      if (h.gateT > 0) h.gateT--;
+      if (h.state === 'wait') {
+        const cx = p.x + p.w / 2;
+        if (!alive(p) || cx < (h.x0 + 2) * TILE || cx > (h.x0 + 22) * TILE) return;
+        if (p.y + p.h > h.floor * TILE + 2 || p.y < (h.floor - 12) * TILE) return;
+        gates(true);
+        h.gateT = 16;
+        sfx.door();
+        game.midLock = { x: h.x0 * TILE, y: (h.floor + 4) * TILE - VH };
+        const def = BOSSES[h.boss],
+          b = makeBoss(h.boss, (h.x0 + 15) * TILE, (h.floor - 9) * TILE, def.mid.hp);
+        Object.assign(b, {
+          w: def.mid.w,
+          h: def.mid.h,
+          mid: true,
+          room: { l: (h.x0 + 1) * TILE, r: (h.x0 + 23) * TILE, floor: h.floor * TILE, ceil: (h.floor - 9) * TILE },
+        });
+        if (def.spawn) def.spawn(b);
+        bosses.push(b);
+        h.b = b;
+        h.state = 'fight';
+        playMusic('boss');
+      } else if (h.state === 'fight' && !bosses.includes(h.b)) {
+        gates(false);
+        h.gateT = 16;
+        h.state = 'done';
+        game.midLock = null;
+        game.midDone[h.x0] = true;
+        sfx.door();
+        playMusic(STAGES[game.stage].music);
+      }
+    },
+    // the gates: energy barriers that slam down out of the wall while the guardian fights
+    draw(h) {
+      if (h.state !== 'fight' && !h.gateT) return;
+      const k = h.state === 'fight' ? 1 - h.gateT / 16 : h.gateT / 16;
+      for (const x of [h.x0, h.x0 + 23]) {
+        const sx = x * TILE - camX,
+          sy = (h.floor - 3) * TILE - camY,
+          hh = Math.round(48 * k);
+        R(sx + 2, sy, 12, hh, '#1a1030');
+        for (let y = 2; y < hh; y += 6) R(sx + 3, sy + y, 10, 2, (frameCount + y) & 8 ? '#c878f8' : '#8858d8');
+        R(sx + 2, sy, 1, hh, '#e8c8fc');
+        R(sx + 13, sy, 1, hh, '#e8c8fc');
+        glow(sx + 8, sy + hh / 2, 18, '#a868f8', 0.35 * k);
+      }
+    },
+  },
+});
 
 // ================= PICKUPS =================
 function makePickup(kind, cx, y, placed = null) {
